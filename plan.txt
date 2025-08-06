@@ -1,0 +1,13 @@
+Objective: N number of traders can access the website where they choose their account and wait for the ticks to come and run independent strategies, thus Many User -> Many Strategy relation can be followed.
+
+Key Points: Isolated instance memory -> each user should only be concerned with their data and strategy based parameters. no towo user should be able to modifythe data of each others running strategy parameters
+
+Steps:
+1. User goes to localhost:3000, choses account.
+2. gets redirected to dashboard, chooses strategy, applies parameters, each parameter must have  its own update button, which would update the strategy parameter corresponding to it
+3. after applying strategy it will wait to recieve ticks and process the ticks to work according to the strategy
+4. functions pertaining to buy and sell should be created in a util file
+
+logs for each user must be stored in user specific files named based on their user_id (from mongodb)
+
+use react and node if required, make sure the users are isolated and do not share same state or memory.

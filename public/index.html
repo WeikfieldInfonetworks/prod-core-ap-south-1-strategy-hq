@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Selection - Strategy HQ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+        }
+
+        .user-selection {
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .user-info h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .logo {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">Strategy HQ</div>
+        <div class="subtitle">Select your user profile to continue</div>
+        
+        <div class="user-selection">
+            <div class="form-group">
+                <label for="userSelect">Choose User:</label>
+                <select id="userSelect">
+                    <option value="">-- Select a user --</option>
+                </select>
+            </div>
+            
+            <button class="btn" id="selectBtn" onclick="selectUser()" disabled>
+                Select User
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Loading user data...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <div class="user-info" id="userInfo">
+            <h3>Selected User Information</h3>
+            <div class="info-row">
+                <span class="info-label">User ID:</span>
+                <span class="info-value" id="userId"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Name:</span>
+                <span class="info-value" id="userName"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">API Key:</span>
+                <span class="info-value" id="apiKey"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Secret Key:</span>
+                <span class="info-value" id="secretKey"></span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Access Token:</span>
+                <span class="info-value" id="accessToken"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let users = [];
+        const userSelect = document.getElementById('userSelect');
+        const selectBtn = document.getElementById('selectBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const success = document.getElementById('success');
+        const userInfo = document.getElementById('userInfo');
+
+        // Fetch users from API
+        async function fetchUsers() {
+            try {
+                showLoading();
+                const response = await fetch('/api/users');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch users');
+                }
+                users = await response.json();
+                populateUsers();
+                hideLoading();
+            } catch (error) {
+                console.error('Error fetching users:', error);
+                showError('Failed to load users. Please try again.');
+                hideLoading();
+            }
+        }
+
+        // Populate user dropdown
+        function populateUsers() {
+            // Clear existing options except the first one
+            while (userSelect.children.length > 1) {
+                userSelect.removeChild(userSelect.lastChild);
+            }
+            
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.user_id;
+                option.textContent = `${user.name} (${user.user_id})`;
+                userSelect.appendChild(option);
+            });
+        }
+
+        // Handle user selection change
+        userSelect.addEventListener('change', function() {
+            selectBtn.disabled = !this.value;
+            hideMessages();
+            hideUserInfo();
+        });
+
+        // Select user and store in session
+        async function selectUser() {
+            const selectedUserId = userSelect.value;
+            if (!selectedUserId) {
+                showError('Please select a user first.');
+                return;
+            }
+
+            const selectedUser = users.find(user => user.user_id === selectedUserId);
+            if (!selectedUser) {
+                showError('Selected user not found.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                // Fetch complete user data including secret_key
+                const response = await fetch(`/api/users/${selectedUserId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user details');
+                }
+                
+                const completeUser = await response.json();
+                hideLoading();
+                
+                // Store user data in session storage
+                sessionStorage.setItem('selectedUser', JSON.stringify(completeUser));
+                sessionStorage.setItem('user_id', completeUser.user_id);
+                sessionStorage.setItem('api_key', completeUser.api_key);
+                sessionStorage.setItem('secret_key', completeUser.secret_key);
+                sessionStorage.setItem('access_token', completeUser.access_token);
+
+                showSuccess('User selected successfully! Redirecting to dashboard...');
+                displayUserInfo(completeUser);
+                
+                // Enable kite object creation (you can redirect or show next step)
+                console.log('User data stored in session:', completeUser);
+                console.log('Ready to create kite object with stored credentials');
+                
+                // Redirect to dashboard after 2 seconds
+                setTimeout(() => {
+                    window.location.href = '/dashboard.html';
+                }, 2000);
+            } catch (error) {
+                console.error('Error selecting user:', error);
+                hideLoading();
+                showError('Failed to select user. Please try again.');
+            }
+        }
+
+        function displayUserInfo(user) {
+            document.getElementById('userId').textContent = user.user_id;
+            document.getElementById('userName').textContent = user.name;
+            document.getElementById('apiKey').textContent = user.api_key;
+            document.getElementById('secretKey').textContent = user.secret_key;
+            document.getElementById('accessToken').textContent = user.access_token;
+            userInfo.style.display = 'block';
+        }
+
+        function hideUserInfo() {
+            userInfo.style.display = 'none';
+        }
+
+        function showLoading() {
+            loading.style.display = 'block';
+            hideMessages();
+        }
+
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+
+        function showError(message) {
+            error.textContent = message;
+            error.style.display = 'block';
+            success.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            success.textContent = message;
+            success.style.display = 'block';
+            error.style.display = 'none';
+        }
+
+        function hideMessages() {
+            error.style.display = 'none';
+            success.style.display = 'none';
+        }
+
+        // Check if user is already selected
+        function checkExistingSession() {
+            const existingUser = sessionStorage.getItem('selectedUser');
+            if (existingUser) {
+                const user = JSON.parse(existingUser);
+                userSelect.value = user.user_id;
+                selectBtn.disabled = false;
+                displayUserInfo(user);
+                showSuccess('User already selected from previous session.');
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchUsers();
+            checkExistingSession();
+        });
+    </script>
+</body>
+</html>

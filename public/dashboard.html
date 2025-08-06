@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategy Dashboard - Strategy HQ</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 140px);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #e1e5e9;
+            padding-bottom: 10px;
+        }
+
+        .strategy-selector {
+            margin-bottom: 30px;
+        }
+
+        .strategy-dropdown {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .strategy-dropdown:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .strategy-description {
+            margin-top: 10px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .parameters-section {
+            margin-bottom: 30px;
+        }
+
+        .parameter-group {
+            margin-bottom: 20px;
+        }
+
+        .parameter-group h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .parameter-item {
+            margin-bottom: 15px;
+        }
+
+        .parameter-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .parameter-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .parameter-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .parameter-description {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 3px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-connected .status-dot {
+            background: #28a745;
+        }
+
+        .status-disconnected .status-dot {
+            background: #dc3545;
+        }
+
+        .tick-data {
+            margin-bottom: 30px;
+        }
+
+        .tick-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .tick-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .tick-symbol {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .tick-price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .tick-time {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .strategy-output {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .output-title {
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .output-content {
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #555;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Strategy HQ</div>
+        <div class="user-info">
+            <div class="user-avatar" id="userAvatar">U</div>
+            <div class="user-name" id="userName">User</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="dashboard-grid">
+            <div class="sidebar">
+                <div class="status-indicator" id="connectionStatus">
+                    <div class="status-dot"></div>
+                    <span>Connecting...</span>
+                </div>
+
+                <div class="strategy-selector">
+                    <h3 class="section-title">Strategy Selection</h3>
+                    <select class="strategy-dropdown" id="strategySelect">
+                        <option value="">Select a strategy...</option>
+                    </select>
+                    <div class="strategy-description" id="strategyDescription" style="display: none;">
+                        Select a strategy to see its description and configuration options.
+                    </div>
+                </div>
+
+                <div class="parameters-section">
+                    <h3 class="section-title">Strategy Parameters</h3>
+                    <div id="globalParameters">
+                        <div class="parameter-group">
+                            <h4>Global Parameters</h4>
+                            <div id="globalParamsList">
+                                <p style="color: #666; font-style: italic;">Select a strategy to configure parameters</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="universalParameters">
+                        <div class="parameter-group">
+                            <h4>Universal Parameters</h4>
+                            <div id="universalParamsList">
+                                <p style="color: #666; font-style: italic;">Select a strategy to configure parameters</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" id="applyStrategy" disabled>
+                    Apply Strategy
+                </button>
+            </div>
+
+            <div class="main-content">
+                <h3 class="section-title">Live Market Data</h3>
+                
+                <div class="tick-data">
+                    <div id="selectedInstrumentInfo" style="display: none;">
+                        <div class="tick-card" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; margin-bottom: 20px;">
+                            <div class="tick-symbol" style="color: white;">Selected Instrument</div>
+                            <div id="selectedInstrumentSymbol" style="font-size: 1.2rem; font-weight: bold; margin: 10px 0;">-</div>
+                            <div id="selectedInstrumentPrice" style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">₹0.00</div>
+                            <div id="selectedInstrumentStatus" style="font-size: 0.9rem; opacity: 0.9;">Waiting for selection...</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Strategy-specific display -->
+                    <div id="strategySpecificDisplay" style="display: none;">
+                        <!-- Simple Buy Sell Strategy Display -->
+                        <div id="simpleBuySellDisplay" style="display: none;">
+                            <div class="tick-card" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Simple Buy Sell Strategy</div>
+                                <div style="display: flex; justify-content: space-between; margin: 10px 0;">
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Symbol</div>
+                                        <div id="sbsSymbol" style="font-size: 1.3rem; font-weight: bold;">-</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Last Price</div>
+                                        <div id="sbsLastPrice" style="font-size: 1.3rem; font-weight: bold;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Buy Price</div>
+                                        <div id="sbsBuyPrice" style="font-size: 1.3rem; font-weight: bold;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Status</div>
+                                        <div id="sbsStatus" style="font-size: 1.1rem; font-weight: bold;">Waiting...</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 0.9rem; opacity: 0.9;">
+                                    <span id="sbsCycleInfo">Cycle: 0</span> | 
+                                    <span id="sbsDebugMode">Debug: Disabled</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- MTM V2 Strategy Display -->
+                        <div id="mtmV2Display" style="display: none;">
+                            <div class="tick-card" style="background: linear-gradient(135deg, #ff6b6b, #ee5a24); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">MTM V2 Strategy</div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Main Option</div>
+                                        <div id="mtmMainSymbol" style="font-size: 1.2rem; font-weight: bold;">-</div>
+                                        <div id="mtmMainPrice" style="font-size: 1.1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1.1rem; font-weight: bold;">Opposite Option</div>
+                                        <div id="mtmOppSymbol" style="font-size: 1.2rem; font-weight: bold;">-</div>
+                                        <div id="mtmOppPrice" style="font-size: 1.1rem;">₹0.00</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 5px;">
+                                    <div>
+                                        <div style="font-size: 1rem; font-weight: bold;">Total Buy Value</div>
+                                        <div id="mtmTotalBuy" style="font-size: 1.2rem; font-weight: bold;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1rem; font-weight: bold;">Total Current</div>
+                                        <div id="mtmTotalCurrent" style="font-size: 1.2rem; font-weight: bold;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 1rem; font-weight: bold;">Difference</div>
+                                        <div id="mtmDifference" style="font-size: 1.2rem; font-weight: bold;">₹0.00</div>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px; font-size: 0.9rem; opacity: 0.9;">
+                                    <span id="mtmBlockInfo">Block: INIT</span> | 
+                                    <span id="mtmCycleInfo">Cycle: 0</span> | 
+                                    <span id="mtmStatus">Status: Waiting...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="tickGrid" class="tick-grid">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <p>Connecting to market data...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="strategy-output">
+                    <div class="output-title">Strategy Output</div>
+                    <div class="output-content" id="strategyOutput">
+                        No strategy active. Select and apply a strategy to see output.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get user data from session storage
+        const selectedUser = JSON.parse(sessionStorage.getItem('selectedUser') || '{}');
+        
+        // Update user info in header
+        document.getElementById('userName').textContent = selectedUser.name || 'User';
+        document.getElementById('userAvatar').textContent = selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : 'U';
+
+        // Socket.io connection
+        const socket = io('/live');
+        let currentStrategy = null;
+        let availableStrategies = [];
+        let tickData = {};
+        let selectedInstrument = null;
+        let currentUserId = null;
+        let currentUserName = null;
+
+        // Authenticate user with server
+        function authenticateUser() {
+            const selectedUser = JSON.parse(sessionStorage.getItem('selectedUser') || '{}');
+            
+            if (selectedUser.user_id && selectedUser.name && selectedUser.api_key && selectedUser.access_token) {
+                currentUserId = selectedUser.user_id;
+                currentUserName = selectedUser.name;
+                
+                console.log(`🔐 Authenticating user: ${currentUserName} (${currentUserId})`);
+                
+                socket.emit('authenticate_user', {
+                    userId: selectedUser.user_id,
+                    userName: selectedUser.name,
+                    api_key: selectedUser.api_key,
+                    secret_key: selectedUser.secret_key,
+                    access_token: selectedUser.access_token
+                });
+            } else {
+                console.error('❌ Missing user data for authentication');
+                alert('Missing user data. Please select a user first.');
+            }
+        }
+
+        // Connection status
+        socket.on('connect', () => {
+            updateConnectionStatus(true);
+            authenticateUser(); // Authenticate user on connect
+        });
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+        });
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.className = 'status-indicator status-connected';
+                statusEl.innerHTML = '<div class="status-dot"></div><span>Connected to ticks.wmi.co.in</span>';
+            } else {
+                statusEl.className = 'status-indicator status-disconnected';
+                statusEl.innerHTML = '<div class="status-dot"></div><span>Disconnected</span>';
+            }
+        }
+
+        // Handle user authentication
+        socket.on('user_authenticated', (data) => {
+            console.log('✅ User authenticated successfully:', data);
+            currentUserId = data.userId;
+            currentUserName = data.userName;
+        });
+
+        socket.on('authentication_error', (error) => {
+            console.error('❌ Authentication error:', error);
+            alert('Authentication failed: ' + error);
+        });
+
+        // Handle credentials update confirmation
+        socket.on('credentials_updated', (data) => {
+            console.log('User credentials updated successfully');
+        });
+
+        socket.on('credentials_error', (error) => {
+            console.error('Error updating credentials:', error);
+        });
+
+        // Handle node identity
+        socket.on('node_identity', (data) => {
+            console.log('Node identity received:', data);
+            availableStrategies = data.availableStrategies || [];
+            console.log('Available strategies:', availableStrategies);
+            populateStrategyDropdown();
+            
+            if (data.currentStrategy) {
+                currentStrategy = data.currentStrategy;
+                updateStrategyDisplay();
+            }
+        });
+
+        // Handle node updates
+        socket.on('node_update', (data) => {
+            console.log('🔧 Node update received:', data);
+            
+            if (data.tickData) {
+                updateTickDisplay(data.tickData);
+            }
+            
+            if (data.currentStrategy) {
+                console.log('📊 Current strategy data received:', data.currentStrategy);
+                currentStrategy = data.currentStrategy;
+                updateStrategyDisplay();
+                
+                // Update selected instrument from strategy data
+                if (data.currentStrategy.selectedInstrument) {
+                    console.log('🎯 Selected instrument from strategy:', data.currentStrategy.selectedInstrument);
+                    updateSelectedInstrumentDisplay(data.currentStrategy.selectedInstrument);
+                }
+            }
+            
+            // Update selected instrument info if available (direct from data)
+            if (data.selectedInstrument) {
+                console.log('🎯 Selected instrument from data:', data.selectedInstrument);
+                updateSelectedInstrumentDisplay(data.selectedInstrument);
+            }
+            
+            // Update strategy-specific display if strategy data is available
+            if (data.currentStrategy) {
+                updateStrategySpecificData(data.currentStrategy);
+            }
+        });
+
+        // Handle strategy updates
+        socket.on('strategy_updated', (strategyConfig) => {
+            console.log('🔧 Strategy updated:', strategyConfig);
+            currentStrategy = strategyConfig;
+            updateStrategyDisplay();
+        });
+
+        // Handle strategy errors
+        socket.on('strategy_error', (error) => {
+            console.error('Strategy error:', error);
+            alert('Strategy error: ' + error);
+        });
+
+        // Handle parameter update confirmations
+        socket.on('global_dict_parameter_updated', (data) => {
+            console.log('Global parameter updated:', data);
+        });
+
+        socket.on('universal_dict_parameter_updated', (data) => {
+            console.log('Universal parameter updated:', data);
+        });
+
+        socket.on('parameter_error', (error) => {
+            console.error('Parameter error:', error);
+            alert('Parameter error: ' + error);
+        });
+
+        // Update selected instrument display
+        function updateSelectedInstrumentDisplay(instrument) {
+            console.log('🔄 Updating selected instrument display:', instrument);
+            
+            const selectedInstrumentInfo = document.getElementById('selectedInstrumentInfo');
+            const selectedInstrumentSymbol = document.getElementById('selectedInstrumentSymbol');
+            const selectedInstrumentPrice = document.getElementById('selectedInstrumentPrice');
+            const selectedInstrumentStatus = document.getElementById('selectedInstrumentStatus');
+            
+            if (instrument) {
+                selectedInstrument = instrument;
+                selectedInstrumentInfo.style.display = 'block';
+                selectedInstrumentSymbol.textContent = instrument.symbol || 'Unknown';
+                selectedInstrumentPrice.textContent = `₹${instrument.price || 0}`;
+                selectedInstrumentStatus.textContent = 'Instrument selected and being tracked';
+                
+                console.log('✅ Selected instrument display updated:', {
+                    symbol: instrument.symbol,
+                    price: instrument.price,
+                    token: instrument.token
+                });
+            } else {
+                console.log('❌ No instrument data provided for display update');
+            }
+        }
+
+        // Populate strategy dropdown
+        function populateStrategyDropdown() {
+            const select = document.getElementById('strategySelect');
+            const description = document.getElementById('strategyDescription');
+            
+            console.log('Populating strategy dropdown with:', availableStrategies);
+            
+            // Clear existing options
+            select.innerHTML = '<option value="">Select a strategy...</option>';
+            
+            if (availableStrategies.length === 0) {
+                console.log('No strategies available');
+                select.innerHTML = '<option value="">No strategies available</option>';
+                return;
+            }
+            
+            availableStrategies.forEach(strategy => {
+                const option = document.createElement('option');
+                option.value = strategy.name;
+                option.textContent = strategy.name;
+                select.appendChild(option);
+                console.log('Added strategy option:', strategy.name);
+            });
+
+            // Handle strategy selection
+            select.addEventListener('change', function() {
+                const selectedStrategy = availableStrategies.find(s => s.name === this.value);
+                console.log('Strategy selected:', this.value, selectedStrategy);
+                
+                if (selectedStrategy) {
+                    description.textContent = selectedStrategy.description;
+                    description.style.display = 'block';
+                    populateParameters(selectedStrategy);
+                    document.getElementById('applyStrategy').disabled = false;
+                } else {
+                    description.style.display = 'none';
+                    clearParameters();
+                    document.getElementById('applyStrategy').disabled = true;
+                }
+            });
+        }
+
+        // Populate parameters
+        function populateParameters(strategy) {
+            populateParameterSection('globalParamsList', strategy.globalDictParameters || {});
+            populateParameterSection('universalParamsList', strategy.universalDictParameters || {});
+        }
+
+        function populateParameterSection(containerId, parameters) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            if (Object.keys(parameters).length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No parameters available</p>';
+                return;
+            }
+
+            Object.entries(parameters).forEach(([key, param]) => {
+                const paramDiv = document.createElement('div');
+                paramDiv.className = 'parameter-item';
+                
+                const label = document.createElement('label');
+                label.className = 'parameter-label';
+                label.textContent = key;
+                
+                const input = document.createElement('input');
+                input.className = 'parameter-input';
+                input.type = param.type === 'boolean' ? 'checkbox' : 'text';
+                input.value = param.default;
+                input.dataset.paramKey = key;
+                input.dataset.paramType = param.type;
+                
+                const description = document.createElement('div');
+                description.className = 'parameter-description';
+                description.textContent = param.description;
+                
+                // Create individual update button for each parameter
+                const updateButton = document.createElement('button');
+                updateButton.className = 'btn';
+                updateButton.style.cssText = 'margin-top: 5px; padding: 5px 10px; font-size: 0.8rem;';
+                updateButton.textContent = 'Update';
+                updateButton.onclick = function() {
+                    const value = input.type === 'checkbox' ? input.checked : input.value;
+                    const paramType = containerId.includes('global') ? 'global' : 'universal';
+                    
+                    console.log(`Updating ${paramType} parameter: ${key} = ${value}`);
+                    
+                    if (paramType === 'global') {
+                        socket.emit('update_global_dict_parameter', { parameter: key, value: value });
+                    } else {
+                        socket.emit('update_universal_dict_parameter', { parameter: key, value: value });
+                    }
+                    
+                    // Show feedback
+                    updateButton.textContent = 'Updated!';
+                    updateButton.style.background = '#28a745';
+                    setTimeout(() => {
+                        updateButton.textContent = 'Update';
+                        updateButton.style.background = '';
+                    }, 2000);
+                };
+                
+                paramDiv.appendChild(label);
+                paramDiv.appendChild(input);
+                paramDiv.appendChild(description);
+                paramDiv.appendChild(updateButton);
+                container.appendChild(paramDiv);
+            });
+        }
+
+        function clearParameters() {
+            document.getElementById('globalParamsList').innerHTML = '<p style="color: #666; font-style: italic;">Select a strategy to configure parameters</p>';
+            document.getElementById('universalParamsList').innerHTML = '<p style="color: #666; font-style: italic;">Select a strategy to configure parameters</p>';
+        }
+
+        // Update tick display
+        function updateTickDisplay(ticks) {
+            const tickGrid = document.getElementById('tickGrid');
+            
+            if (!Array.isArray(ticks)) {
+                ticks = [ticks];
+            }
+
+            // Update tick data
+            ticks.forEach(tick => {
+                tickData[tick.instrument_token] = tick;
+            });
+
+            // Check if we have a selected instrument and update its price
+            if (selectedInstrument && selectedInstrument.token) {
+                const selectedTick = tickData[selectedInstrument.token];
+                if (selectedTick) {
+                    const selectedInstrumentPrice = document.getElementById('selectedInstrumentPrice');
+                    const selectedInstrumentStatus = document.getElementById('selectedInstrumentStatus');
+                    
+                    selectedInstrumentPrice.textContent = `₹${selectedTick.last_price}`;
+                    selectedInstrumentStatus.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                    
+                    // Update the selected instrument object
+                    selectedInstrument.price = selectedTick.last_price;
+                    
+                    console.log('💰 Updated selected instrument price:', {
+                        symbol: selectedInstrument.symbol,
+                        oldPrice: selectedInstrument.price,
+                        newPrice: selectedTick.last_price,
+                        token: selectedInstrument.token
+                    });
+                }
+            }
+
+            // Display recent ticks (last 10) excluding the selected instrument
+            const recentTicks = Object.values(tickData)
+                .filter(tick => !selectedInstrument || tick.instrument_token !== selectedInstrument.token)
+                .slice(-10);
+            
+            if (recentTicks.length === 0) {
+                tickGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>No market data available</p></div>';
+                return;
+            }
+
+            tickGrid.innerHTML = recentTicks.map(tick => `
+                <div class="tick-card">
+                    <div class="tick-symbol">${tick.symbol || 'Unknown'}</div>
+                    <div class="tick-price">₹${tick.last_price}</div>
+                    <div class="tick-time">${new Date(tick.timestamp).toLocaleTimeString()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Update strategy display
+        function updateStrategyDisplay() {
+            const output = document.getElementById('strategyOutput');
+            if (currentStrategy) {
+                output.textContent = `Active Strategy: ${currentStrategy.name}\n\nDescription: ${currentStrategy.description}\n\nParameters:\n${JSON.stringify(currentStrategy, null, 2)}`;
+                
+                // Show strategy-specific display
+                showStrategySpecificDisplay(currentStrategy.name);
+                
+                // Update strategy-specific data
+                updateStrategySpecificData(currentStrategy);
+            } else {
+                output.textContent = 'No strategy active. Select and apply a strategy to see output.';
+                hideStrategySpecificDisplay();
+            }
+        }
+
+        // Show strategy-specific display based on strategy name
+        function showStrategySpecificDisplay(strategyName) {
+            const strategySpecificDisplay = document.getElementById('strategySpecificDisplay');
+            const simpleBuySellDisplay = document.getElementById('simpleBuySellDisplay');
+            const mtmV2Display = document.getElementById('mtmV2Display');
+            
+            // Hide all strategy displays first
+            simpleBuySellDisplay.style.display = 'none';
+            mtmV2Display.style.display = 'none';
+            
+            // Show the appropriate display
+            if (strategyName === 'Simple Buy Sell') {
+                simpleBuySellDisplay.style.display = 'block';
+                strategySpecificDisplay.style.display = 'block';
+            } else if (strategyName === 'MTM V2 Strategy') {
+                mtmV2Display.style.display = 'block';
+                strategySpecificDisplay.style.display = 'block';
+            } else {
+                strategySpecificDisplay.style.display = 'none';
+            }
+        }
+
+        // Hide strategy-specific display
+        function hideStrategySpecificDisplay() {
+            const strategySpecificDisplay = document.getElementById('strategySpecificDisplay');
+            strategySpecificDisplay.style.display = 'none';
+        }
+
+        // Update strategy-specific data
+        function updateStrategySpecificData(strategy) {
+            if (strategy.name === 'Simple Buy Sell') {
+                updateSimpleBuySellDisplay(strategy);
+            } else if (strategy.name === 'MTM V2 Strategy') {
+                updateMTMV2Display(strategy);
+            }
+        }
+
+        // Update Simple Buy Sell display
+        function updateSimpleBuySellDisplay(strategy) {
+            const sbsSymbol = document.getElementById('sbsSymbol');
+            const sbsLastPrice = document.getElementById('sbsLastPrice');
+            const sbsBuyPrice = document.getElementById('sbsBuyPrice');
+            const sbsStatus = document.getElementById('sbsStatus');
+            const sbsCycleInfo = document.getElementById('sbsCycleInfo');
+            const sbsDebugMode = document.getElementById('sbsDebugMode');
+            
+            // Update symbol
+            if (strategy.selectedInstrument) {
+                sbsSymbol.textContent = strategy.selectedInstrument.symbol || 'Unknown';
+            } else {
+                sbsSymbol.textContent = '-';
+            }
+            
+            // Update last price
+            if (strategy.selectedInstrument && strategy.selectedInstrument.price) {
+                sbsLastPrice.textContent = `₹${strategy.selectedInstrument.price}`;
+            } else {
+                sbsLastPrice.textContent = '₹0.00';
+            }
+            
+            // Update buy price
+            if (strategy.buyPrice) {
+                sbsBuyPrice.textContent = `₹${strategy.buyPrice}`;
+            } else {
+                sbsBuyPrice.textContent = '₹0.00';
+            }
+            
+            // Update status
+            if (strategy.hasActivePosition) {
+                sbsStatus.textContent = 'Active Position';
+                sbsStatus.style.color = '#28a745';
+            } else if (strategy.selectedInstrument) {
+                sbsStatus.textContent = 'Monitoring';
+                sbsStatus.style.color = '#ffc107';
+            } else {
+                sbsStatus.textContent = 'Waiting...';
+                sbsStatus.style.color = '#6c757d';
+            }
+            
+            // Update cycle info
+            sbsCycleInfo.textContent = `Cycle: ${strategy.cycleCount || 0}`;
+            
+            // Update debug mode
+            sbsDebugMode.textContent = `Debug: ${strategy.debugMode ? 'Enabled' : 'Disabled'}`;
+        }
+
+        // Update MTM V2 display
+        function updateMTMV2Display(strategy) {
+            console.log('🔧 updateMTMV2Display called with strategy:', strategy);
+            console.log('📊 Strategy data:', {
+                name: strategy.name,
+                mainToken: strategy.mainToken,
+                oppToken: strategy.oppToken,
+                boughtToken: strategy.boughtToken,
+                oppBoughtToken: strategy.oppBoughtToken,
+                universalDict: strategy.universalDict ? 'present' : 'missing',
+                instrumentMap: strategy.universalDict?.instrumentMap ? 'present' : 'missing'
+            });
+            
+            const mtmMainSymbol = document.getElementById('mtmMainSymbol');
+            const mtmMainPrice = document.getElementById('mtmMainPrice');
+            const mtmOppSymbol = document.getElementById('mtmOppSymbol');
+            const mtmOppPrice = document.getElementById('mtmOppPrice');
+            const mtmTotalBuy = document.getElementById('mtmTotalBuy');
+            const mtmTotalCurrent = document.getElementById('mtmTotalCurrent');
+            const mtmDifference = document.getElementById('mtmDifference');
+            const mtmBlockInfo = document.getElementById('mtmBlockInfo');
+            const mtmCycleInfo = document.getElementById('mtmCycleInfo');
+            const mtmStatus = document.getElementById('mtmStatus');
+            
+            // Check if strategy is still initializing
+            if (!strategy.universalDict || !strategy.universalDict.instrumentMap) {
+                mtmMainSymbol.textContent = 'Initializing...';
+                mtmMainPrice.textContent = '₹0.00';
+                mtmOppSymbol.textContent = 'Initializing...';
+                mtmOppPrice.textContent = '₹0.00';
+                mtmTotalBuy.textContent = '₹0.00';
+                mtmTotalCurrent.textContent = '₹0.00';
+                mtmDifference.textContent = '₹0.00';
+                mtmDifference.style.color = '#6c757d';
+                mtmBlockInfo.textContent = 'Block: INIT';
+                mtmCycleInfo.textContent = 'Cycle: 0';
+                mtmStatus.textContent = 'Status: Initializing...';
+                console.log('⏳ Strategy still initializing');
+                return;
+            }
+            
+            // Check if any instruments have been processed
+            const instrumentMapKeys = Object.keys(strategy.universalDict.instrumentMap);
+            if (instrumentMapKeys.length === 0) {
+                mtmMainSymbol.textContent = 'Waiting for instruments...';
+                mtmMainPrice.textContent = '₹0.00';
+                mtmOppSymbol.textContent = 'Waiting for instruments...';
+                mtmOppPrice.textContent = '₹0.00';
+                mtmTotalBuy.textContent = '₹0.00';
+                mtmTotalCurrent.textContent = '₹0.00';
+                mtmDifference.textContent = '₹0.00';
+                mtmDifference.style.color = '#6c757d';
+                mtmBlockInfo.textContent = 'Block: INIT';
+                mtmCycleInfo.textContent = 'Cycle: 0';
+                mtmStatus.textContent = 'Status: Waiting for instruments...';
+                console.log('⏳ No instruments processed yet');
+                return;
+            }
+            
+            // Update main option
+            if (strategy.mainToken && strategy.universalDict && strategy.universalDict.instrumentMap) {
+                const mainInstrument = strategy.universalDict.instrumentMap[strategy.mainToken];
+                console.log('🎯 Main instrument data:', mainInstrument);
+                if (mainInstrument) {
+                    mtmMainSymbol.textContent = mainInstrument.symbol || 'Unknown';
+                    mtmMainPrice.textContent = `₹${mainInstrument.last || 0}`;
+                } else {
+                    mtmMainSymbol.textContent = 'No main token selected';
+                    mtmMainPrice.textContent = '₹0.00';
+                }
+            } else {
+                console.log('❌ No main token or instrument map available');
+                mtmMainSymbol.textContent = 'No main token';
+                mtmMainPrice.textContent = '₹0.00';
+            }
+            
+            // Update opposite option
+            if (strategy.oppToken && strategy.universalDict && strategy.universalDict.instrumentMap) {
+                const oppInstrument = strategy.universalDict.instrumentMap[strategy.oppToken];
+                console.log('🎯 Opposite instrument data:', oppInstrument);
+                if (oppInstrument) {
+                    mtmOppSymbol.textContent = oppInstrument.symbol || 'Unknown';
+                    mtmOppPrice.textContent = `₹${oppInstrument.last || 0}`;
+                } else {
+                    mtmOppSymbol.textContent = 'No opposite token selected';
+                    mtmOppPrice.textContent = '₹0.00';
+                }
+            } else {
+                console.log('❌ No opposite token or instrument map available');
+                mtmOppSymbol.textContent = 'No opposite token';
+                mtmOppPrice.textContent = '₹0.00';
+            }
+            
+            // Calculate totals
+            let totalBuy = 0;
+            let totalCurrent = 0;
+            
+            if (strategy.boughtToken && strategy.oppBoughtToken && strategy.universalDict && strategy.universalDict.instrumentMap) {
+                const mainInstrument = strategy.universalDict.instrumentMap[strategy.boughtToken];
+                const oppInstrument = strategy.universalDict.instrumentMap[strategy.oppBoughtToken];
+                
+                console.log('💰 Buy calculation data:', {
+                    mainInstrument: mainInstrument,
+                    oppInstrument: oppInstrument
+                });
+                
+                if (mainInstrument && oppInstrument) {
+                    totalBuy = (mainInstrument.buyPrice || 0) + (oppInstrument.buyPrice || 0);
+                    totalCurrent = (mainInstrument.last || 0) + (oppInstrument.last || 0);
+                }
+            }
+            
+            mtmTotalBuy.textContent = `₹${totalBuy.toFixed(2)}`;
+            mtmTotalCurrent.textContent = `₹${totalCurrent.toFixed(2)}`;
+            
+            // Calculate difference
+            const difference = totalCurrent - totalBuy;
+            mtmDifference.textContent = `₹${difference.toFixed(2)}`;
+            
+            // Color code the difference
+            if (difference > 0) {
+                mtmDifference.style.color = '#28a745';
+            } else if (difference < 0) {
+                mtmDifference.style.color = '#dc3545';
+            } else {
+                mtmDifference.style.color = '#6c757d';
+            }
+            
+            // Update block info
+            let currentBlock = 'INIT';
+            if (strategy.blockUpdate) currentBlock = 'UPDATE';
+            else if (strategy.blockFinalRef) currentBlock = 'FINAL REF';
+            else if (strategy.blockRef3) currentBlock = 'REF3';
+            else if (strategy.blockDiff10) currentBlock = 'DIFF10';
+            else if (strategy.blockNextCycle) currentBlock = 'NEXT CYCLE';
+            
+            mtmBlockInfo.textContent = `Block: ${currentBlock}`;
+            
+            // Update cycle info
+            mtmCycleInfo.textContent = `Cycle: ${strategy.cycleCount || 0}`;
+            
+            // Update status
+            let status = 'Waiting...';
+            if (strategy.interimLowReached) status = 'Interim Low Reached';
+            else if (strategy.calcRefReached) status = 'Calc Ref Reached';
+            else if (strategy.refCapture) status = 'Reference Captured';
+            else if (strategy.mtmSoldAt24) status = 'Sold at 24';
+            else if (strategy.mtmSoldAt36) status = 'Sold at 36';
+            else if (strategy.boughtSold) status = 'Sold Both';
+            else if (strategy.blockUpdate) status = 'Processing ticks...';
+            else if (strategy.blockInit) status = 'Initializing...';
+            
+            mtmStatus.textContent = `Status: ${status}`;
+            
+            console.log('✅ MTM V2 display updated');
+        }
+
+        // Apply strategy
+        document.getElementById('applyStrategy').addEventListener('click', function() {
+            const selectedStrategy = document.getElementById('strategySelect').value;
+            console.log('🔧 Applying strategy:', selectedStrategy);
+            
+            if (selectedStrategy) {
+                socket.emit('select_strategy', selectedStrategy);
+                console.log('📤 Emitted select_strategy event for:', selectedStrategy);
+                
+                // Update parameters
+                updateParameters();
+            }
+        });
+
+        // Update parameters
+        function updateParameters() {
+            // Update global parameters
+            document.querySelectorAll('#globalParamsList input').forEach(input => {
+                const key = input.dataset.paramKey;
+                const value = input.type === 'checkbox' ? input.checked : input.value;
+                socket.emit('update_global_dict_parameter', { parameter: key, value: value });
+            });
+
+            // Update universal parameters
+            document.querySelectorAll('#universalParamsList input').forEach(input => {
+                const key = input.dataset.paramKey;
+                const value = input.type === 'checkbox' ? input.checked : input.value;
+                socket.emit('update_universal_dict_parameter', { parameter: key, value: value });
+            });
+        }
+
+        // Ping node for initial data
+        socket.emit('ping_node');
+        
+        // Fallback: Fetch strategies directly if Socket.IO fails
+        setTimeout(() => {
+            if (availableStrategies.length === 0) {
+                console.log('No strategies received via Socket.IO, fetching directly...');
+                fetch('/test')
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Fetched strategies directly:', data.strategies);
+                        availableStrategies = data.strategies || [];
+                        populateStrategyDropdown();
+                    })
+                    .catch(error => {
+                        console.error('Error fetching strategies directly:', error);
+                    });
+            }
+        }, 3000); // Wait 3 seconds before trying fallback
+    </script>
+</body>
+</html> 
