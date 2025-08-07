@@ -149,14 +149,20 @@
 
         .parameter-item {
             margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            background: #f8f9fa;
         }
 
         .parameter-label {
             display: block;
             margin-bottom: 5px;
-            font-weight: 500;
-            color: #555;
+            font-weight: 600;
+            color: #333;
             font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .parameter-input {
@@ -166,6 +172,7 @@
             border-radius: 6px;
             font-size: 0.9rem;
             transition: all 0.3s ease;
+            margin-bottom: 5px;
         }
 
         .parameter-input:focus {
@@ -176,8 +183,35 @@
 
         .parameter-description {
             font-size: 0.8rem;
-            color: #888;
-            margin-top: 3px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .parameter-item button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: auto;
+            min-width: 60px;
+        }
+
+        .parameter-item button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .parameter-item button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .btn {
@@ -465,6 +499,37 @@
                                     <span id="mtmStatus">Status: Waiting...</span>
                                 </div>
                             </div>
+                            
+                            <!-- Current Parameters Display -->
+                            <div class="tick-card" style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Current Parameters</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Target</div>
+                                        <div id="mtmParamTarget">7</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Stop Loss</div>
+                                        <div id="mtmParamStoploss">10</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Quantity</div>
+                                        <div id="mtmParamQuantity">75</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sell at 24</div>
+                                        <div id="mtmParamSellAt24">24</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Buy Back Trigger</div>
+                                        <div id="mtmParamBuyBackTrigger">-12</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Peak Definition</div>
+                                        <div id="mtmParamPeakDef">3</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -511,7 +576,7 @@
                 currentUserId = selectedUser.user_id;
                 currentUserName = selectedUser.name;
                 
-                console.log(`🔐 Authenticating user: ${currentUserName} (${currentUserId})`);
+                console.log(`Authenticating user: ${currentUserName} (${currentUserId})`);
                 
                 socket.emit('authenticate_user', {
                     userId: selectedUser.user_id,
@@ -521,7 +586,7 @@
                     access_token: selectedUser.access_token
                 });
             } else {
-                console.error('❌ Missing user data for authentication');
+                console.error('Missing user data for authentication');
                 alert('Missing user data. Please select a user first.');
             }
         }
@@ -549,13 +614,13 @@
 
         // Handle user authentication
         socket.on('user_authenticated', (data) => {
-            console.log('✅ User authenticated successfully:', data);
+            console.log('User authenticated successfully:', data);
             currentUserId = data.userId;
             currentUserName = data.userName;
         });
 
         socket.on('authentication_error', (error) => {
-            console.error('❌ Authentication error:', error);
+            console.error('Authentication error:', error);
             alert('Authentication failed: ' + error);
         });
 
@@ -583,27 +648,27 @@
 
         // Handle node updates
         socket.on('node_update', (data) => {
-            console.log('🔧 Node update received:', data);
+            console.log('Node update received:', data);
             
             if (data.tickData) {
                 updateTickDisplay(data.tickData);
             }
             
             if (data.currentStrategy) {
-                console.log('📊 Current strategy data received:', data.currentStrategy);
+                console.log('Current strategy data received:', data.currentStrategy);
                 currentStrategy = data.currentStrategy;
                 updateStrategyDisplay();
                 
                 // Update selected instrument from strategy data
                 if (data.currentStrategy.selectedInstrument) {
-                    console.log('🎯 Selected instrument from strategy:', data.currentStrategy.selectedInstrument);
+                    console.log('Selected instrument from strategy:', data.currentStrategy.selectedInstrument);
                     updateSelectedInstrumentDisplay(data.currentStrategy.selectedInstrument);
                 }
             }
             
             // Update selected instrument info if available (direct from data)
             if (data.selectedInstrument) {
-                console.log('🎯 Selected instrument from data:', data.selectedInstrument);
+                console.log('Selected instrument from data:', data.selectedInstrument);
                 updateSelectedInstrumentDisplay(data.selectedInstrument);
             }
             
@@ -615,7 +680,7 @@
 
         // Handle strategy updates
         socket.on('strategy_updated', (strategyConfig) => {
-            console.log('🔧 Strategy updated:', strategyConfig);
+            console.log('Strategy updated:', strategyConfig);
             currentStrategy = strategyConfig;
             updateStrategyDisplay();
         });
@@ -642,7 +707,7 @@
 
         // Update selected instrument display
         function updateSelectedInstrumentDisplay(instrument) {
-            console.log('🔄 Updating selected instrument display:', instrument);
+            console.log('Updating selected instrument display:', instrument);
             
             const selectedInstrumentInfo = document.getElementById('selectedInstrumentInfo');
             const selectedInstrumentSymbol = document.getElementById('selectedInstrumentSymbol');
@@ -656,13 +721,13 @@
                 selectedInstrumentPrice.textContent = `₹${instrument.price || 0}`;
                 selectedInstrumentStatus.textContent = 'Instrument selected and being tracked';
                 
-                console.log('✅ Selected instrument display updated:', {
+                console.log('Selected instrument display updated:', {
                     symbol: instrument.symbol,
                     price: instrument.price,
                     token: instrument.token
                 });
             } else {
-                console.log('❌ No instrument data provided for display update');
+                console.log('No instrument data provided for display update');
             }
         }
 
@@ -710,6 +775,10 @@
 
         // Populate parameters
         function populateParameters(strategy) {
+            console.log('Populating parameters for strategy:', strategy.name);
+            console.log('Global parameters:', strategy.globalDictParameters);
+            console.log('Universal parameters:', strategy.universalDictParameters);
+            
             populateParameterSection('globalParamsList', strategy.globalDictParameters || {});
             populateParameterSection('universalParamsList', strategy.universalDictParameters || {});
         }
@@ -731,10 +800,27 @@
                 label.className = 'parameter-label';
                 label.textContent = key;
                 
-                const input = document.createElement('input');
+                let input;
+                
+                // Create appropriate input based on parameter type
+                if (param.type === 'boolean') {
+                    input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.checked = param.default;
+                } else if (param.type === 'number') {
+                    input = document.createElement('input');
+                    input.type = 'number';
+                    input.value = param.default;
+                    if (param.min !== undefined) input.min = param.min;
+                    if (param.max !== undefined) input.max = param.max;
+                    input.step = 'any'; // Allow decimal values
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = param.default;
+                }
+                
                 input.className = 'parameter-input';
-                input.type = param.type === 'boolean' ? 'checkbox' : 'text';
-                input.value = param.default;
                 input.dataset.paramKey = key;
                 input.dataset.paramType = param.type;
                 
@@ -742,16 +828,49 @@
                 description.className = 'parameter-description';
                 description.textContent = param.description;
                 
+                // Add range info for number parameters
+                if (param.type === 'number' && (param.min !== undefined || param.max !== undefined)) {
+                    const rangeInfo = document.createElement('div');
+                    rangeInfo.className = 'parameter-description';
+                    rangeInfo.style.fontSize = '0.75rem';
+                    rangeInfo.style.color = '#999';
+                    const rangeText = [];
+                    if (param.min !== undefined) rangeText.push(`Min: ${param.min}`);
+                    if (param.max !== undefined) rangeText.push(`Max: ${param.max}`);
+                    rangeInfo.textContent = `Range: ${rangeText.join(', ')}`;
+                    paramDiv.appendChild(rangeInfo);
+                }
+                
                 // Create individual update button for each parameter
                 const updateButton = document.createElement('button');
                 updateButton.className = 'btn';
                 updateButton.style.cssText = 'margin-top: 5px; padding: 5px 10px; font-size: 0.8rem;';
                 updateButton.textContent = 'Update';
                 updateButton.onclick = function() {
-                    const value = input.type === 'checkbox' ? input.checked : input.value;
+                    let value;
+                    if (param.type === 'boolean') {
+                        value = input.checked;
+                    } else if (param.type === 'number') {
+                        value = parseFloat(input.value);
+                        if (isNaN(value)) {
+                            alert(`Invalid number for parameter ${key}`);
+                            return;
+                        }
+                        if (param.min !== undefined && value < param.min) {
+                            alert(`Value for ${key} must be at least ${param.min}`);
+                            return;
+                        }
+                        if (param.max !== undefined && value > param.max) {
+                            alert(`Value for ${key} must be at most ${param.max}`);
+                            return;
+                        }
+                    } else {
+                        value = input.value;
+                    }
+                    
                     const paramType = containerId.includes('global') ? 'global' : 'universal';
                     
-                    console.log(`Updating ${paramType} parameter: ${key} = ${value}`);
+                    console.log(`Updating ${paramType} parameter: ${key} = ${value} (type: ${param.type})`);
                     
                     if (paramType === 'global') {
                         socket.emit('update_global_dict_parameter', { parameter: key, value: value });
@@ -807,7 +926,7 @@
                     // Update the selected instrument object
                     selectedInstrument.price = selectedTick.last_price;
                     
-                    console.log('💰 Updated selected instrument price:', {
+                    console.log('Updated selected instrument price:', {
                         symbol: selectedInstrument.symbol,
                         oldPrice: selectedInstrument.price,
                         newPrice: selectedTick.last_price,
@@ -940,8 +1059,8 @@
 
         // Update MTM V2 display
         function updateMTMV2Display(strategy) {
-            console.log('🔧 updateMTMV2Display called with strategy:', strategy);
-            console.log('📊 Strategy data:', {
+            console.log('updateMTMV2Display called with strategy:', strategy);
+            console.log('Strategy data:', {
                 name: strategy.name,
                 mainToken: strategy.mainToken,
                 oppToken: strategy.oppToken,
@@ -975,7 +1094,7 @@
                 mtmBlockInfo.textContent = 'Block: INIT';
                 mtmCycleInfo.textContent = 'Cycle: 0';
                 mtmStatus.textContent = 'Status: Initializing...';
-                console.log('⏳ Strategy still initializing');
+                console.log('Strategy still initializing');
                 return;
             }
             
@@ -993,14 +1112,14 @@
                 mtmBlockInfo.textContent = 'Block: INIT';
                 mtmCycleInfo.textContent = 'Cycle: 0';
                 mtmStatus.textContent = 'Status: Waiting for instruments...';
-                console.log('⏳ No instruments processed yet');
+                console.log('No instruments processed yet');
                 return;
             }
             
             // Update main option
             if (strategy.mainToken && strategy.universalDict && strategy.universalDict.instrumentMap) {
                 const mainInstrument = strategy.universalDict.instrumentMap[strategy.mainToken];
-                console.log('🎯 Main instrument data:', mainInstrument);
+                console.log('Main instrument data:', mainInstrument);
                 if (mainInstrument) {
                     mtmMainSymbol.textContent = mainInstrument.symbol || 'Unknown';
                     mtmMainPrice.textContent = `₹${mainInstrument.last || 0}`;
@@ -1009,7 +1128,7 @@
                     mtmMainPrice.textContent = '₹0.00';
                 }
             } else {
-                console.log('❌ No main token or instrument map available');
+                console.log('No main token or instrument map available');
                 mtmMainSymbol.textContent = 'No main token';
                 mtmMainPrice.textContent = '₹0.00';
             }
@@ -1017,7 +1136,7 @@
             // Update opposite option
             if (strategy.oppToken && strategy.universalDict && strategy.universalDict.instrumentMap) {
                 const oppInstrument = strategy.universalDict.instrumentMap[strategy.oppToken];
-                console.log('🎯 Opposite instrument data:', oppInstrument);
+                console.log('Opposite instrument data:', oppInstrument);
                 if (oppInstrument) {
                     mtmOppSymbol.textContent = oppInstrument.symbol || 'Unknown';
                     mtmOppPrice.textContent = `₹${oppInstrument.last || 0}`;
@@ -1026,7 +1145,7 @@
                     mtmOppPrice.textContent = '₹0.00';
                 }
             } else {
-                console.log('❌ No opposite token or instrument map available');
+                console.log('No opposite token or instrument map available');
                 mtmOppSymbol.textContent = 'No opposite token';
                 mtmOppPrice.textContent = '₹0.00';
             }
@@ -1039,7 +1158,7 @@
                 const mainInstrument = strategy.universalDict.instrumentMap[strategy.boughtToken];
                 const oppInstrument = strategy.universalDict.instrumentMap[strategy.oppBoughtToken];
                 
-                console.log('💰 Buy calculation data:', {
+                console.log('Buy calculation data:', {
                     mainInstrument: mainInstrument,
                     oppInstrument: oppInstrument
                 });
@@ -1088,21 +1207,59 @@
             else if (strategy.mtmSoldAt36) status = 'Sold at 36';
             else if (strategy.boughtSold) status = 'Sold Both';
             else if (strategy.blockUpdate) status = 'Processing ticks...';
-            else if (strategy.blockInit) status = 'Initializing...';
+            else if (strategy.blockInit) {
+                // Check if we have token information to show more specific status
+                if (strategy.universalDict && strategy.universalDict.ceTokens && strategy.universalDict.peTokens) {
+                    const ceCount = strategy.universalDict.ceTokens.length;
+                    const peCount = strategy.universalDict.peTokens.length;
+                    if (ceCount === 0 || peCount === 0) {
+                        status = `Waiting for tokens (CE: ${ceCount}, PE: ${peCount})...`;
+                    } else {
+                        status = `Tokens found (CE: ${ceCount}, PE: ${peCount})`;
+                    }
+                } else {
+                    status = 'Initializing...';
+                }
+            }
             
             mtmStatus.textContent = `Status: ${status}`;
             
-            console.log('✅ MTM V2 display updated');
+            // Update current parameters display
+            const mtmParamTarget = document.getElementById('mtmParamTarget');
+            const mtmParamStoploss = document.getElementById('mtmParamStoploss');
+            const mtmParamQuantity = document.getElementById('mtmParamQuantity');
+            const mtmParamSellAt24 = document.getElementById('mtmParamSellAt24');
+            const mtmParamBuyBackTrigger = document.getElementById('mtmParamBuyBackTrigger');
+            const mtmParamPeakDef = document.getElementById('mtmParamPeakDef');
+
+            // Extract current parameter values from strategy data
+            if (strategy.globalDict) {
+                mtmParamTarget.textContent = strategy.globalDict.target || 'N/A';
+                mtmParamStoploss.textContent = strategy.globalDict.stoploss || 'N/A';
+                mtmParamQuantity.textContent = strategy.globalDict.quantity || 'N/A';
+                mtmParamSellAt24.textContent = strategy.globalDict.sellAt24Limit || 'N/A';
+                mtmParamBuyBackTrigger.textContent = strategy.globalDict.buyBackTrigger || 'N/A';
+                mtmParamPeakDef.textContent = strategy.globalDict.peakDef || 'N/A';
+            } else {
+                mtmParamTarget.textContent = 'N/A';
+                mtmParamStoploss.textContent = 'N/A';
+                mtmParamQuantity.textContent = 'N/A';
+                mtmParamSellAt24.textContent = 'N/A';
+                mtmParamBuyBackTrigger.textContent = 'N/A';
+                mtmParamPeakDef.textContent = 'N/A';
+            }
+
+            console.log('MTM V2 display updated');
         }
 
         // Apply strategy
         document.getElementById('applyStrategy').addEventListener('click', function() {
             const selectedStrategy = document.getElementById('strategySelect').value;
-            console.log('🔧 Applying strategy:', selectedStrategy);
+            console.log('Applying strategy:', selectedStrategy);
             
             if (selectedStrategy) {
                 socket.emit('select_strategy', selectedStrategy);
-                console.log('📤 Emitted select_strategy event for:', selectedStrategy);
+                console.log('Emitted select_strategy event for:', selectedStrategy);
                 
                 // Update parameters
                 updateParameters();

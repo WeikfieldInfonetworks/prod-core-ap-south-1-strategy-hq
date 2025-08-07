@@ -11,7 +11,7 @@ class UserStrategyManager {
     // Get or create user-specific strategy manager
     getUserStrategyManager(userId) {
         if (!this.userInstances.has(userId)) {
-            console.log(`🆕 Creating new strategy manager for user: ${userId}`);
+            console.log(`Creating new strategy manager for user: ${userId}`);
             const strategyManager = new StrategyManager();
             this.userInstances.set(userId, strategyManager);
         }
@@ -21,7 +21,7 @@ class UserStrategyManager {
     // Get or create user-specific trading utils
     getUserTradingUtils(userId) {
         if (!this.userTradingUtils.has(userId)) {
-            console.log(`🆕 Creating new trading utils for user: ${userId}`);
+            console.log(`Creating new trading utils for user: ${userId}`);
             const tradingUtils = new TradingUtils();
             this.userTradingUtils.set(userId, tradingUtils);
         }
@@ -30,7 +30,7 @@ class UserStrategyManager {
 
     // Set user credentials and initialize trading utils
     setUserCredentials(userId, userName, apiKey, secretKey, accessToken) {
-        console.log(`🔐 Setting credentials for user: ${userId} (${userName})`);
+        console.log(`Setting credentials for user: ${userId} (${userName})`);
         
         // Initialize trading utils for user
         const tradingUtils = this.getUserTradingUtils(userId);
@@ -45,8 +45,8 @@ class UserStrategyManager {
         this.userLogFiles.set(userId, logFile);
         tradingUtils.ensureLogDirectory(logFile);
         
-        console.log(`✅ User credentials set for ${userName} (${userId})`);
-        console.log(`📝 Log file: ${logFile}`);
+        console.log(`User credentials set for ${userName} (${userId})`);
+        console.log(`Log file: ${logFile}`);
         
         return initialized;
     }
@@ -57,7 +57,7 @@ class UserStrategyManager {
         const tradingUtils = this.getUserTradingUtils(userId);
         
         if (!strategyManager) {
-            console.error(`❌ No strategy manager found for user: ${userId}`);
+            console.error(`No strategy manager found for user: ${userId}`);
             return;
         }
         
@@ -81,14 +81,14 @@ class UserStrategyManager {
                 selectedInstrument: selectedInstrument
             };
         } catch (error) {
-            console.error(`❌ Error processing ticks for user ${userId}:`, error);
+            console.error(`Error processing ticks for user ${userId}:`, error);
             return null;
         }
     }
 
     // Set strategy for specific user
     setStrategyForUser(userId, strategyName) {
-        console.log('🔧 setStrategyForUser called:', { userId, strategyName });
+        console.log('setStrategyForUser called:', { userId, strategyName });
         
         const strategyManager = this.getUserStrategyManager(userId);
         
@@ -101,13 +101,22 @@ class UserStrategyManager {
         const userName = strategyManager.userName;
         const tradingUtils = this.getUserTradingUtils(userId);
         
-        console.log(`🎯 Setting strategy ${strategyName} for user ${userName} (${userId})`);
-        console.log('📊 Strategy manager state:', {
+        console.log(`Setting strategy ${strategyName} for user ${userName} (${userId})`);
+        console.log('Strategy manager state:', {
             hasGlobalDict: !!strategyManager.globalDict,
             hasUniversalDict: !!strategyManager.universalDict,
             hasBlockDict: !!strategyManager.blockDict,
-            hasTradingUtils: !!tradingUtils
+            hasTradingUtils: !!tradingUtils,
+            hasApiKey: !!strategyManager.globalDict?.api_key,
+            hasAccessToken: !!strategyManager.globalDict?.access_token
         });
+        
+        // Ensure credentials are available in globalDict
+        if (!strategyManager.globalDict.api_key || !strategyManager.globalDict.access_token) {
+            console.error('Missing credentials in globalDict for strategy initialization');
+            console.error('Available keys:', Object.keys(strategyManager.globalDict || {}));
+            throw new Error('Missing user credentials for strategy initialization');
+        }
         
         const result = strategyManager.setStrategy(
             strategyName,
@@ -116,7 +125,7 @@ class UserStrategyManager {
             strategyManager.blockDict
         );
         
-        console.log('✅ Strategy set result:', {
+        console.log('Strategy set result:', {
             name: result.name,
             hasUniversalDict: !!result.universalDict,
             instrumentMapKeys: result.universalDict?.instrumentMap ? Object.keys(result.universalDict.instrumentMap) : 'none'
@@ -126,6 +135,13 @@ class UserStrategyManager {
         if (strategyManager.currentStrategy && userName && userId) {
             strategyManager.currentStrategy.setUserInfo(userName, userId);
             strategyManager.currentStrategy.tradingUtils = tradingUtils; // Inject user's trading utils
+            
+            // Verify that the strategy has access to credentials
+            console.log('Strategy credentials verification:', {
+                hasApiKey: !!strategyManager.currentStrategy.globalDict?.api_key,
+                hasAccessToken: !!strategyManager.currentStrategy.accessToken,
+                tradingUtilsInitialized: !!strategyManager.currentStrategy.tradingUtils?.kite
+            });
         }
         
         return result;
@@ -187,7 +203,7 @@ class UserStrategyManager {
 
     // Remove user instance (cleanup)
     removeUserInstance(userId) {
-        console.log(`🗑️ Removing strategy manager for user: ${userId}`);
+        console.log(`Removing strategy manager for user: ${userId}`);
         this.userInstances.delete(userId);
         this.userTradingUtils.delete(userId);
         this.userLogFiles.delete(userId);

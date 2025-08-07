@@ -6,9 +6,11 @@ class SimpleBuySellStrategy extends BaseStrategy {
     constructor() {
         super();
         this.name = 'Simple Buy Sell';
-        this.description = 'Buy one option nearest to 100 and sell at +5 or -5 rupees';
+        this.description = 'Buy one option nearest and under 100, sell at +5 or -5, then stop';
         this.tradingUtils = new TradingUtils();
         this.strategyUtils = new StrategyUtils();
+        
+        // Strategy state variables
         this.hasActivePosition = false;
         this.buyPrice = null;
         this.buySymbol = null;
@@ -16,10 +18,9 @@ class SimpleBuySellStrategy extends BaseStrategy {
         this.selectedInstrument = null;
         this.instrumentSelectionComplete = false;
         this.cycleCount = 0;
-        this.lastSellTime = null;
         this.buyCompleted = false;
         this.sellCompleted = false;
-        this.debugMode = false; // Paper trading mode after first cycle
+        this.executionStopped = false;
     }
 
     setUserInfo(userName, userId) {
@@ -28,6 +29,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
+        // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
         this.strategyUtils.logStrategyInfo('=== Simple Buy Sell Strategy Initialization ===');
@@ -35,23 +37,18 @@ class SimpleBuySellStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Strategy Description: ${this.description}`);
         this.strategyUtils.logStrategyInfo(`Access Token Available: ${!!this.accessToken}`);
         this.strategyUtils.logStrategyInfo(`API Key Available: ${!!this.globalDict.api_key}`);
-        this.strategyUtils.logStrategyDebug(`Global Dict API Key: ${this.globalDict.api_key}`);
-        this.strategyUtils.logStrategyDebug(`Access Token Value: ${this.accessToken ? this.accessToken.substring(0, 20) + '...' : 'None'}`);
         
         // Initialize TradingUtils with credentials from session
         if (this.accessToken && this.globalDict.api_key) {
-            console.log('🔧 Initializing TradingUtils with credentials...');
             const initialized = this.tradingUtils.initializeKiteConnect(this.globalDict.api_key, this.accessToken);
             
             if (initialized) {
-                this.strategyUtils.logStrategyInfo('✅ TradingUtils initialized with session credentials');
-                this.strategyUtils.logStrategyDebug(`API Key: ${this.globalDict.api_key}`);
-                this.strategyUtils.logStrategyDebug(`Access Token: ${this.accessToken.substring(0, 10)}...`);
+                this.strategyUtils.logStrategyInfo('TradingUtils initialized with session credentials');
             } else {
-                this.strategyUtils.logStrategyError('❌ TradingUtils initialization failed');
+                this.strategyUtils.logStrategyError('TradingUtils initialization failed');
             }
         } else {
-            this.strategyUtils.logStrategyError('❌ TradingUtils not initialized - missing credentials');
+            this.strategyUtils.logStrategyError('TradingUtils not initialized - missing credentials');
             this.strategyUtils.logStrategyError(`Access Token: ${this.accessToken ? 'Available' : 'Missing'}`);
             this.strategyUtils.logStrategyError(`API Key: ${this.globalDict.api_key ? 'Available' : 'Missing'}`);
         }
@@ -63,10 +60,6 @@ class SimpleBuySellStrategy extends BaseStrategy {
         // Initialize dictionary parameters with default values
         const globalParams = this.getGlobalDictParameters();
         const universalParams = this.getUniversalDictParameters();
-
-        this.strategyUtils.logStrategyInfo('=== Strategy Parameters ===');
-        this.strategyUtils.logStrategyInfo(`Global Parameters: ${Object.keys(globalParams)}`);
-        this.strategyUtils.logStrategyInfo(`Universal Parameters: ${Object.keys(universalParams)}`);
 
         // Set default values for globalDict parameters
         for (const [key, param] of Object.entries(globalParams)) {
@@ -95,53 +88,33 @@ class SimpleBuySellStrategy extends BaseStrategy {
         this.tickCount = 0;
         this.selectedInstrument = null;
         this.instrumentSelectionComplete = false;
-        this.lastSellTime = null;
         this.buyCompleted = false;
         this.sellCompleted = false;
-        this.debugMode = false; // Reset debug mode for new strategy
+        this.executionStopped = false;
 
-        this.strategyUtils.logStrategyDebug('=== Strategy State ===');
-        this.strategyUtils.logStrategyDebug(`Has Active Position: ${this.hasActivePosition}`);
-        this.strategyUtils.logStrategyDebug(`Buy Price: ${this.buyPrice}`);
-        this.strategyUtils.logStrategyDebug(`Buy Symbol: ${this.buySymbol}`);
-        this.strategyUtils.logStrategyDebug(`Enable Trading: ${this.globalDict.enableTrading}`);
-        this.strategyUtils.logStrategyDebug(`Selected Instrument: ${this.selectedInstrument}`);
-        this.strategyUtils.logStrategyDebug(`Instrument Selection Complete: ${this.instrumentSelectionComplete}`);
-        this.strategyUtils.logStrategyDebug(`TradingUtils Kite Instance: ${!!this.tradingUtils.kite}`);
-        this.strategyUtils.logStrategyDebug(`Buy Completed: ${this.buyCompleted}`);
-        this.strategyUtils.logStrategyDebug(`Sell Completed: ${this.sellCompleted}`);
-        this.strategyUtils.logStrategyDebug(`Last Sell Time: ${this.lastSellTime}`);
-        this.strategyUtils.logStrategyDebug(`Debug Mode: ${this.debugMode}`);
         this.strategyUtils.logStrategyInfo('=== Initialization Complete ===');
     }
 
     processTicks(ticks) {
+        // Stop processing if execution is stopped
+        if (this.executionStopped) {
+            this.strategyUtils.logStrategyInfo('Execution stopped - skipping tick processing');
+            return;
+        }
+
         this.tickCount++;
         this.strategyUtils.logStrategyInfo(`=== Processing Tick Batch #${this.tickCount} ===`);
         this.strategyUtils.logStrategyInfo(`Number of ticks received: ${ticks.length}`);
         this.strategyUtils.logStrategyInfo(`Current Cycle: ${this.cycleCount}`);
         
-        // Check if we need to reset cycle after sell completion
-        if (this.sellCompleted && this.lastSellTime) {
-            const timeSinceLastSell = Date.now() - this.lastSellTime;
-            const requiredDelay = 15 * 1000; // 15 seconds in milliseconds
-            
-            if (timeSinceLastSell >= requiredDelay) {
-                this.strategyUtils.logStrategyInfo('⏰ 15-second delay completed, resetting cycle for new instrument selection');
-                this.resetCycleForNewInstrument();
-            } else {
-                const remainingTime = Math.ceil((requiredDelay - timeSinceLastSell) / 1000);
-                this.strategyUtils.logStrategyInfo(`⏰ Waiting ${remainingTime} more seconds before next cycle (15s delay required)`);
-                return; // Skip processing until delay is complete
-            }
-        }
-        
         // If instrument selection is not complete, try to select the best instrument
         if (!this.instrumentSelectionComplete) {
-            this.selectedInstrument = this.strategyUtils.selectBestInstrument(ticks, 100, this.cycleCount);
+            this.selectedInstrument = this.strategyUtils.selectBestInstrumentUnder100(ticks, this.cycleCount);
             this.instrumentSelectionComplete = !!this.selectedInstrument;
             
             if (this.selectedInstrument) {
+                this.strategyUtils.logStrategyInfo(`Selected instrument: ${this.selectedInstrument.symbol} @ ${this.selectedInstrument.price}`);
+                
                 // Initialize tracking for the selected instrument
                 this.universalDict.optionsData[this.selectedInstrument.token] = {
                     symbol: this.selectedInstrument.symbol,
@@ -150,7 +123,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
                     lastUpdate: this.strategyUtils.getCurrentTimestamp()
                 };
                 
-                this.strategyUtils.logStrategyInfo('📈 Selected instrument tracking initialized');
+                this.strategyUtils.logStrategyInfo('Selected instrument tracking initialized');
             }
         }
         
@@ -161,7 +134,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
             
             // Only process ticks for the selected instrument
             if (this.selectedInstrument && this.selectedInstrument.token === token) {
-                this.strategyUtils.logStrategyInfo(`🎯 Processing tick for selected instrument - Symbol: ${symbol}, Price: ${tick.last_price}, Token: ${token}`);
+                this.strategyUtils.logStrategyInfo(`Processing tick for selected instrument - Symbol: ${symbol}, Price: ${tick.last_price}, Token: ${token}`);
                 
                 // Update price history
                 if (!this.universalDict.optionsData[token]) {
@@ -171,11 +144,11 @@ class SimpleBuySellStrategy extends BaseStrategy {
                         currentPrice: tick.last_price,
                         lastUpdate: this.strategyUtils.getCurrentTimestamp()
                     };
-                    this.strategyUtils.logStrategyInfo(`📊 Selected instrument tracked: ${symbol} at ${tick.last_price}`);
+                    this.strategyUtils.logStrategyInfo(`Selected instrument tracked: ${symbol} at ${tick.last_price}`);
                 } else {
                     const oldPrice = this.universalDict.optionsData[token].currentPrice;
                     const priceChange = tick.last_price - oldPrice;
-                    this.strategyUtils.logStrategyInfo(`📈 Price update for selected instrument ${symbol}: ${oldPrice} → ${tick.last_price} (${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)})`);
+                    this.strategyUtils.logStrategyInfo(`Price update for selected instrument ${symbol}: ${oldPrice} → ${tick.last_price} (${priceChange > 0 ? '+' : ''}${priceChange.toFixed(2)})`);
                 }
                 
                 const optionData = this.universalDict.optionsData[token];
@@ -197,66 +170,53 @@ class SimpleBuySellStrategy extends BaseStrategy {
         const symbol = optionData.symbol;
         const currentPrice = tick.last_price;
         
-        this.strategyUtils.logStrategyInfo(`🔍 Analyzing selected instrument tick for ${symbol} at ${currentPrice}`);
+        this.strategyUtils.logStrategyInfo(`Analyzing selected instrument tick for ${symbol} at ${currentPrice}`);
         
         // If we don't have an active position, look for buy opportunity
         if (!this.hasActivePosition) {
-            this.strategyUtils.logStrategyInfo('📋 No active position - checking for buy opportunity');
+            this.strategyUtils.logStrategyInfo('No active position - checking for buy opportunity');
             if (this.shouldBuyOption(optionData)) {
-                this.strategyUtils.logStrategyInfo('✅ Buy condition met!');
+                this.strategyUtils.logStrategyInfo('Buy condition met!');
                 this.buyOption(optionData);
             } else {
-                this.strategyUtils.logStrategyInfo('❌ Buy condition not met');
+                this.strategyUtils.logStrategyInfo('Buy condition not met');
             }
         } else {
             // If we have an active position, check for sell opportunity
-            this.strategyUtils.logStrategyInfo(`📋 Active position exists - checking for sell opportunity`);
+            this.strategyUtils.logStrategyInfo(`Active position exists - checking for sell opportunity`);
             this.strategyUtils.logStrategyInfo(`Current buy price: ${this.buyPrice}, Current price: ${currentPrice}`);
             if (this.shouldSellOption(optionData)) {
-                this.strategyUtils.logStrategyInfo('✅ Sell condition met!');
+                this.strategyUtils.logStrategyInfo('Sell condition met!');
                 this.sellOption(optionData);
             } else {
-                this.strategyUtils.logStrategyInfo('❌ Sell condition not met');
+                this.strategyUtils.logStrategyInfo('Sell condition not met');
             }
         }
     }
 
     shouldBuyOption(optionData) {
         if (!this.globalDict.enableTrading) {
-            this.strategyUtils.logStrategyInfo('🚫 Trading disabled - skipping buy check');
+            this.strategyUtils.logStrategyInfo('Trading disabled - skipping buy check');
             return false;
         }
         
         if (!this.instrumentSelectionComplete) {
-            this.strategyUtils.logStrategyInfo('⏳ Instrument selection not complete - skipping buy check');
+            this.strategyUtils.logStrategyInfo('Instrument selection not complete - skipping buy check');
             return false;
         }
         
         if (this.buyCompleted) {
-            this.strategyUtils.logStrategyInfo('✅ Buy already completed for this cycle - skipping buy check');
+            this.strategyUtils.logStrategyInfo('Buy already completed for this cycle - skipping buy check');
             return false;
-        }
-        
-        // Check if enough time has passed since last sell (15 seconds)
-        if (this.lastSellTime) {
-            const timeSinceLastSell = Date.now() - this.lastSellTime;
-            const requiredDelay = 15 * 1000; // 15 seconds in milliseconds
-            
-            if (timeSinceLastSell < requiredDelay) {
-                const remainingTime = Math.ceil((requiredDelay - timeSinceLastSell) / 1000);
-                this.strategyUtils.logStrategyInfo(`⏰ Waiting ${remainingTime} more seconds before next buy (15s delay required)`);
-                return false;
-            }
         }
         
         const currentPrice = optionData.currentPrice;
         
-        this.strategyUtils.logStrategyDebug(`🔍 Buy Check for ${optionData.symbol}:`);
+        this.strategyUtils.logStrategyDebug(`Buy Check for ${optionData.symbol}:`);
         this.strategyUtils.logStrategyDebug(`  Current Price: ${currentPrice}`);
         this.strategyUtils.logStrategyDebug(`  Buy immediately when instrument is selected`);
         this.strategyUtils.logStrategyDebug(`  Cycle Count: ${this.cycleCount}`);
         this.strategyUtils.logStrategyDebug(`  Buy Completed: ${this.buyCompleted}`);
-        this.strategyUtils.logStrategyDebug(`  Time since last sell: ${this.lastSellTime ? Math.floor((Date.now() - this.lastSellTime) / 1000) : 'N/A'}s`);
         
         // Buy immediately when instrument is selected (no threshold)
         return true;
@@ -264,41 +224,34 @@ class SimpleBuySellStrategy extends BaseStrategy {
 
     shouldSellOption(optionData) {
         if (!this.hasActivePosition || !this.buyPrice) {
-            this.strategyUtils.logStrategyInfo('🚫 No active position or buy price - skipping sell check');
+            this.strategyUtils.logStrategyInfo('No active position or buy price - skipping sell check');
             return false;
         }
         
         if (this.sellCompleted) {
-            this.strategyUtils.logStrategyInfo('✅ Sell already completed for this cycle - skipping sell check');
+            this.strategyUtils.logStrategyInfo('Sell already completed for this cycle - skipping sell check');
             return false;
         }
         
         const currentPrice = optionData.currentPrice;
         const priceDifference = currentPrice - this.buyPrice;
         
-        this.strategyUtils.logStrategyDebug(`🔍 Sell Check for ${optionData.symbol}:`);
+        this.strategyUtils.logStrategyDebug(`Sell Check for ${optionData.symbol}:`);
         this.strategyUtils.logStrategyDebug(`  Buy Price: ${this.buyPrice}`);
         this.strategyUtils.logStrategyDebug(`  Current Price: ${currentPrice}`);
         this.strategyUtils.logStrategyDebug(`  Price Difference: ${priceDifference.toFixed(2)}`);
-        this.strategyUtils.logStrategyDebug(`  Target: ${this.globalDict.target}`);
-        this.strategyUtils.logStrategyDebug(`  Stop Loss: ${this.globalDict.stoploss}`);
-        this.strategyUtils.logStrategyDebug(`  Hit Target: ${priceDifference >= this.globalDict.target}`);
-        this.strategyUtils.logStrategyDebug(`  Hit Stop Loss: ${priceDifference <= -this.globalDict.stoploss}`);
+        this.strategyUtils.logStrategyDebug(`  Target: +5`);
+        this.strategyUtils.logStrategyDebug(`  Stop Loss: -5`);
+        this.strategyUtils.logStrategyDebug(`  Hit Target: ${priceDifference >= 5}`);
+        this.strategyUtils.logStrategyDebug(`  Hit Stop Loss: ${priceDifference <= -5}`);
         this.strategyUtils.logStrategyDebug(`  Sell Completed: ${this.sellCompleted}`);
         
-        // Sell if price is 5 rupees higher or lower than buy price
-        return priceDifference >= this.globalDict.target || 
-               priceDifference <= -this.globalDict.stoploss;
+        // Sell if price is 5 rupees higher or lower than buy price (hard coded)
+        return priceDifference >= 2 || priceDifference <= -2;
     }
 
-    async buyOption(optionData) {
-        this.strategyUtils.logStrategyInfo(`🛒 Attempting to buy ${optionData.symbol} at ${optionData.currentPrice}`);
-        this.strategyUtils.logStrategyDebug('🔍 TradingUtils Status Check:');
-        this.strategyUtils.logStrategyDebug(`  - TradingUtils instance: ${!!this.tradingUtils}`);
-        this.strategyUtils.logStrategyDebug(`  - Kite instance: ${!!this.tradingUtils.kite}`);
-        this.strategyUtils.logStrategyDebug(`  - API Key available: ${!!this.globalDict.api_key}`);
-        this.strategyUtils.logStrategyDebug(`  - Access Token available: ${!!this.accessToken}`);
-        this.strategyUtils.logStrategyDebug(`  - Debug Mode: ${this.debugMode}`);
+    buyOption(optionData) {
+        this.strategyUtils.logStrategyInfo(`Attempting to buy ${optionData.symbol} at ${optionData.currentPrice}`);
         
         // Log the buy attempt
         this.strategyUtils.logTradeAction('buy_attempt', {
@@ -306,50 +259,22 @@ class SimpleBuySellStrategy extends BaseStrategy {
             price: optionData.currentPrice,
             token: optionData.token,
             quantity: 75,
-            debugMode: this.debugMode,
             timestamp: this.strategyUtils.getCurrentTimestamp()
         }, this.name);
         
-        // Check if debug mode is enabled or TradingUtils is not initialized
-        if (this.debugMode || !this.tradingUtils.kite) {
-            const reason = this.debugMode ? 'Debug mode enabled' : 'TradingUtils not initialized';
-            this.strategyUtils.logStrategyInfo('📝 Paper trading mode - simulating buy order');
-            this.strategyUtils.logStrategyInfo(`❌ ${reason} - using paper trading`);
-            
-            // Log paper trading buy
-            this.strategyUtils.logTradeAction('paper_buy', {
-                symbol: optionData.symbol,
-                price: optionData.currentPrice,
-                token: optionData.token,
-                quantity: 75,
-                reason: reason,
-                debugMode: this.debugMode,
-                timestamp: this.strategyUtils.getCurrentTimestamp()
-            }, this.name);
-            
-            this.recordBuyPosition(optionData);
-            return;
-        }
-        
         try {
-            this.strategyUtils.logStrategyInfo('📞 Placing actual buy order via TradingUtils');
-            this.strategyUtils.logStrategyDebug(`🔑 TradingUtils Status: ${JSON.stringify({
-                apiKey: this.globalDict.api_key ? 'Set' : 'Missing',
-                accessToken: this.accessToken ? 'Set' : 'Missing',
-                tradingUtilsInstance: this.tradingUtils ? 'Initialized' : 'Not initialized',
-                debugMode: this.debugMode
-            })}`);
+            this.strategyUtils.logStrategyInfo('Placing actual buy order via TradingUtils');
             
-            // Place buy order using trading utils
-            const result = await this.tradingUtils.placeBuyOrder(
+            // Place buy order using trading utils - synchronous
+            const result = this.tradingUtils.placeBuyOrder(
                 optionData.symbol, 
                 optionData.currentPrice, 
                 75
             );
             
             if (result.success) {
-                this.strategyUtils.logStrategyInfo(`✅ Buy order placed successfully for ${optionData.symbol}`);
-                this.strategyUtils.logStrategyInfo(`📦 Quantity: 75 (1 lot)`);
+                this.strategyUtils.logStrategyInfo(`Buy order placed successfully for ${optionData.symbol}`);
+                this.strategyUtils.logStrategyInfo(`Quantity: 75 (1 lot)`);
                 
                 // Log successful buy order
                 this.strategyUtils.logTradeAction('buy_success', {
@@ -357,15 +282,13 @@ class SimpleBuySellStrategy extends BaseStrategy {
                     price: optionData.currentPrice,
                     token: optionData.token,
                     quantity: 75,
-                    orderResponse: result.orderResponse,
-                    paper: result.paper,
-                    debugMode: this.debugMode,
+                    orderId: result.orderId,
                     timestamp: this.strategyUtils.getCurrentTimestamp()
                 }, this.name);
                 
                 this.recordBuyPosition(optionData);
             } else {
-                this.strategyUtils.logStrategyError(`❌ Error buying ${optionData.symbol}: ${result.error}`);
+                this.strategyUtils.logStrategyError(`Error buying ${optionData.symbol}: ${result.error}`);
                 
                 // Log buy order failure
                 this.strategyUtils.logTradeAction('buy_failure', {
@@ -374,27 +297,15 @@ class SimpleBuySellStrategy extends BaseStrategy {
                     token: optionData.token,
                     quantity: 75,
                     error: result.error,
-                    debugMode: this.debugMode,
                     timestamp: this.strategyUtils.getCurrentTimestamp()
                 }, this.name);
                 
                 // If order fails, still record the position for paper trading
-                this.strategyUtils.logStrategyInfo('📝 Recording position as paper trade due to order failure');
-                this.strategyUtils.logTradeAction('paper_buy', {
-                    symbol: optionData.symbol,
-                    price: optionData.currentPrice,
-                    token: optionData.token,
-                    quantity: 75,
-                    reason: 'Order placement failed',
-                    error: result.error,
-                    debugMode: this.debugMode,
-                    timestamp: this.strategyUtils.getCurrentTimestamp()
-                }, this.name);
-                
+                this.strategyUtils.logStrategyInfo('Recording position as paper trade due to order failure');
                 this.recordBuyPosition(optionData);
             }
         } catch (error) {
-            this.strategyUtils.logStrategyError(`❌ Exception while placing buy order for ${optionData.symbol}: ${error.message}`);
+            this.strategyUtils.logStrategyError(`Exception while placing buy order for ${optionData.symbol}: ${error.message}`);
             
             // Log exception during buy
             this.strategyUtils.logTradeAction('buy_exception', {
@@ -403,35 +314,16 @@ class SimpleBuySellStrategy extends BaseStrategy {
                 token: optionData.token,
                 quantity: 75,
                 error: error.message,
-                errorDetails: error,
-                debugMode: this.debugMode,
                 timestamp: this.strategyUtils.getCurrentTimestamp()
             }, this.name);
             
-            this.strategyUtils.logStrategyInfo('📝 Recording position as paper trade due to exception');
-            this.strategyUtils.logTradeAction('paper_buy', {
-                symbol: optionData.symbol,
-                price: optionData.currentPrice,
-                token: optionData.token,
-                quantity: 75,
-                reason: 'Exception during order placement',
-                error: error.message,
-                debugMode: this.debugMode,
-                timestamp: this.strategyUtils.getCurrentTimestamp()
-            }, this.name);
-            
+            this.strategyUtils.logStrategyInfo('Recording position as paper trade due to exception');
             this.recordBuyPosition(optionData);
         }
     }
 
-    async sellOption(optionData) {
-        this.strategyUtils.logStrategyInfo(`💰 Attempting to sell ${optionData.symbol} at ${optionData.currentPrice}`);
-        this.strategyUtils.logStrategyDebug('🔍 TradingUtils Status Check:');
-        this.strategyUtils.logStrategyDebug(`  - TradingUtils instance: ${!!this.tradingUtils}`);
-        this.strategyUtils.logStrategyDebug(`  - Kite instance: ${!!this.tradingUtils.kite}`);
-        this.strategyUtils.logStrategyDebug(`  - API Key available: ${!!this.globalDict.api_key}`);
-        this.strategyUtils.logStrategyDebug(`  - Access Token available: ${!!this.accessToken}`);
-        this.strategyUtils.logStrategyDebug(`  - Debug Mode: ${this.debugMode}`);
+    sellOption(optionData) {
+        this.strategyUtils.logStrategyInfo(`Attempting to sell ${optionData.symbol} at ${optionData.currentPrice}`);
         
         // Log the sell attempt
         this.strategyUtils.logTradeAction('sell_attempt', {
@@ -441,52 +333,22 @@ class SimpleBuySellStrategy extends BaseStrategy {
             buyPrice: this.buyPrice,
             priceDifference: optionData.currentPrice - this.buyPrice,
             quantity: 75,
-            debugMode: this.debugMode,
             timestamp: this.strategyUtils.getCurrentTimestamp()
         }, this.name);
         
-        // Check if debug mode is enabled or TradingUtils is not initialized
-        if (this.debugMode || !this.tradingUtils.kite) {
-            const reason = this.debugMode ? 'Debug mode enabled' : 'TradingUtils not initialized';
-            this.strategyUtils.logStrategyInfo('📝 Paper trading mode - simulating sell order');
-            this.strategyUtils.logStrategyInfo(`❌ ${reason} - using paper trading`);
-            
-            // Log paper trading sell
-            this.strategyUtils.logTradeAction('paper_sell', {
-                symbol: optionData.symbol,
-                price: optionData.currentPrice,
-                token: optionData.token,
-                buyPrice: this.buyPrice,
-                priceDifference: optionData.currentPrice - this.buyPrice,
-                quantity: 75,
-                reason: reason,
-                debugMode: this.debugMode,
-                timestamp: this.strategyUtils.getCurrentTimestamp()
-            }, this.name);
-            
-            this.recordSellPosition(optionData);
-            return;
-        }
-        
         try {
-            this.strategyUtils.logStrategyInfo('📞 Placing actual sell order via TradingUtils');
-            this.strategyUtils.logStrategyDebug(`🔑 TradingUtils Status: ${JSON.stringify({
-                apiKey: this.globalDict.api_key ? 'Set' : 'Missing',
-                accessToken: this.accessToken ? 'Set' : 'Missing',
-                tradingUtilsInstance: this.tradingUtils ? 'Initialized' : 'Not initialized',
-                debugMode: this.debugMode
-            })}`);
+            this.strategyUtils.logStrategyInfo('Placing actual sell order via TradingUtils');
             
-            // Place sell order using trading utils
-            const result = await this.tradingUtils.placeSellOrder(
+            // Place sell order using trading utils - synchronous
+            const result = this.tradingUtils.placeSellOrder(
                 optionData.symbol, 
                 optionData.currentPrice, 
                 75
             );
             
             if (result.success) {
-                this.strategyUtils.logStrategyInfo(`✅ Sell order placed successfully for ${optionData.symbol}`);
-                this.strategyUtils.logStrategyInfo(`📦 Quantity: 75 (1 lot)`);
+                this.strategyUtils.logStrategyInfo(`Sell order placed successfully for ${optionData.symbol}`);
+                this.strategyUtils.logStrategyInfo(`Quantity: 75 (1 lot)`);
                 
                 // Log successful sell order
                 this.strategyUtils.logTradeAction('sell_success', {
@@ -496,15 +358,13 @@ class SimpleBuySellStrategy extends BaseStrategy {
                     buyPrice: this.buyPrice,
                     priceDifference: optionData.currentPrice - this.buyPrice,
                     quantity: 75,
-                    orderResponse: result.orderResponse,
-                    paper: result.paper,
-                    debugMode: this.debugMode,
+                    orderId: result.orderId,
                     timestamp: this.strategyUtils.getCurrentTimestamp()
                 }, this.name);
                 
                 this.recordSellPosition(optionData);
             } else {
-                this.strategyUtils.logStrategyError(`❌ Error selling ${optionData.symbol}: ${result.error}`);
+                this.strategyUtils.logStrategyError(`Error selling ${optionData.symbol}: ${result.error}`);
                 
                 // Log sell order failure
                 this.strategyUtils.logTradeAction('sell_failure', {
@@ -515,29 +375,15 @@ class SimpleBuySellStrategy extends BaseStrategy {
                     priceDifference: optionData.currentPrice - this.buyPrice,
                     quantity: 75,
                     error: result.error,
-                    debugMode: this.debugMode,
                     timestamp: this.strategyUtils.getCurrentTimestamp()
                 }, this.name);
                 
                 // If order fails, still record the position for paper trading
-                this.strategyUtils.logStrategyInfo('📝 Recording position as paper trade due to order failure');
-                this.strategyUtils.logTradeAction('paper_sell', {
-                    symbol: optionData.symbol,
-                    price: optionData.currentPrice,
-                    token: optionData.token,
-                    buyPrice: this.buyPrice,
-                    priceDifference: optionData.currentPrice - this.buyPrice,
-                    quantity: 75,
-                    reason: 'Order placement failed',
-                    error: result.error,
-                    debugMode: this.debugMode,
-                    timestamp: this.strategyUtils.getCurrentTimestamp()
-                }, this.name);
-                
+                this.strategyUtils.logStrategyInfo('Recording position as paper trade due to order failure');
                 this.recordSellPosition(optionData);
             }
         } catch (error) {
-            this.strategyUtils.logStrategyError(`❌ Exception while placing sell order for ${optionData.symbol}: ${error.message}`);
+            this.strategyUtils.logStrategyError(`Exception while placing sell order for ${optionData.symbol}: ${error.message}`);
             
             // Log exception during sell
             this.strategyUtils.logTradeAction('sell_exception', {
@@ -548,31 +394,16 @@ class SimpleBuySellStrategy extends BaseStrategy {
                 priceDifference: optionData.currentPrice - this.buyPrice,
                 quantity: 75,
                 error: error.message,
-                errorDetails: error,
-                debugMode: this.debugMode,
                 timestamp: this.strategyUtils.getCurrentTimestamp()
             }, this.name);
             
-            this.strategyUtils.logStrategyInfo('📝 Recording position as paper trade due to exception');
-            this.strategyUtils.logTradeAction('paper_sell', {
-                symbol: optionData.symbol,
-                price: optionData.currentPrice,
-                token: optionData.token,
-                buyPrice: this.buyPrice,
-                priceDifference: optionData.currentPrice - this.buyPrice,
-                quantity: 75,
-                reason: 'Exception during order placement',
-                error: error.message,
-                debugMode: this.debugMode,
-                timestamp: this.strategyUtils.getCurrentTimestamp()
-            }, this.name);
-            
+            this.strategyUtils.logStrategyInfo('Recording position as paper trade due to exception');
             this.recordSellPosition(optionData);
         }
     }
 
     recordBuyPosition(optionData) {
-        this.strategyUtils.logStrategyInfo(`📊 Recording buy position for ${optionData.symbol}`);
+        this.strategyUtils.logStrategyInfo(`Recording buy position for ${optionData.symbol}`);
         
         this.hasActivePosition = true;
         this.buyPrice = optionData.currentPrice;
@@ -581,7 +412,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
         // Mark buy as completed for this cycle
         this.buyCompleted = true;
         
-        this.strategyUtils.logStrategyInfo(`✅ Position recorded:`);
+        this.strategyUtils.logStrategyInfo(`  Position recorded:`);
         this.strategyUtils.logStrategyInfo(`  Symbol: ${optionData.symbol}`);
         this.strategyUtils.logStrategyInfo(`  Buy Price: ${optionData.currentPrice}`);
         this.strategyUtils.logStrategyInfo(`  Quantity: 75 (1 lot)`);
@@ -608,16 +439,16 @@ class SimpleBuySellStrategy extends BaseStrategy {
             this.name
         );
         
-        this.strategyUtils.logStrategyInfo('📈 Position tracking updated in universalDict');
+        this.strategyUtils.logStrategyInfo('Position tracking updated in universalDict');
     }
 
     recordSellPosition(optionData) {
-        this.strategyUtils.logStrategyInfo(`📊 Recording sell position for ${optionData.symbol}`);
+        this.strategyUtils.logStrategyInfo(`Recording sell position for ${optionData.symbol}`);
         
         const currentPrice = optionData.currentPrice;
         const pnl = this.strategyUtils.calculatePnL(this.buyPrice, currentPrice, 75);
         
-        this.strategyUtils.logStrategyInfo(`✅ Position closed:`);
+        this.strategyUtils.logStrategyInfo(`Position closed:`);
         this.strategyUtils.logStrategyInfo(`  Symbol: ${optionData.symbol}`);
         this.strategyUtils.logStrategyInfo(`  Buy Price: ${this.buyPrice}`);
         this.strategyUtils.logStrategyInfo(`  Sell Price: ${currentPrice}`);
@@ -651,21 +482,15 @@ class SimpleBuySellStrategy extends BaseStrategy {
             this.name
         );
         
-        // Mark sell as completed and record sell time
+        // Mark sell as completed
         this.sellCompleted = true;
-        this.lastSellTime = Date.now();
         
-        // Enable debug mode after first cycle
-        if (this.cycleCount === 1) {
-            this.debugMode = true;
-            this.strategyUtils.logStrategyInfo('🔧 DEBUG MODE ENABLED - Paper trading mode activated after first cycle');
-            this.strategyUtils.logStrategyInfo('📝 All subsequent trades will be simulated (no actual orders placed)');
-        }
+        // STOP EXECUTION after sell
+        this.executionStopped = true;
         
-        this.strategyUtils.logStrategyInfo('🔄 Sell completed for this cycle');
-        this.strategyUtils.logStrategyInfo('⏰ 15-second delay timer started');
-        this.strategyUtils.logStrategyInfo('📈 Position tracking updated in universalDict');
-        this.strategyUtils.logStrategyInfo(`🔧 Debug Mode: ${this.debugMode}`);
+        this.strategyUtils.logStrategyInfo('Sell completed for this cycle');
+        this.strategyUtils.logStrategyInfo('EXECUTION STOPPED - Strategy completed successfully');
+        this.strategyUtils.logStrategyInfo('Position tracking updated in universalDict');
         
         // Log cycle completion
         this.strategyUtils.logCycleCompleted(
@@ -678,8 +503,8 @@ class SimpleBuySellStrategy extends BaseStrategy {
             this.name
         );
         
-        this.strategyUtils.logStrategyInfo('🎉 Trading cycle completed. Waiting 15 seconds before next cycle...');
-        this.strategyUtils.logStrategyInfo('📊 Cycle Summary:');
+        this.strategyUtils.logStrategyInfo('Trading cycle completed. Execution stopped.');
+        this.strategyUtils.logStrategyInfo('Cycle Summary:');
         this.strategyUtils.logStrategyInfo(`  Cycle Number: ${this.cycleCount}`);
         this.strategyUtils.logStrategyInfo(`  Selected Instrument: ${optionData.symbol}`);
         this.strategyUtils.logStrategyInfo(`  Total ticks processed: ${this.tickCount}`);
@@ -687,35 +512,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`  Price difference per unit: ${pnl.priceDifference.toFixed(2)} rupees`);
         this.strategyUtils.logStrategyInfo(`  Total P&L for 1 lot: ${pnl.totalPnL.toFixed(2)} rupees`);
         this.strategyUtils.logStrategyInfo(`  Strategy duration: ${this.strategyUtils.getCurrentTimestamp()}`);
-        this.strategyUtils.logStrategyInfo(`  Debug Mode: ${this.debugMode ? 'ENABLED' : 'DISABLED'}`);
-        this.strategyUtils.logStrategyInfo('⏰ Will wait 15 seconds before starting new cycle');
-    }
-
-    // Method to reset cycle for new instrument selection
-    resetCycleForNewInstrument() {
-        this.strategyUtils.logStrategyInfo('🔄 Resetting cycle for new instrument selection...');
-        
-        // Reset position state
-        this.hasActivePosition = false;
-        this.buyPrice = null;
-        this.buySymbol = null;
-        
-        // Increment cycle count
-        this.cycleCount++;
-        
-        // Reset instrument selection for new cycle
-        this.selectedInstrument = null;
-        this.instrumentSelectionComplete = false;
-        
-        // Reset cycle completion flags
-        this.buyCompleted = false;
-        this.sellCompleted = false;
-        
-        // Debug mode persists across cycles (once enabled, stays enabled)
-        this.strategyUtils.logStrategyInfo(`🔄 Cycle ${this.cycleCount} started`);
-        this.strategyUtils.logStrategyInfo('🎯 Will select new instrument for this cycle');
-        this.strategyUtils.logStrategyInfo('⏰ Ready for new buy-sell cycle');
-        this.strategyUtils.logStrategyInfo(`🔧 Debug Mode: ${this.debugMode ? 'ENABLED' : 'DISABLED'}`);
+        this.strategyUtils.logStrategyInfo('Execution stopped successfully');
     }
 
     getConfig() {
@@ -731,8 +528,7 @@ class SimpleBuySellStrategy extends BaseStrategy {
             cycleCount: this.cycleCount,
             buyCompleted: this.buyCompleted,
             sellCompleted: this.sellCompleted,
-            lastSellTime: this.lastSellTime,
-            debugMode: this.debugMode
+            executionStopped: this.executionStopped
         };
     }
 
@@ -743,14 +539,14 @@ class SimpleBuySellStrategy extends BaseStrategy {
                 default: 5,
                 min: 1,
                 max: 20,
-                description: 'Target profit in rupees to sell'
+                description: 'Target profit in rupees to sell (hard coded to 5)'
             },
             stoploss: {
                 type: 'number',
                 default: 5,
                 min: 1,
                 max: 20,
-                description: 'Stop loss in rupees to sell'
+                description: 'Stop loss in rupees to sell (hard coded to 5)'
             },
             enableTrading: {
                 type: 'boolean',

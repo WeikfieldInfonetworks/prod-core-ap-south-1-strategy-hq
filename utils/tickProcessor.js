@@ -33,7 +33,7 @@ class TickProcessor {
                     
                     if (userData) {
                         emitFunction(`user_${userId}`, "node_update", userData);
-                        console.log(`✅ Processed ticks for user ${userId} in ${processingTime}ms`);
+                        console.log(`Processed ticks for user ${userId} in ${processingTime}ms`);
                     } else {
                         console.warn(`⚠️ No user data returned for user ${userId}`);
                     }
@@ -78,29 +78,27 @@ class TickProcessor {
      */
     async processMultipleUsers(activeUsers, tickData, processFunction, emitFunction) {
         if (activeUsers.length === 0) {
-            console.log('📊 No active users to process ticks for');
-            return [];
+            console.log('No active users to process ticks for');
+            return;
         }
-
-        console.log(`📊 Processing ticks for ${activeUsers.length} active users with controlled concurrency`);
-
+        
+        console.log(`Processing ticks for ${activeUsers.length} active users with controlled concurrency`);
+        
+        // Process users with controlled concurrency
         const promises = activeUsers.map(userId => 
             this.processUserTicks(userId, tickData, processFunction, emitFunction)
         );
-
+        
         try {
             const results = await Promise.allSettled(promises);
             
-            // Log summary
-            const successful = results.filter(r => r.status === 'fulfilled').length;
-            const failed = results.filter(r => r.status === 'rejected').length;
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+            const failed = results.filter(r => r.status === 'rejected' || r.value === null).length;
             
-            console.log(`📊 Tick processing complete: ${successful} successful, ${failed} failed`);
+            console.log(`Tick processing complete: ${successful} successful, ${failed} failed`);
             
-            return results;
         } catch (error) {
-            console.error('❌ Error in batch tick processing:', error);
-            throw error;
+            console.error('Error in batch tick processing:', error);
         }
     }
 

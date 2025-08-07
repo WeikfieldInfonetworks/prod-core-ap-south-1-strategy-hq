@@ -72,7 +72,7 @@ centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" t
         const activeUsers = userStrategyManager.getActiveUsers();
         
         if (activeUsers.length === 0) {
-            console.log('📊 No active users to process ticks for');
+            console.log('No active users to process ticks for');
             return;
         }
         
@@ -83,7 +83,7 @@ centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" t
             userStrategyManager.processTicksForUser.bind(userStrategyManager),
             (room, event, data) => ioServer.to(room).emit(event, data)
         ).catch(error => {
-            console.error('❌ Error in batch tick processing:', error);
+            console.error('Error in batch tick processing:', error);
         });
         
     } catch (error) {
@@ -153,8 +153,8 @@ ioServer.of("/live").on("connection", socket => {
             const availableStrategies = userStrategyManager.getAvailableStrategiesForUser(userId);
             const currentStrategy = userStrategyManager.getCurrentStrategyForUser(userId);
             
-            console.log(`👤 User authenticated: ${userName} (${userId})`);
-            console.log(`📊 Available strategies: ${availableStrategies.length}`);
+            console.log(`User authenticated: ${userName} (${userId})`);
+            console.log(`Available strategies: ${availableStrategies.length}`);
             
             socket.emit("node_identity", { 
                 name: "Strategy HQ Node",
@@ -179,8 +179,8 @@ ioServer.of("/live").on("connection", socket => {
     // Handle strategy selection
     socket.on("select_strategy", (strategyName) => {
         try {
-            console.log('🔧 select_strategy event received:', strategyName);
-            console.log('📊 Current user:', { userId: currentUserId, userName: currentUserName });
+            console.log('select_strategy event received:', strategyName);
+            console.log('Current user:', { userId: currentUserId, userName: currentUserName });
             
             if (!currentUserId) {
                 socket.emit("strategy_error", "User not authenticated");
@@ -188,10 +188,10 @@ ioServer.of("/live").on("connection", socket => {
             }
             
             const strategyConfig = userStrategyManager.setStrategyForUser(currentUserId, strategyName);
-            console.log('✅ Strategy set successfully:', strategyConfig.name);
+            console.log('Strategy set successfully:', strategyConfig.name);
             socket.emit("strategy_updated", strategyConfig);
         } catch (error) {
-            console.error('❌ Error setting strategy:', error);
+            console.error('Error setting strategy:', error);
             socket.emit("strategy_error", error.message);
         }
     });

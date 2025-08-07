@@ -62,8 +62,8 @@ class StrategyManager {
 
     // Set strategy with user info
     setStrategy(strategyName, globalDict, universalDict, blockDict) {
-        console.log('🔧 Setting strategy:', strategyName);
-        console.log('📊 Dictionaries provided:', {
+        console.log('Setting strategy:', strategyName);
+        console.log('Dictionaries provided:', {
             globalDict: globalDict ? 'present' : 'missing',
             universalDict: universalDict ? 'present' : 'missing',
             blockDict: blockDict ? 'present' : 'missing'
@@ -79,18 +79,22 @@ class StrategyManager {
         this.universalDict = universalDict || {};
         this.blockDict = blockDict || {};
 
+        // Get access token from globalDict
+        const accessToken = this.globalDict.access_token;
+        console.log('Access token available:', !!accessToken);
+
         // Set user info if available
         if (this.userName && this.userId) {
             strategy.setUserInfo(this.userName, this.userId);
         }
 
-        // Initialize the new strategy with access token
-        strategy.initialize(this.globalDict, this.universalDict, this.blockDict, this.accessToken);
+        // Initialize the new strategy with access token from globalDict
+        strategy.initialize(this.globalDict, this.universalDict, this.blockDict, accessToken);
         this.currentStrategy = strategy;
         
-        console.log(`✅ Strategy set to: ${strategyName}`);
+        console.log(`Strategy set to: ${strategyName}`);
         const config = strategy.getConfig();
-        console.log('📊 Strategy config after initialization:', {
+        console.log('Strategy config after initialization:', {
             name: config.name,
             universalDict: config.universalDict ? 'present' : 'missing',
             instrumentMap: config.universalDict?.instrumentMap ? 'present' : 'missing'
@@ -168,7 +172,7 @@ class StrategyManager {
         this.globalDict.secret_key = secretKey;
         this.globalDict.access_token = accessToken;
         
-        console.log(`👤 User credentials set: ${userName} (${userId})`);
+        console.log(`User credentials set: ${userName} (${userId})`);
         
         // Update current strategy with new credentials if exists
         if (this.currentStrategy) {

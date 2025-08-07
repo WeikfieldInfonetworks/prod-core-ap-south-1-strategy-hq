@@ -13,24 +13,22 @@ class StrategyUtils {
     setUserInfo(userName, userId) {
         this.userName = userName;
         this.userId = userId;
+        this.logDir = `logs/user_${userId}`;
+        this.orderLogFile = `${this.logDir}/orders.log`;
+        this.strategyLogFile = `${this.logDir}/strategy.log`;
         
-        // Create user-specific log directory
-        this.logDir = path.join(__dirname, '..', 'logs', `user_${userId}`);
-        this.ensureLogDirectory();
+        // Ensure log directory exists
+        this.ensureLogDirectory(this.logDir);
         
-        // Set log file paths
-        this.orderLogFile = path.join(this.logDir, 'orders.log');
-        this.strategyLogFile = path.join(this.logDir, 'strategy.log');
-        
-        console.log(`👤 User info set for logging: ${userName} (ID: ${userId})`);
-        console.log(`📁 User log directory: ${this.logDir}`);
-        console.log(`📝 Order log file: ${this.orderLogFile}`);
-        console.log(`📝 Strategy log file: ${this.strategyLogFile}`);
+        console.log(`User info set for logging: ${userName} (ID: ${userId})`);
+        console.log(`User log directory: ${this.logDir}`);
+        console.log(`Order log file: ${this.orderLogFile}`);
+        console.log(`Strategy log file: ${this.strategyLogFile}`);
     }
 
     ensureLogDirectory() {
         if (!this.logDir) {
-            console.warn('⚠️ Log directory not set, using default path');
+            console.warn('Log directory not set, using default path');
             this.logDir = path.join(__dirname, '..', 'logs', 'default_user');
         }
         
@@ -47,7 +45,7 @@ class StrategyUtils {
      */
     writeLogEntry(logFile, level, message) {
         if (!logFile) {
-            console.error('❌ Log file path not set');
+            console.error('Log file path not set');
             return;
         }
 
@@ -57,7 +55,7 @@ class StrategyUtils {
         try {
             fs.appendFileSync(logFile, logLine);
         } catch (error) {
-            console.error('❌ Error writing to log file:', error);
+            console.error('Error writing to log file:', error);
             console.error('Log file path:', logFile);
         }
     }
@@ -69,7 +67,7 @@ class StrategyUtils {
      */
     logOrder(level, message) {
         if (!this.orderLogFile) {
-            console.warn('⚠️ Order log file not set, using default');
+            console.warn('Order log file not set, using default');
             this.orderLogFile = path.join(__dirname, '..', 'logs', 'default_user', 'orders.log');
             this.ensureLogDirectory();
         }
@@ -84,7 +82,7 @@ class StrategyUtils {
      */
     logStrategy(level, message) {
         if (!this.strategyLogFile) {
-            console.warn('⚠️ Strategy log file not set, using default');
+            console.warn('Strategy log file not set, using default');
             this.strategyLogFile = path.join(__dirname, '..', 'logs', 'default_user', 'strategy.log');
             this.ensureLogDirectory();
         }
@@ -120,7 +118,20 @@ class StrategyUtils {
 
     // Strategy-related logging methods
     logStrategyInfo(message) {
-        this.logStrategy('INFO', message);
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] [INFO] [${this.userName || 'Unknown'}] ${message}\n`;
+        
+        if (!this.strategyLogFile) {
+            console.error('Log file path not set');
+            return;
+        }
+        
+        try {
+            fs.appendFileSync(this.strategyLogFile, logEntry);
+            console.log(`[STRATEGY] ${message}`);
+        } catch (error) {
+            console.error('Error writing to log file:', error);
+        }
     }
 
     logStrategyWarn(message) {
@@ -128,7 +139,20 @@ class StrategyUtils {
     }
 
     logStrategyError(message) {
-        this.logStrategy('ERROR', message);
+        const timestamp = new Date().toISOString();
+        const logEntry = `[${timestamp}] [ERROR] [${this.userName || 'Unknown'}] ${message}\n`;
+        
+        if (!this.strategyLogFile) {
+            console.error('Log file path not set');
+            return;
+        }
+        
+        try {
+            fs.appendFileSync(this.strategyLogFile, logEntry);
+            console.error(`[STRATEGY ERROR] ${message}`);
+        } catch (error) {
+            console.error('Error writing to log file:', error);
+        }
     }
 
     logStrategyDebug(message) {
@@ -246,6 +270,48 @@ class StrategyUtils {
         }
     }
 
+    selectBestInstrumentUnder100(ticks, cycleCount = 0) {
+        this.logStrategyInfo(`Selecting best instrument nearest and under 100 for Cycle ${cycleCount + 1}`);
+        
+        let bestInstrument = null;
+        let minDistance = Infinity;
+        
+        // Find the options instrument closest to 100 but under 100
+        for (const tick of ticks) {
+            const symbol = tick.symbol || `TOKEN_${tick.instrument_token}`;
+            
+            if (this.isOptionsInstrument(symbol)) {
+                const price = tick.last_price;
+                
+                // Only consider instruments under 100
+                if (price < 100) {
+                    const distance = 100 - price; // Distance from 100 (closer to 100 is better)
+                    
+                    this.logStrategyDebug(`Candidate under 100: ${symbol} at ${price}, distance from 100: ${distance.toFixed(2)}`);
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        bestInstrument = {
+                            symbol: symbol,
+                            token: tick.instrument_token,
+                            price: price,
+                            distance: distance
+                        };
+                    }
+                }
+            }
+        }
+        
+        if (bestInstrument) {
+            this.logInstrumentSelection(bestInstrument.symbol, bestInstrument.price, bestInstrument.distance, bestInstrument.token, cycleCount + 1);
+            this.logStrategyInfo(`Selected instrument under 100: ${bestInstrument.symbol} @ ${bestInstrument.price} (distance from 100: ${bestInstrument.distance.toFixed(2)})`);
+            return bestInstrument;
+        } else {
+            this.logStrategyWarn('No suitable options instruments found under 100 in this tick batch');
+            return null;
+        }
+    }
+
     calculatePnL(buyPrice, sellPrice, quantity = 75) {
         const priceDifference = sellPrice - buyPrice;
         const totalPnL = priceDifference * quantity;
@@ -314,12 +380,12 @@ class StrategyUtils {
      */
     findClosestSymbolBelowPrice(instrumentMap, targetPrice, instrumentType, maxPrice = 200) {
         if (!instrumentMap || typeof instrumentMap !== 'object') {
-            console.warn('⚠️ Invalid instrument map provided to findClosestSymbolBelowPrice');
+            console.warn('Invalid instrument map provided to findClosestSymbolBelowPrice');
             return null;
         }
 
         if (!instrumentType || !['CE', 'PE'].includes(instrumentType.toUpperCase())) {
-            console.warn('⚠️ Invalid instrument type. Must be "CE" or "PE"');
+            console.warn('Invalid instrument type. Must be "CE" or "PE"');
             return null;
         }
 
@@ -362,9 +428,9 @@ class StrategyUtils {
         }
 
         if (closestSymbol) {
-            this.logStrategyDebug(`🎯 Found closest ${instrumentType} symbol below ${targetPrice}: ${closestSymbol.symbol} @ ${closestSymbol.price} (diff: ${closestSymbol.difference.toFixed(2)})`);
+            this.logStrategyDebug(`Found closest ${instrumentType} symbol below ${targetPrice}: ${closestSymbol.symbol} @ ${closestSymbol.price} (diff: ${closestSymbol.difference.toFixed(2)})`);
         } else {
-            this.logStrategyWarn(`⚠️ No ${instrumentType} symbols found below ${targetPrice}`);
+            this.logStrategyWarn(`No ${instrumentType} symbols found below ${targetPrice}`);
         }
 
         return closestSymbol;
@@ -420,38 +486,50 @@ class StrategyUtils {
 
             // Check CE plus3 - only check until first CE is found
             if (!ceFound && ceTokens.includes(token) && !flags.interimLowReached && !flags.calcRefReached) {
-                if (instrument.plus3 >= globalDict.peakDef) {
-                    this.logStrategyInfo(`📈 PLUS ${globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last}`);
+                // Check if current price is at least peakDef points above the opening price (firstPrice)
+                const priceDifference = instrument.last - instrument.firstPrice;
+                if (priceDifference >= globalDict.peakDef && !instrument.flagPlus3) {
+                    this.logStrategyInfo(`PLUS ${globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last} OPENING: ${instrument.firstPrice} DIFF: ${priceDifference.toFixed(2)}`);
                     result.cePlus3 = true;
                     instrument.flagPlus3 = true;
                     ceFound = true;
                     
                     if (!result.mainToken) {
                         result.mainToken = token;
-                        this.logStrategyInfo(`🎯 Main token assigned: ${instrument.symbol} (CE)`);
+                        this.logStrategyInfo(`Main token assigned: ${instrument.symbol} (CE)`);
                     } else {
                         result.oppToken = token;
-                        this.logStrategyInfo(`🎯 Opposite token assigned: ${instrument.symbol} (CE)`);
+                        this.logStrategyInfo(`Opposite token assigned: ${instrument.symbol} (CE)`);
                     }
+                }
+                
+                // Add to race if it has passed plus3 checkpoint
+                if (instrument.flagPlus3) {
                     filteredTokens.push(token);
                 }
             }
             
             // Check PE plus3 - only check until first PE is found
             if (!peFound && peTokens.includes(token) && !flags.interimLowReached && !flags.calcRefReached) {
-                if (instrument.plus3 >= globalDict.peakDef) {
-                    this.logStrategyInfo(`📈 PLUS ${globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last}`);
+                // Check if current price is at least peakDef points above the opening price (firstPrice)
+                const priceDifference = instrument.last - instrument.firstPrice;
+                if (priceDifference >= globalDict.peakDef && !instrument.flagPlus3) {
+                    this.logStrategyInfo(`PLUS ${globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last} OPENING: ${instrument.firstPrice} DIFF: ${priceDifference.toFixed(2)}`);
                     result.pePlus3 = true;
                     instrument.flagPlus3 = true;
                     peFound = true;
                     
                     if (!result.mainToken) {
                         result.mainToken = token;
-                        this.logStrategyInfo(`🎯 Main token assigned: ${instrument.symbol} (PE)`);
+                        this.logStrategyInfo(`Main token assigned: ${instrument.symbol} (PE)`);
                     } else {
                         result.oppToken = token;
-                        this.logStrategyInfo(`🎯 Opposite token assigned: ${instrument.symbol} (PE)`);
+                        this.logStrategyInfo(`Opposite token assigned: ${instrument.symbol} (PE)`);
                     }
+                }
+                
+                // Add to race if it has passed plus3 checkpoint
+                if (instrument.flagPlus3) {
                     filteredTokens.push(token);
                 }
             }
@@ -471,27 +549,35 @@ class StrategyUtils {
      * @param {Array} tokens - Array of token IDs
      * @param {Object} instrumentMap - The instrument map
      * @param {Object} flags - Object containing strategy flags
-     * @returns {Array} - Array of filtered tokens
+     * @returns {Array} - Array of tokens that have passed peak and fall checkpoint
      */
     applyPeakAndFallFilter(tokens, instrumentMap, flags) {
-        const filteredTokens = [];
+        // Return tokens that have passed the peak and fall checkpoint
+        const tokensInRace = [];
         
         for (const token of tokens) {
             const instrument = instrumentMap[token];
             if (!instrument) continue;
 
+            // Only process tokens that have passed plus3 checkpoint
             if (instrument.flagPlus3 && !flags.calcRefReached && !flags.interimLowReached) {
-                if (instrument.peak - instrument.last >= 2.5 && !instrument.flagPeakAndFall) {
-                    this.logStrategyInfo(`📉 PEAK AND FALL by ${instrument.symbol}. PEAK: ${instrument.peak} LAST: ${instrument.last}`);
+                // Check if there's a difference of at least 2.5 between current price and peak
+                const peakFallDifference = instrument.peak - instrument.last;
+                if (peakFallDifference >= 2.5 && !instrument.flagPeakAndFall) {
+                    this.logStrategyInfo(`PEAK AND FALL by ${instrument.symbol}. PEAK: ${instrument.peak} LAST: ${instrument.last} DIFF: ${peakFallDifference.toFixed(2)}`);
                     instrument.peakAtRef = instrument.peak;
                     instrument.peakTime = instrument.time;
                     instrument.flagPeakAndFall = true;
-                    filteredTokens.push(token);
+                }
+                
+                // Add to race if it has passed peak and fall checkpoint
+                if (instrument.flagPeakAndFall) {
+                    tokensInRace.push(token);
                 }
             }
         }
         
-        return filteredTokens;
+        return tokensInRace;
     }
 
     /**
@@ -499,34 +585,42 @@ class StrategyUtils {
      * @param {Array} tokens - Array of token IDs
      * @param {Object} instrumentMap - The instrument map
      * @param {Object} flags - Object containing strategy flags
-     * @returns {Array} - Array of filtered tokens
+     * @returns {Array} - Array of tokens that have passed calc ref checkpoint
      */
     applyCalcRefFilter(tokens, instrumentMap, flags) {
-        const filteredTokens = [];
+        // Return tokens that have passed the calc ref checkpoint
+        const tokensInRace = [];
         
         for (const token of tokens) {
             const instrument = instrumentMap[token];
             if (!instrument) continue;
 
+            // Only process tokens that have passed peak and fall checkpoint
             if (instrument.flagPeakAndFall && !instrument.flagCalcRef) {
                 // Calculate reference point
                 const calcRef = this.calculateRefPoint(instrument);
                 if (calcRef !== instrument.prevCalcRef) {
                     instrument.prevCalcRef = instrument.calcRef;
                     instrument.calcRef = calcRef;
-                    this.logStrategyInfo(`🎯 CALCULATED REFERENCE FOR ${instrument.symbol} IS ${instrument.calcRef}`);
+                    this.logStrategyInfo(`CALCULATED REFERENCE FOR ${instrument.symbol} IS ${instrument.calcRef}`);
+                    instrument.flagCalcRef = true;
                 }
                 
+                // Check if it has reached calc ref condition
                 if (instrument.last <= instrument.calcRef && false) {
                     instrument.flagCalcRef = true;
                     flags.calcRefReached = true;
-                    this.logStrategyInfo(`🎯 ${instrument.symbol} REACHED CALC REF PRICE ${instrument.calcRef}`);
-                    filteredTokens.push(token);
+                    this.logStrategyInfo(`${instrument.symbol} REACHED CALC REF PRICE ${instrument.calcRef}`);
+                }
+                
+                // Add to race if it has passed calc ref checkpoint
+                if (instrument.flagCalcRef) {
+                    tokensInRace.push(token);
                 }
             }
         }
         
-        return filteredTokens;
+        return tokensInRace;
     }
 
     /**
@@ -549,22 +643,32 @@ class StrategyUtils {
             const instrument = instrumentMap[token];
             if (!instrument) continue;
 
-            if (instrument.lowAtRef > -1 && !flags.interimLowReached && !flags.calcRefReached) {
-                if (instrument.lowAtRef > instrument.last) {
+            // Only process tokens that have passed calc ref checkpoint
+            if (instrument.flagCalcRef && !flags.interimLowReached) {
+                // Track new lows - update lowAtRef if current price is lower
+                if (instrument.lowAtRef === -1 || instrument.last < instrument.lowAtRef) {
                     instrument.lowAtRef = instrument.last;
                     if (!flags.interimLowDisabled) {
-                        this.logStrategyInfo(`📉 NEW LOW AT REF: ${instrument.lowAtRef} FOR ${instrument.symbol}`);
+                        this.logStrategyInfo(`NEW LOW AT REF: ${instrument.lowAtRef} FOR ${instrument.symbol}`);
                     }
                 }
                 
-                if (instrument.last - instrument.lowAtRef >= globalDict.upperLimit && !flags.interimLowDisabled) {
-                    instrument.flagInterim = true;
-                    result.interimLowReached = true;
-                    result.mtmFirstOption = {
-                        symbol: instrument.symbol,
-                        token: token
-                    };
-                    this.logStrategyInfo(`🎯 INTERIM LOW REACHED: ${instrument.lowAtRef} FOR ${instrument.symbol}`);
+                // Check if price has made at least peakDef high from its lowest point
+                if (instrument.lowAtRef > -1) {
+                    const recoveryFromLow = instrument.last - instrument.lowAtRef;
+                    if (recoveryFromLow >= globalDict.peakDef && !flags.interimLowDisabled && !instrument.flagInterim) {
+                        instrument.flagInterim = true;
+                        result.interimLowReached = true;
+                        result.mtmFirstOption = {
+                            symbol: instrument.symbol,
+                            token: token
+                        };
+                        this.logStrategyInfo(`INTERIM LOW REACHED: ${instrument.lowAtRef} FOR ${instrument.symbol} RECOVERY: ${recoveryFromLow.toFixed(2)}`);
+                    }
+                }
+                
+                // Add to race if it has passed interim low checkpoint
+                if (instrument.flagInterim) {
                     filteredTokens.push(token);
                 }
             }
@@ -583,13 +687,13 @@ class StrategyUtils {
      */
     assignOppositeToken(result, instrumentMap, ceTokens, peTokens) {
         if (!result.mainToken) {
-            this.logStrategyWarn('⚠️ Cannot assign opposite token - main token not set');
+            this.logStrategyWarn('Cannot assign opposite token - main token not set');
             return;
         }
 
         const mainInstrument = instrumentMap[result.mainToken];
         if (!mainInstrument) {
-            this.logStrategyWarn('⚠️ Cannot assign opposite token - main instrument not found');
+            this.logStrategyWarn('Cannot assign opposite token - main instrument not found');
             return;
         }
 
@@ -607,7 +711,7 @@ class StrategyUtils {
             oppositeTokens = ceTokens;
             oppositeType = 'CE';
         } else {
-            this.logStrategyWarn('⚠️ Cannot determine opposite type - main token not in CE or PE lists');
+            this.logStrategyWarn('Cannot determine opposite type - main token not in CE or PE lists');
             return;
         }
 
@@ -618,14 +722,14 @@ class StrategyUtils {
             
             if (oppositeInstrument) {
                 result.oppToken = oppositeToken;
-                this.logStrategyInfo(`🎯 Opposite token auto-assigned: ${oppositeInstrument.symbol} (${oppositeType})`);
-                this.logStrategyInfo(`📊 Main: ${mainSymbol} (${ceTokens.includes(result.mainToken) ? 'CE' : 'PE'})`);
-                this.logStrategyInfo(`📊 Opposite: ${oppositeInstrument.symbol} (${oppositeType})`);
+                this.logStrategyInfo(`Opposite token auto-assigned: ${oppositeInstrument.symbol} (${oppositeType})`);
+                this.logStrategyInfo(`Main: ${mainSymbol} (${ceTokens.includes(result.mainToken) ? 'CE' : 'PE'})`);
+                this.logStrategyInfo(`Opposite: ${oppositeInstrument.symbol} (${oppositeType})`);
             } else {
-                this.logStrategyWarn(`⚠️ Opposite instrument not found for token: ${oppositeToken}`);
+                this.logStrategyWarn(`Opposite instrument not found for token: ${oppositeToken}`);
             }
         } else {
-            this.logStrategyWarn(`⚠️ No ${oppositeType} tokens available for opposite assignment`);
+            this.logStrategyWarn(`No ${oppositeType} tokens available for opposite assignment`);
         }
     }
 
@@ -641,6 +745,114 @@ class StrategyUtils {
     }
 
     /**
+     * Find tokens within a dynamic range that adjusts if no tokens are found
+     * @param {Array} sortedTicks - Array of ticks sorted by deviation from target
+     * @param {number} strikeBase - Initial base strike price
+     * @param {number} strikeDiff - Initial strike difference/range
+     * @param {number} strikeLowest - Lowest allowed strike price
+     * @param {number} adjustmentStep - How much to adjust range by (default: 5)
+     * @returns {Object} - Object containing accepted and rejected tokens
+     */
+    findTokensInDynamicRange(sortedTicks, strikeBase, strikeDiff, strikeLowest, adjustmentStep = 5) {
+        this.logStrategyInfo(`Finding tokens with dynamic range adjustment`);
+        this.logStrategyInfo(`Initial range: ${strikeBase} to ${strikeBase + strikeDiff} (diff: ${strikeDiff})`);
+        this.logStrategyInfo(`Lowest allowed: ${strikeLowest}, Adjustment step: ${adjustmentStep}`);
+        
+        const acceptedTokens = [];
+        const rejectedTokens = [];
+        
+        let currentBase = strikeBase;
+        let currentDiff = strikeDiff;
+        let rangeAdjusted = false;
+        let attempts = 0;
+        
+        while (currentBase >= strikeLowest) {
+            attempts++;
+            this.logStrategyInfo(`Attempt ${attempts}: Checking range ${currentBase} to ${currentBase + currentDiff}`);
+            
+            // Clear previous results for this attempt
+            acceptedTokens.length = 0;
+            rejectedTokens.length = 0;
+            
+            // Check all ticks against current range
+            for (const tick of sortedTicks) {
+                const price = tick.last_price;
+                
+                if (currentBase <= price && price <= currentBase + currentDiff) {
+                    acceptedTokens.push(tick.instrument_token);
+                } else {
+                    rejectedTokens.push(tick.instrument_token);
+                }
+            }
+            
+            // Check if we have at least one CE and one PE token
+            if (acceptedTokens.length > 0) {
+                const { ceTokens, peTokens } = this.separateCETokensAndPETokens(
+                    acceptedTokens,
+                    (token) => {
+                        const tick = sortedTicks.find(t => t.instrument_token === token);
+                        return tick ? tick.symbol : null;
+                    }
+                );
+                
+                this.logStrategyInfo(`Found ${acceptedTokens.length} tokens: ${ceTokens.length} CE, ${peTokens.length} PE`);
+                
+                // If we have at least one CE and one PE, we're good
+                if (ceTokens.length > 0 && peTokens.length > 0) {
+                    if (rangeAdjusted) {
+                        this.logStrategyInfo(`Found sufficient tokens after adjusting range to ${currentBase}-${currentBase + currentDiff}`);
+                    } else {
+                        this.logStrategyInfo(`Found sufficient tokens in initial range ${currentBase}-${currentBase + currentDiff}`);
+                    }
+                    break;
+                } else {
+                    this.logStrategyInfo(`Insufficient token types - CE: ${ceTokens.length}, PE: ${peTokens.length}. Continuing search...`);
+                }
+            }
+            
+            // If no tokens found or insufficient types, adjust range and try again
+            if (currentBase - adjustmentStep >= strikeLowest) {
+                currentBase -= adjustmentStep;
+                currentDiff += adjustmentStep;
+                rangeAdjusted = true;
+                
+                this.logStrategyInfo(`Adjusting range to ${currentBase}-${currentBase + currentDiff}`);
+            } else {
+                this.logStrategyWarn(`No sufficient tokens found even after adjusting range down to ${strikeLowest}`);
+                break;
+            }
+        }
+        
+        // Final summary
+        if (acceptedTokens.length === 0) {
+            this.logStrategyWarn(`No tokens found in any range. Lowest attempted: ${strikeLowest}`);
+        } else {
+            const { ceTokens, peTokens } = this.separateCETokensAndPETokens(
+                acceptedTokens,
+                (token) => {
+                    const tick = sortedTicks.find(t => t.instrument_token === token);
+                    return tick ? tick.symbol : null;
+                }
+            );
+            
+            if (ceTokens.length > 0 && peTokens.length > 0) {
+                this.logStrategyInfo(`Final result: ${acceptedTokens.length} accepted (${ceTokens.length} CE, ${peTokens.length} PE), ${rejectedTokens.length} rejected tokens`);
+            } else {
+                this.logStrategyWarn(`Final result: ${acceptedTokens.length} accepted but insufficient types (${ceTokens.length} CE, ${peTokens.length} PE), ${rejectedTokens.length} rejected tokens`);
+            }
+        }
+        
+        return {
+            acceptedTokens,
+            rejectedTokens,
+            finalBase: currentBase,
+            finalDiff: currentDiff,
+            rangeAdjusted,
+            attempts
+        };
+    }
+
+    /**
      * Apply complete sequential filtering flow
      * @param {Array} acceptedTokens - Array of accepted token IDs
      * @param {Object} instrumentMap - The instrument map
@@ -651,15 +863,22 @@ class StrategyUtils {
      * @returns {Object} - Object containing final results and updated flags
      */
     applySequentialFilterFlow(acceptedTokens, instrumentMap, ceTokens, peTokens, flags, globalDict) {
-        this.logStrategyInfo(`🔍 Starting sequential filtering with ${acceptedTokens.length} tokens`);
+        this.logStrategyInfo(`Starting sequential filtering with ${acceptedTokens.length} tokens`);
 
-        // Filter 1: Plus3 Conditions
+        // Track tokens that have passed each checkpoint
+        let tokensPassedPlus3 = [];
+        let tokensPassedPeakFall = [];
+        let tokensPassedCalcRef = [];
+        let tokensPassedInterimLow = [];
+
+        // Filter 1: Plus3 Conditions - Apply to all tokens
         const plus3Result = this.applyPlus3Filter(acceptedTokens, instrumentMap, ceTokens, peTokens, flags, globalDict);
-        this.logStrategyInfo(`✅ Plus3 filter: ${plus3Result.tokens.length} tokens passed`);
+        tokensPassedPlus3 = plus3Result.tokens;
+        this.logStrategyInfo(`Plus3 filter: ${tokensPassedPlus3.length} tokens passed`);
         
         // Check if plus3 filter produced any tokens
-        if (plus3Result.tokens.length === 0) {
-            this.logStrategyInfo(`🛑 Plus3 filter produced no tokens - stopping all filters`);
+        if (tokensPassedPlus3.length === 0) {
+            this.logStrategyInfo(`Plus3 filter produced no tokens - stopping all filters`);
             return { success: false, reason: 'No tokens passed plus3 filter' };
         }
 
@@ -670,52 +889,40 @@ class StrategyUtils {
         updatedFlags.cePlus3 = plus3Result.cePlus3;
         updatedFlags.pePlus3 = plus3Result.pePlus3;
 
-        // Stop all filters if interim low is reached
-        if (updatedFlags.interimLowReached) {
-            this.logStrategyInfo(`🛑 Interim low reached - stopping all filters for this cycle`);
-            return { success: true, flags: updatedFlags, interimLowReached: true };
-        }
-
-        // Filter 2: Peak and Fall Conditions
-        const peakFallTokens = this.applyPeakAndFallFilter(plus3Result.tokens, instrumentMap, updatedFlags);
-        this.logStrategyInfo(`✅ Peak and Fall filter: ${peakFallTokens.length} tokens passed`);
+        // Filter 2: Peak and Fall Conditions - Apply to tokens that passed plus3
+        const peakFallResult = this.applyPeakAndFallFilter(tokensPassedPlus3, instrumentMap, updatedFlags);
+        tokensPassedPeakFall = peakFallResult;
+        this.logStrategyInfo(`Peak and Fall filter: ${tokensPassedPeakFall.length} tokens passed`);
         
         // Check if peak and fall filter produced any tokens
-        if (peakFallTokens.length === 0) {
-            this.logStrategyInfo(`🛑 Peak and Fall filter produced no tokens - stopping all filters`);
-            return { success: false, reason: 'No tokens passed peak and fall filter' };
+        if (tokensPassedPeakFall.length === 0) {
+            this.logStrategyInfo(`Peak and Fall filter produced no tokens - continuing with plus3 tokens`);
+            // Continue with plus3 tokens if no peak and fall tokens found
+            tokensPassedPeakFall = tokensPassedPlus3;
         }
 
-        // Stop all filters if interim low is reached
-        if (updatedFlags.interimLowReached) {
-            this.logStrategyInfo(`🛑 Interim low reached - stopping all filters for this cycle`);
-            return { success: true, flags: updatedFlags, interimLowReached: true };
-        }
-
-        // Filter 3: Calc Ref Conditions
-        const calcRefTokens = this.applyCalcRefFilter(peakFallTokens, instrumentMap, updatedFlags);
-        this.logStrategyInfo(`✅ Calc Ref filter: ${calcRefTokens.length} tokens passed`);
+        // Filter 3: Calc Ref Conditions - Apply to tokens that passed peak and fall
+        const calcRefResult = this.applyCalcRefFilter(tokensPassedPeakFall, instrumentMap, updatedFlags);
+        tokensPassedCalcRef = calcRefResult;
+        this.logStrategyInfo(`Calc Ref filter: ${tokensPassedCalcRef.length} tokens passed`);
         
         // Check if calc ref filter produced any tokens
-        if (calcRefTokens.length === 0) {
-            this.logStrategyInfo(`🛑 Calc Ref filter produced no tokens - stopping all filters`);
-            return { success: false, reason: 'No tokens passed calc ref filter' };
+        if (tokensPassedCalcRef.length === 0) {
+            this.logStrategyInfo(`Calc Ref filter produced no tokens - continuing with peak and fall tokens`);
+            // Continue with peak and fall tokens if no calc ref tokens found
+            tokensPassedCalcRef = tokensPassedPeakFall;
         }
 
-        // Stop all filters if interim low is reached
-        if (updatedFlags.interimLowReached) {
-            this.logStrategyInfo(`🛑 Interim low reached - stopping all filters for this cycle`);
-            return { success: true, flags: updatedFlags, interimLowReached: true };
-        }
-
-        // Filter 4: Interim Low Conditions
-        const interimLowResult = this.applyInterimLowFilter(calcRefTokens, instrumentMap, updatedFlags, globalDict);
-        this.logStrategyInfo(`✅ Interim Low filter: ${interimLowResult.tokens.length} tokens passed`);
+        // Filter 4: Interim Low Conditions - Apply to tokens that passed calc ref
+        const interimLowResult = this.applyInterimLowFilter(tokensPassedCalcRef, instrumentMap, updatedFlags, globalDict);
+        tokensPassedInterimLow = interimLowResult.tokens;
+        this.logStrategyInfo(`Interim Low filter: ${tokensPassedInterimLow.length} tokens passed`);
         
         // Check if interim low filter produced any tokens
-        if (interimLowResult.tokens.length === 0) {
-            this.logStrategyInfo(`🛑 Interim Low filter produced no tokens - stopping all filters`);
-            return { success: false, reason: 'No tokens passed interim low filter' };
+        if (tokensPassedInterimLow.length === 0) {
+            this.logStrategyInfo(`Interim Low filter produced no tokens - continuing with calc ref tokens`);
+            // Continue with calc ref tokens if no interim low tokens found
+            tokensPassedInterimLow = tokensPassedCalcRef;
         }
 
         // Update flags with interim low results
@@ -725,7 +932,7 @@ class StrategyUtils {
         return {
             success: true,
             flags: updatedFlags,
-            finalTokens: interimLowResult.tokens,
+            finalTokens: tokensPassedInterimLow,
             interimLowReached: updatedFlags.interimLowReached
         };
     }
