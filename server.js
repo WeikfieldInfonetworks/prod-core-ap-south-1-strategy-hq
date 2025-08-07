@@ -17,6 +17,9 @@ const errorHandler = require('./middleware/errorHandler');
 // Import strategy manager
 const UserStrategyManager = require('./controllers/userStrategyManager');
 
+// Import tick processor
+const TickProcessor = require('./utils/tickProcessor');
+
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
@@ -38,6 +41,9 @@ app.use(express.static('public'));
 
 // Initialize user strategy manager
 const userStrategyManager = new UserStrategyManager();
+
+// Initialize tick processor with controlled concurrency
+const tickProcessor = new TickProcessor(10); // Max 10 concurrent processors
 
 // Connect to central server (ticks.wmi.co.in)
 const centralSocket = io('https://ticks.wmi.co.in', {
@@ -62,7 +68,7 @@ centralSocket.on("connect_error", (error) => {
 // Handle incoming ticks from central server
 centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" to "ticks"
     try {
-        // Process ticks for all active users
+        // Process ticks for all active users using the tick processor
         const activeUsers = userStrategyManager.getActiveUsers();
         
         if (activeUsers.length === 0) {
@@ -70,18 +76,18 @@ centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" t
             return;
         }
         
-        console.log(`📊 Processing ticks for ${activeUsers.length} active users`);
-        
-        // Process ticks for each active user
-        activeUsers.forEach(userId => {
-            const userData = userStrategyManager.processTicksForUser(userId, tickData);
-            if (userData) {
-                // Emit to specific user's room
-                ioServer.to(`user_${userId}`).emit("node_update", userData);
-            }
+        // Use the tick processor for controlled asynchronous processing
+        tickProcessor.processMultipleUsers(
+            activeUsers,
+            tickData,
+            userStrategyManager.processTicksForUser.bind(userStrategyManager),
+            (room, event, data) => ioServer.to(room).emit(event, data)
+        ).catch(error => {
+            console.error('❌ Error in batch tick processing:', error);
         });
+        
     } catch (error) {
-        console.error("Error processing ticks:", error);
+        console.error("Error in tick processing loop:", error);
     }
 });
 
@@ -101,7 +107,21 @@ app.get('/test', (req, res) => {
         port: PORT,
         activeUsers: userStrategyManager.getActiveUsers(),
         userCount: userStrategyManager.getUserCount(),
+        tickProcessorStats: tickProcessor.getStats(),
         timestamp: new Date().toISOString()
+    });
+});
+
+// Monitoring endpoint for tick processing performance
+app.get('/api/monitoring/tick-stats', (req, res) => {
+    res.json({
+        tickProcessor: tickProcessor.getStats(),
+        activeUsers: userStrategyManager.getActiveUsers().length,
+        serverInfo: {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            timestamp: new Date().toISOString()
+        }
     });
 });
 
@@ -291,4 +311,4 @@ server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Visit http://localhost:${PORT} to access the application`);
     console.log(`Dashboard available at: http://localhost:${PORT}/dashboard.html`);
-}); 
+});

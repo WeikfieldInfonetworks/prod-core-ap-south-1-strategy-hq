@@ -60,35 +60,32 @@ class MTMV2Strategy extends BaseStrategy {
 
     setUserInfo(userName, userId) {
         this.strategyUtils.setUserInfo(userName, userId);
+        this.strategyUtils.logStrategyInfo(`MTM V2 Strategy initialized for user: ${userName} (ID: ${userId})`);
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
-        console.log('=== MTM V2 Strategy Initialization ===');
-        console.log('Strategy Name:', this.name);
-        console.log('Strategy Description:', this.description);
-        console.log('Access Token Available:', !!this.accessToken);
-        console.log('API Key Available:', !!this.globalDict.api_key);
-        console.log('Global Dict API Key:', this.globalDict.api_key);
-        console.log('Access Token Value:', this.accessToken ? this.accessToken.substring(0, 20) + '...' : 'None');
+        this.strategyUtils.logStrategyInfo('=== MTM V2 Strategy Initialization ===');
+        this.strategyUtils.logStrategyInfo(`Strategy Name: ${this.name}`);
+        this.strategyUtils.logStrategyInfo(`Strategy Description: ${this.description}`);
+        this.strategyUtils.logStrategyInfo(`Access Token Available: ${!!this.accessToken}`);
+        this.strategyUtils.logStrategyInfo(`API Key Available: ${!!this.globalDict.api_key}`);
         
         // Initialize TradingUtils with credentials from session
         if (this.accessToken && this.globalDict.api_key) {
-            console.log('🔧 Initializing TradingUtils with credentials...');
+            // console.log('🔧 Initializing TradingUtils with credentials...');
             const initialized = this.tradingUtils.initializeKiteConnect(this.globalDict.api_key, this.accessToken);
             
             if (initialized) {
-                console.log('✅ TradingUtils initialized with session credentials');
-                console.log('API Key:', this.globalDict.api_key);
-                console.log('Access Token:', this.accessToken.substring(0, 10) + '...');
+                this.strategyUtils.logStrategyInfo('✅ TradingUtils initialized with session credentials');
             } else {
-                console.log('❌ TradingUtils initialization failed');
+                this.strategyUtils.logStrategyError('❌ TradingUtils initialization failed');
             }
         } else {
-            console.log('❌ TradingUtils not initialized - missing credentials');
-            console.log('Access Token:', this.accessToken ? 'Available' : 'Missing');
-            console.log('API Key:', this.globalDict.api_key ? 'Available' : 'Missing');
+            this.strategyUtils.logStrategyError('❌ TradingUtils not initialized - missing credentials');
+            this.strategyUtils.logStrategyError(`Access Token: ${this.accessToken ? 'Available' : 'Missing'}`);
+            this.strategyUtils.logStrategyError(`API Key: ${this.globalDict.api_key ? 'Available' : 'Missing'}`);
         }
 
         // Initialize strategy-specific data structures
@@ -104,17 +101,17 @@ class MTMV2Strategy extends BaseStrategy {
         const globalParams = this.getGlobalDictParameters();
         const universalParams = this.getUniversalDictParameters();
 
-        console.log('=== Strategy Parameters ===');
-        console.log('Global Parameters:', Object.keys(globalParams));
-        console.log('Universal Parameters:', Object.keys(universalParams));
+        // console.log('=== Strategy Parameters ===');
+        // console.log('Global Parameters:', Object.keys(globalParams));
+        // console.log('Universal Parameters:', Object.keys(universalParams));
 
         // Set default values for globalDict parameters
         for (const [key, param] of Object.entries(globalParams)) {
             if (this.globalDict[key] === undefined) {
                 this.globalDict[key] = param.default;
-                console.log(`Set default ${key}: ${param.default}`);
+                this.strategyUtils.logStrategyInfo(`Set default ${key}: ${param.default}`);
             } else {
-                console.log(`Using existing ${key}: ${this.globalDict[key]}`);
+                this.strategyUtils.logStrategyInfo(`Using existing ${key}: ${this.globalDict[key]}`);
             }
         }
 
@@ -122,9 +119,9 @@ class MTMV2Strategy extends BaseStrategy {
         for (const [key, param] of Object.entries(universalParams)) {
             if (this.universalDict[key] === undefined) {
                 this.universalDict[key] = param.default;
-                console.log(`Set default ${key}: ${param.default}`);
+                this.strategyUtils.logStrategyInfo(`Set default ${key}: ${param.default}`);
             } else {
-                console.log(`Using existing ${key}: ${this.universalDict[key]}`);
+                this.strategyUtils.logStrategyInfo(`Using existing ${key}: ${this.universalDict[key]}`);
             }
         }
 
@@ -174,71 +171,82 @@ class MTMV2Strategy extends BaseStrategy {
         this.finalRefFlag = false;
         this.skipBuy = false;
 
-        console.log('=== Strategy State ===');
-        console.log('Has Active Position:', this.hasActivePosition);
-        console.log('Buy Price:', this.buyPrice);
-        console.log('Buy Symbol:', this.buySymbol);
-        console.log('Enable Trading:', this.globalDict.enableTrading);
-        console.log('Selected Instrument:', this.selectedInstrument);
-        console.log('Instrument Selection Complete:', this.instrumentSelectionComplete);
-        console.log('TradingUtils Kite Instance:', !!this.tradingUtils.kite);
-        console.log('Buy Completed:', this.buyCompleted);
-        console.log('Sell Completed:', this.sellCompleted);
-        console.log('Last Sell Time:', this.lastSellTime);
-        console.log('Debug Mode:', this.debugMode);
-        console.log('Block Init:', this.blockInit);
-        console.log('Block Update:', this.blockUpdate);
-        console.log('Block Final Ref:', this.blockFinalRef);
-        console.log('=== Initialization Complete ===\n');
+        this.strategyUtils.logStrategyDebug('=== Strategy State ===');
+        this.strategyUtils.logStrategyDebug(`Has Active Position: ${this.hasActivePosition}`);
+        this.strategyUtils.logStrategyDebug(`Buy Price: ${this.buyPrice}`);
+        this.strategyUtils.logStrategyDebug(`Buy Symbol: ${this.buySymbol}`);
+        this.strategyUtils.logStrategyDebug(`Enable Trading: ${this.globalDict.enableTrading}`);
+        this.strategyUtils.logStrategyDebug(`Selected Instrument: ${this.selectedInstrument}`);
+        this.strategyUtils.logStrategyDebug(`Instrument Selection Complete: ${this.instrumentSelectionComplete}`);
+        this.strategyUtils.logStrategyDebug(`TradingUtils Kite Instance: ${!!this.tradingUtils.kite}`);
+        this.strategyUtils.logStrategyDebug(`Buy Completed: ${this.buyCompleted}`);
+        this.strategyUtils.logStrategyDebug(`Sell Completed: ${this.sellCompleted}`);
+        this.strategyUtils.logStrategyDebug(`Last Sell Time: ${this.lastSellTime}`);
+        this.strategyUtils.logStrategyDebug(`Debug Mode: ${this.debugMode}`);
+        this.strategyUtils.logStrategyDebug(`Block Init: ${this.blockInit}`);
+        this.strategyUtils.logStrategyDebug(`Block Update: ${this.blockUpdate}`);
+        this.strategyUtils.logStrategyDebug(`Block Final Ref: ${this.blockFinalRef}`);
+        this.strategyUtils.logStrategyInfo('=== Initialization Complete ===');
     }
 
-    processTicks(ticks) {
+    async processTicks(ticks) {
         this.tickCount++;
-        console.log(`\n=== Processing Tick Batch #${this.tickCount} ===`);
-        console.log('Number of ticks received:', ticks.length);
-        console.log(`Current Cycle: ${this.cycleCount}`);
+        this.strategyUtils.logStrategyInfo(`=== Processing Tick Batch #${this.tickCount} ===`);
+        this.strategyUtils.logStrategyInfo(`Number of ticks received: ${ticks.length}`);
+        this.strategyUtils.logStrategyInfo(`Current Cycle: ${this.cycleCount}`);
         
-        // Check if we need to reset cycle after sell completion
-        if (this.sellCompleted && this.lastSellTime) {
-            const timeSinceLastSell = Date.now() - this.lastSellTime;
-            const requiredDelay = 15 * 1000; // 15 seconds in milliseconds
+        // // Check if we need to reset cycle after sell completion
+        // if (this.sellCompleted && this.lastSellTime) {
+        //     const timeSinceLastSell = Date.now() - this.lastSellTime;
+        //     const requiredDelay = 15 * 1000; // 15 seconds in milliseconds
             
-            if (timeSinceLastSell >= requiredDelay) {
-                console.log('⏰ 15-second delay completed, resetting cycle for new instrument selection');
-                this.resetCycleForNewInstrument();
-            } else {
-                const remainingTime = Math.ceil((requiredDelay - timeSinceLastSell) / 1000);
-                console.log(`⏰ Waiting ${remainingTime} more seconds before next cycle (15s delay required)`);
-                return; // Skip processing until delay is complete
-            }
-        }
+        //     if (timeSinceLastSell >= requiredDelay) {
+        //         console.log('⏰ 15-second delay completed, resetting cycle for new instrument selection');
+        //         this.resetCycleForNewInstrument();
+        //     } else {
+        //         const remainingTime = Math.ceil((requiredDelay - timeSinceLastSell) / 1000);
+        //         console.log(`⏰ Waiting ${remainingTime} more seconds before next cycle (15s delay required)`);
+        //         return; // Skip processing until delay is complete
+        //     }
+        // }
 
         // Process ticks based on current block state
+        // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
         if (this.blockInit) {
             this.processInitBlock(ticks);
-        } else if (this.blockUpdate) {
+        }
+        
+        if (this.blockUpdate) {
             this.processUpdateBlock(ticks);
-        } else if (this.blockFinalRef) {
+        }
+        
+        if (this.blockFinalRef) {
             this.processFinalRefBlock(ticks);
-        } else if (this.blockRef3) {
+        }
+        
+        if (this.blockRef3) {
             this.processRef3Block(ticks);
-        } else if (this.blockDiff10) {
-            this.processDiff10Block(ticks);
-        } else if (this.blockNextCycle) {
+        }
+        
+        if (this.blockDiff10) {
+            await this.processDiff10Block(ticks);
+        }
+        
+        if (this.blockNextCycle) {
             this.processNextCycleBlock(ticks);
         }
         
-        console.log(`=== Tick Batch #${this.tickCount} Complete ===\n`);
+        this.strategyUtils.logStrategyInfo(`=== Tick Batch #${this.tickCount} Complete ===`);
     }
 
     processInitBlock(ticks) {
-        console.log('🔄 Processing INIT block');
-        console.log('📊 Received ticks:', ticks.length);
-        console.log('📊 Sample tick data:', ticks.slice(0, 3).map(t => ({
+        this.strategyUtils.logStrategyInfo('🔄 Processing INIT block');
+        this.strategyUtils.logStrategyInfo(`📊 Received ticks: ${ticks.length}`);
+        this.strategyUtils.logStrategyDebug(`📊 Sample tick data: ${JSON.stringify(ticks.slice(0, 3).map(t => ({
             token: t.instrument_token,
             symbol: t.symbol,
             price: t.last_price
-        })));
+        })))}`);
         
         // Skip buy after first cycle
         if (this.universalDict.cycles >= 1) {
@@ -263,10 +271,15 @@ class MTMV2Strategy extends BaseStrategy {
             this.universalDict.strikeLowest = 150;
         }
 
-        console.log(`📊 Range: ${this.universalDict.strikeBase} - ${this.universalDict.strikeBase + this.universalDict.strikeDiff}`);
+        this.strategyUtils.logStrategyInfo(`📊 Range: ${this.universalDict.strikeBase} - ${this.universalDict.strikeBase + this.universalDict.strikeDiff}`);
 
-        // Sort ticks by price
-        const sortedTicks = ticks.sort((a, b) => a.last_price - b.last_price);
+        // Sort ticks by least deviation from target price (200 on normal days, 100 on expiry day)
+        const targetPrice = today === expiryDay ? 100 : 200;
+        const sortedTicks = ticks.sort((a, b) => {
+            const deviationA = Math.abs(a.last_price - targetPrice);
+            const deviationB = Math.abs(b.last_price - targetPrice);
+            return deviationA - deviationB;
+        });
         
         // Find accepted tokens within range
         const acceptedTokens = [];
@@ -284,26 +297,27 @@ class MTMV2Strategy extends BaseStrategy {
             }
         }
 
-        console.log(`✅ Accepted tokens: ${acceptedTokens.length}`);
-        console.log(`❌ Rejected tokens: ${rejectedTokens.length}`);
-        console.log('📊 Accepted token prices:', acceptedTokens.slice(0, 5).map(token => {
+        this.strategyUtils.logStrategyInfo(`✅ Accepted tokens: ${acceptedTokens.length}`);
+        this.strategyUtils.logStrategyInfo(`❌ Rejected tokens: ${rejectedTokens.length}`);
+        this.strategyUtils.logStrategyDebug(`📊 Accepted token prices: ${acceptedTokens.slice(0, 5).map(token => {
             const tick = ticks.find(t => t.instrument_token === token);
             return tick ? tick.last_price : 'unknown';
-        }));
+        })}`);
 
-        // Separate CE and PE tokens
-        this.universalDict.ceTokens = acceptedTokens.filter(token => 
-            this.isOptionsInstrument(this.getSymbolFromToken(token)) && 
-            this.getSymbolFromToken(token).includes('CE')
+        // Separate CE and PE tokens using utility functions
+        const { ceTokens, peTokens } = this.strategyUtils.separateCETokensAndPETokens(
+            acceptedTokens, 
+            (token) => {
+                const tick = ticks.find(t => t.instrument_token === token);
+                return tick ? tick.symbol : null;
+            }
         );
         
-        this.universalDict.peTokens = acceptedTokens.filter(token => 
-            this.isOptionsInstrument(this.getSymbolFromToken(token)) && 
-            this.getSymbolFromToken(token).includes('PE')
-        );
+        this.universalDict.ceTokens = ceTokens;
+        this.universalDict.peTokens = peTokens;
 
-        console.log(`📈 CE Tokens: ${this.universalDict.ceTokens.length}`);
-        console.log(`📉 PE Tokens: ${this.universalDict.peTokens.length}`);
+        this.strategyUtils.logStrategyInfo(`📈 CE Tokens: ${this.universalDict.ceTokens.length}`);
+        this.strategyUtils.logStrategyInfo(`📉 PE Tokens: ${this.universalDict.peTokens.length}`);
 
         // Set observed ticks
         this.universalDict.observedTicks = acceptedTokens.sort((a, b) => {
@@ -312,22 +326,22 @@ class MTMV2Strategy extends BaseStrategy {
             return aTick.last_price - bTick.last_price;
         });
 
-        console.log('📊 Observed ticks set:', this.universalDict.observedTicks.length);
+        this.strategyUtils.logStrategyInfo(`📊 Observed ticks set: ${this.universalDict.observedTicks.length}`);
 
         // Transition to next block
         this.blockInit = false;
         this.blockUpdate = true;
         
-        console.log('🔄 Transitioning from INIT to UPDATE block');
+        this.strategyUtils.logStrategyInfo('🔄 Transitioning from INIT to UPDATE block');
     }
 
     processUpdateBlock(ticks) {
-        console.log('🔄 Processing UPDATE block');
+        this.strategyUtils.logStrategyInfo('🔄 Processing UPDATE block');
         
         const currentTime = new Date().toISOString();
         this.globalDict.timestamp = currentTime;
 
-        // Process each tick
+        // Initialize or update instrument data for all observed tokens
         for (const tick of ticks) {
             const token = tick.instrument_token;
             
@@ -339,7 +353,7 @@ class MTMV2Strategy extends BaseStrategy {
             if (!this.universalDict.instrumentMap[token]) {
                 this.universalDict.instrumentMap[token] = {
                     time: currentTime,
-                    symbol: this.getSymbolFromToken(token),
+                    symbol: tick.symbol,
                     firstPrice: tick.last_price,
                     last: tick.last_price,
                     open: -1,
@@ -387,21 +401,9 @@ class MTMV2Strategy extends BaseStrategy {
                 instrument.peakTime = currentTime;
                 
                 if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {
-                    console.log(`📈 PEAK: ${instrument.peak} SYMBOL: ${instrument.symbol}`);
+                    this.strategyUtils.logStrategyInfo(`📈 PEAK: ${instrument.peak} SYMBOL: ${instrument.symbol}`);
                 }
             }
-
-            // Check for plus3 conditions
-            this.checkPlus3Conditions(token, instrument);
-
-            // Check for peak and fall conditions
-            this.checkPeakAndFallConditions(token, instrument);
-
-            // Check for calc ref conditions
-            this.checkCalcRefConditions(token, instrument);
-
-            // Check for interim low conditions
-            this.checkInterimLowConditions(token, instrument);
 
             // Update buy-related metrics
             if (instrument.buyPrice > -1) {
@@ -414,185 +416,228 @@ class MTMV2Strategy extends BaseStrategy {
             }
         }
 
+        // Use StrategyUtils sequential filtering flow
+        const flags = {
+            mainToken: this.mainToken,
+            oppToken: this.oppToken,
+            cePlus3: this.cePlus3,
+            pePlus3: this.pePlus3,
+            interimLowReached: this.interimLowReached,
+            calcRefReached: this.calcRefReached,
+            interimLowDisabled: this.interimLowDisabled,
+            mtmFirstOption: this.mtmFirstOption
+        };
+
+        const result = this.strategyUtils.applySequentialFilterFlow(
+            this.universalDict.observedTicks,
+            this.universalDict.instrumentMap,
+            this.universalDict.ceTokens,
+            this.universalDict.peTokens,
+            flags,
+            this.globalDict
+        );
+
+        // Update strategy state with results
+        if (result.success) {
+            this.mainToken = result.flags.mainToken;
+            this.oppToken = result.flags.oppToken;
+            this.cePlus3 = result.flags.cePlus3;
+            this.pePlus3 = result.flags.pePlus3;
+            this.interimLowReached = result.flags.interimLowReached;
+            this.calcRefReached = result.flags.calcRefReached;
+            this.mtmFirstOption = result.flags.mtmFirstOption;
+        }
+
         // Check if we should transition to final ref
         if (this.shouldTransitionToFinalRef()) {
-            this.blockUpdate = false;
+            // this.blockUpdate = false;
             this.blockFinalRef = true;
-            console.log('🔄 Transitioning from UPDATE to FINAL REF block');
+            this.strategyUtils.logStrategyInfo('🔄 Transitioning from UPDATE to FINAL REF block');
         }
+        // Note: UPDATE block continues monitoring until transition conditions are met
+        // This is by design - the block monitors for interimLowReached or calcRefReached
+        // If these conditions are never met, the strategy may need to be reviewed
     }
 
     processFinalRefBlock(ticks) {
-        console.log('🔄 Processing FINAL REF block');
+        this.strategyUtils.logStrategyInfo('🔄 Processing FINAL REF block');
         
         if (this.interimLowReached && !this.refCapture) {
             this.refCapture = true;
-            console.log('🎯 Interim low reached, capturing reference');
+            this.strategyUtils.logStrategyInfo('🎯 Interim low reached, capturing reference');
             
-            // Set main and opposite tokens
-            this.mainToken = this.universalDict.ceTokens[0] || this.universalDict.peTokens[0];
-            this.oppToken = this.universalDict.peTokens[0] || this.universalDict.ceTokens[0];
+            // Find closest symbols below 200 for both CE and PE
+            const closestCE = this.strategyUtils.findClosestCEBelowPrice(
+                this.universalDict.instrumentMap, 
+                200, 
+                200
+            );
             
-            // Set MTM first option
-            this.mtmFirstOption = {
-                symbol: this.universalDict.instrumentMap[this.mainToken].symbol,
-                token: this.mainToken
-            };
+            const closestPE = this.strategyUtils.findClosestPEBelowPrice(
+                this.universalDict.instrumentMap, 
+                200, 
+                200
+            );
             
-            console.log(`🎯 Main Token: ${this.mainToken}`);
-            console.log(`🎯 Opposite Token: ${this.oppToken}`);
+            if (!closestCE || !closestPE) {
+                this.strategyUtils.logStrategyError('❌ Could not find suitable CE or PE symbols below 200');
+                return;
+            }
+            
+            // Assign boughtToken and oppBoughtToken based on mtmFirstOption
+            if (this.mtmFirstOption) {
+                const firstOptionType = this.mtmFirstOption.symbol.includes('CE') ? 'CE' : 'PE';
+                
+                if (firstOptionType === 'CE') {
+                    this.boughtToken = closestCE.token;
+                    this.oppBoughtToken = closestPE.token;
+                    this.strategyUtils.logStrategyInfo(`🎯 MTM First Option is CE - Bought Token: ${closestCE.symbol} @ ${closestCE.price}`);
+                    this.strategyUtils.logStrategyInfo(`🎯 Opposite Token: ${closestPE.symbol} @ ${closestPE.price}`);
+                } else {
+                    this.boughtToken = closestPE.token;
+                    this.oppBoughtToken = closestCE.token;
+                    this.strategyUtils.logStrategyInfo(`🎯 MTM First Option is PE - Bought Token: ${closestPE.symbol} @ ${closestPE.price}`);
+                    this.strategyUtils.logStrategyInfo(`🎯 Opposite Token: ${closestCE.symbol} @ ${closestCE.price}`);
+                }
+            } else {
+                // Fallback: use CE as bought token, PE as opposite
+                this.boughtToken = closestCE.token;
+                this.oppBoughtToken = closestPE.token;
+                this.strategyUtils.logStrategyInfo(`🎯 Fallback - Bought Token: ${closestCE.symbol} @ ${closestCE.price}`);
+                this.strategyUtils.logStrategyInfo(`🎯 Opposite Token: ${closestPE.symbol} @ ${closestPE.price}`);
+            }
+            
+            // Place orders for both tokens
+            this.placeOrdersForTokens();
             
             // Transition to diff10 block
             this.blockFinalRef = false;
             this.blockDiff10 = true;
-            console.log('🔄 Transitioning from FINAL REF to DIFF10 block');
+            this.strategyUtils.logStrategyInfo('🔄 Transitioning from FINAL REF to DIFF10 block');
         } else if (this.calcRefReached) {
-            console.log('🎯 Calc ref reached');
+            this.strategyUtils.logStrategyInfo('🎯 Calc ref reached');
             this.blockFinalRef = false;
             this.blockRef3 = true;
-            console.log('🔄 Transitioning from FINAL REF to REF3 block');
+            this.strategyUtils.logStrategyInfo('🔄 Transitioning from FINAL REF to REF3 block');
         }
     }
 
     processRef3Block(ticks) {
-        console.log('🔄 Processing REF3 block');
+        this.strategyUtils.logStrategyInfo('🔄 Processing REF3 block');
         
         // Check if either token has reached calc ref
         if (this.shouldCaptureRef()) {
             this.refCapture = true;
-            console.log('🎯 Reference captured');
+            this.strategyUtils.logStrategyInfo('🎯 Reference captured');
             
             // Transition to diff10 block
             this.blockRef3 = false;
             this.blockDiff10 = true;
-            console.log('🔄 Transitioning from REF3 to DIFF10 block');
+            this.strategyUtils.logStrategyInfo('🔄 Transitioning from REF3 to DIFF10 block');
         }
     }
 
-    processDiff10Block(ticks) {
-        console.log('🔄 Processing DIFF10 block');
+    async processDiff10Block(ticks) {
+        this.strategyUtils.logStrategyInfo('🔄 Processing DIFF10 block');
         
         // Check for sell conditions
         if (this.shouldSellOptions()) {
-            console.log('💰 Selling options due to target/stoploss');
-            this.sellOptions();
+            this.strategyUtils.logStrategyInfo('💰 Selling options due to target/stoploss');
+            await this.sellOptions();
         } else if (this.shouldSellAt24()) {
-            console.log('💰 Selling at 24 points');
-            this.sellAt24();
+            this.strategyUtils.logStrategyInfo('💰 Selling at 24 points');
+            await this.sellAt24();
         } else if (this.shouldSellAt36()) {
-            console.log('💰 Selling at 36 points');
-            this.sellAt36();
+            this.strategyUtils.logStrategyInfo('💰 Selling at 36 points');
+            await this.sellAt36();
         }
         
         // Check if cycle is complete
         if (this.boughtSold) {
             this.blockDiff10 = false;
             this.blockNextCycle = true;
-            console.log('🔄 Transitioning from DIFF10 to NEXT CYCLE block');
+            this.strategyUtils.logStrategyInfo('🔄 Transitioning from DIFF10 to NEXT CYCLE block');
         }
     }
 
     processNextCycleBlock(ticks) {
-        console.log('🔄 Processing NEXT CYCLE block');
+        this.strategyUtils.logStrategyInfo('🔄 Processing NEXT CYCLE block');
         
         // Reset for next cycle
         this.resetForNextCycle();
         
         this.blockNextCycle = false;
         this.blockInit = true;
-        console.log('🔄 Transitioning from NEXT CYCLE to INIT block');
+        this.strategyUtils.logStrategyInfo('🔄 Transitioning from NEXT CYCLE to INIT block');
     }
 
-    checkPlus3Conditions(token, instrument) {
-        // Check CE plus3
-        if (this.universalDict.ceTokens.includes(token) && !this.cePlus3 && !this.interimLowReached && !this.calcRefReached) {
-            if (instrument.plus3 >= this.globalDict.peakDef) {
-                console.log(`📈 PLUS ${this.globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last}`);
-                this.cePlus3 = true;
-                instrument.flagPlus3 = true;
-                
-                if (!this.mainToken) {
-                    this.mainToken = token;
-                } else {
-                    this.oppToken = token;
-                }
-            }
-        }
-        
-        // Check PE plus3
-        if (this.universalDict.peTokens.includes(token) && !this.pePlus3 && !this.interimLowReached && !this.calcRefReached) {
-            if (instrument.plus3 >= this.globalDict.peakDef) {
-                console.log(`📈 PLUS ${this.globalDict.peakDef}: ${instrument.symbol} LAST: ${instrument.last}`);
-                this.pePlus3 = true;
-                instrument.flagPlus3 = true;
-                
-                if (!this.mainToken) {
-                    this.mainToken = token;
-                } else {
-                    this.oppToken = token;
-                }
-            }
-        }
-    }
 
-    checkPeakAndFallConditions(token, instrument) {
-        if (instrument.flagPlus3 && !this.calcRefReached && !this.interimLowReached) {
-            if (instrument.peak - instrument.last >= 2.5 && !instrument.flagPeakAndFall) {
-                console.log(`📉 PEAK AND FALL by ${instrument.symbol}. PEAK: ${instrument.peak} LAST: ${instrument.last}`);
-                instrument.peakAtRef = instrument.peak;
-                instrument.peakTime = instrument.time;
-                instrument.flagPeakAndFall = true;
-            }
-        }
-    }
 
-    checkCalcRefConditions(token, instrument) {
-        if (instrument.flagPeakAndFall && !instrument.flagCalcRef) {
-            // Calculate reference point
-            const calcRef = this.calculateRefPoint(instrument);
-            if (calcRef !== instrument.prevCalcRef) {
-                instrument.prevCalcRef = instrument.calcRef;
-                instrument.calcRef = calcRef;
-                console.log(`🎯 CALCULATED REFERENCE FOR ${instrument.symbol} IS ${instrument.calcRef}`);
-            }
-            
-            if (instrument.last <= instrument.calcRef) {
-                instrument.flagCalcRef = true;
-                this.calcRefReached = true;
-                console.log(`🎯 ${instrument.symbol} REACHED CALC REF PRICE ${instrument.calcRef}`);
-            }
-        }
-    }
 
-    checkInterimLowConditions(token, instrument) {
-        if (instrument.lowAtRef > -1 && !this.interimLowReached && !this.calcRefReached) {
-            if (instrument.lowAtRef > instrument.last) {
-                instrument.lowAtRef = instrument.last;
-                if (!this.interimLowDisabled) {
-                    console.log(`📉 NEW LOW AT REF: ${instrument.lowAtRef} FOR ${instrument.symbol}`);
-                }
-            }
-            
-            if (instrument.last - instrument.lowAtRef >= this.globalDict.upperLimit && !this.interimLowDisabled) {
-                instrument.flagInterim = true;
-                this.interimLowReached = true;
-                this.mtmFirstOption = {
-                    symbol: instrument.symbol,
-                    token: token
-                };
-                console.log(`🎯 INTERIM LOW REACHED: ${instrument.lowAtRef} FOR ${instrument.symbol}`);
-            }
-        }
-    }
-
-    calculateRefPoint(instrument) {
-        // Simplified reference point calculation
-        // In real implementation, this would be more complex
-        return instrument.peak * 0.8; // Example calculation
-    }
 
     shouldTransitionToFinalRef() {
         return this.interimLowReached || this.calcRefReached;
+    }
+
+    async placeOrdersForTokens() {
+        if (!this.boughtToken || !this.oppBoughtToken) {
+            this.strategyUtils.logStrategyError('❌ Cannot place orders - boughtToken or oppBoughtToken not set');
+            return;
+        }
+
+        const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
+        const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+        if (!boughtInstrument || !oppInstrument) {
+            this.strategyUtils.logStrategyError('❌ Cannot place orders - instrument data not found');
+            return;
+        }
+
+        this.strategyUtils.logStrategyInfo('💰 Placing orders for MTM strategy tokens');
+        this.strategyUtils.logStrategyInfo(`📈 Bought Token: ${boughtInstrument.symbol} @ ${boughtInstrument.last}`);
+        this.strategyUtils.logStrategyInfo(`📉 Opposite Token: ${oppInstrument.symbol} @ ${oppInstrument.last}`);
+
+        try {
+            // Place order for bought token (mtmFirstOption)
+            const boughtOrderResult = await this.tradingUtils.placeBuyOrder(
+                boughtInstrument.symbol,
+                boughtInstrument.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (boughtOrderResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Buy order placed for ${boughtInstrument.symbol}`);
+                this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place buy order for ${boughtInstrument.symbol}: ${boughtOrderResult.error}`);
+                this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken, boughtOrderResult.error);
+            }
+
+            // Place order for opposite token
+            const oppOrderResult = await this.tradingUtils.placeBuyOrder(
+                oppInstrument.symbol,
+                oppInstrument.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (oppOrderResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Buy order placed for ${oppInstrument.symbol}`);
+                this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
+                this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppOrderResult.error);
+            }
+
+            // Update instrument buy prices
+            boughtInstrument.buyPrice = boughtInstrument.last;
+            oppInstrument.buyPrice = oppInstrument.last;
+
+            this.strategyUtils.logStrategyInfo('📊 Orders placed successfully for MTM strategy');
+            this.strategyUtils.logStrategyInfo(`💰 Total investment: ${(boughtInstrument.last + oppInstrument.last) * (this.globalDict.quantity || 75)}`);
+
+        } catch (error) {
+            this.strategyUtils.logStrategyError(`❌ Exception while placing orders: ${error.message}`);
+        }
     }
 
     shouldCaptureRef() {
@@ -653,67 +698,210 @@ class MTMV2Strategy extends BaseStrategy {
         return false;
     }
 
-    sellOptions() {
-        console.log('💰 Selling both options');
+    async sellOptions() {
+        this.strategyUtils.logStrategyInfo('💰 Selling both options');
         this.boughtSold = true;
         
-        // Log the sell
-        this.strategyUtils.logTradeAction('sell_both_options', {
-            mainToken: this.boughtToken,
-            oppToken: this.oppBoughtToken,
-            mainPrice: this.universalDict.instrumentMap[this.boughtToken].last,
-            oppPrice: this.universalDict.instrumentMap[this.oppBoughtToken].last,
-            debugMode: this.debugMode
-        }, this.name);
-    }
+        if (!this.boughtToken || !this.oppBoughtToken) {
+            this.strategyUtils.logStrategyError('❌ Cannot sell options - boughtToken or oppBoughtToken not set');
+            return;
+        }
 
-    sellAt24() {
-        console.log('💰 Selling at 24 points');
-        this.mtmSoldAt24 = true;
-        
-        // Determine which option to sell
         const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
         const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+        if (!mainInstrument || !oppInstrument) {
+            this.strategyUtils.logStrategyError('❌ Cannot sell options - instrument data not found');
+            return;
+        }
+
+        this.strategyUtils.logStrategyInfo(`📈 Selling ${mainInstrument.symbol} @ ${mainInstrument.last}`);
+        this.strategyUtils.logStrategyInfo(`📉 Selling ${oppInstrument.symbol} @ ${oppInstrument.last}`);
+
+        try {
+            // Place sell order for main token
+            const mainSellResult = await this.tradingUtils.placeSellOrder(
+                mainInstrument.symbol,
+                mainInstrument.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (mainSellResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Sell order placed for ${mainInstrument.symbol}`);
+                this.strategyUtils.logOrderPlaced('sell', mainInstrument.symbol, mainInstrument.last, this.globalDict.quantity || 75, this.boughtToken);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place sell order for ${mainInstrument.symbol}: ${mainSellResult.error}`);
+                this.strategyUtils.logOrderFailed('sell', mainInstrument.symbol, mainInstrument.last, this.globalDict.quantity || 75, this.boughtToken, mainSellResult.error);
+            }
+
+            // Place sell order for opposite token
+            const oppSellResult = await this.tradingUtils.placeSellOrder(
+                oppInstrument.symbol,
+                oppInstrument.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (oppSellResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Sell order placed for ${oppInstrument.symbol}`);
+                this.strategyUtils.logOrderPlaced('sell', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place sell order for ${oppInstrument.symbol}: ${oppSellResult.error}`);
+                this.strategyUtils.logOrderFailed('sell', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppSellResult.error);
+            }
+
+            // Calculate and log P&L
+            const mainPnL = (mainInstrument.last - mainInstrument.buyPrice) * (this.globalDict.quantity || 75);
+            const oppPnL = (oppInstrument.last - oppInstrument.buyPrice) * (this.globalDict.quantity || 75);
+            const totalPnL = mainPnL + oppPnL;
+
+            this.strategyUtils.logStrategyInfo(`💰 Total P&L: ${totalPnL.toFixed(2)} (Main: ${mainPnL.toFixed(2)}, Opp: ${oppPnL.toFixed(2)})`);
+            
+            // Log the sell action
+            this.strategyUtils.logTradeAction('sell_both_options', {
+                mainToken: this.boughtToken,
+                oppToken: this.oppBoughtToken,
+                mainPrice: mainInstrument.last,
+                oppPrice: oppInstrument.last,
+                mainPnL: mainPnL,
+                oppPnL: oppPnL,
+                totalPnL: totalPnL,
+                debugMode: this.debugMode
+            }, this.name);
+
+        } catch (error) {
+            this.strategyUtils.logStrategyError(`❌ Exception while selling options: ${error.message}`);
+        }
+    }
+
+    async sellAt24() {
+        this.strategyUtils.logStrategyInfo('💰 Selling at 24 points');
+        this.mtmSoldAt24 = true;
+        
+        if (!this.boughtToken || !this.oppBoughtToken) {
+            this.strategyUtils.logStrategyError('❌ Cannot sell at 24 - boughtToken or oppBoughtToken not set');
+            return;
+        }
+
+        const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
+        const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+        if (!mainInstrument || !oppInstrument) {
+            this.strategyUtils.logStrategyError('❌ Cannot sell at 24 - instrument data not found');
+            return;
+        }
         
         const mainChange = mainInstrument.last - mainInstrument.buyPrice;
         const oppChange = oppInstrument.last - oppInstrument.buyPrice;
         
+        let tokenToSell, instrumentToSell, remainingToken, remainingInstrument;
+        
         if (mainChange >= this.globalDict.preBuyUpperLimit) {
+            // Sell main token, keep opposite
+            tokenToSell = this.boughtToken;
+            instrumentToSell = mainInstrument;
+            remainingToken = this.oppBoughtToken;
+            remainingInstrument = oppInstrument;
             this.mtmNextToSell = oppInstrument;
             this.mtmOriginalBuyPrice = oppInstrument.buyPrice;
             this.mtmAssistedTarget = this.globalDict.target - mainChange;
-            console.log(`💰 Selling main option, keeping opposite with target: ${this.mtmAssistedTarget}`);
+            this.strategyUtils.logStrategyInfo(`💰 Selling main option, keeping opposite with target: ${this.mtmAssistedTarget}`);
         } else {
+            // Sell opposite token, keep main
+            tokenToSell = this.oppBoughtToken;
+            instrumentToSell = oppInstrument;
+            remainingToken = this.boughtToken;
+            remainingInstrument = mainInstrument;
             this.mtmNextToSell = mainInstrument;
             this.mtmOriginalBuyPrice = mainInstrument.buyPrice;
             this.mtmAssistedTarget = this.globalDict.target - oppChange;
-            console.log(`💰 Selling opposite option, keeping main with target: ${this.mtmAssistedTarget}`);
+            this.strategyUtils.logStrategyInfo(`💰 Selling opposite option, keeping main with target: ${this.mtmAssistedTarget}`);
         }
-        
-        this.strategyUtils.logTradeAction('sell_at_24', {
-            soldToken: mainChange >= this.globalDict.preBuyUpperLimit ? this.boughtToken : this.oppBoughtToken,
-            remainingToken: this.mtmNextToSell.token,
-            target: this.mtmAssistedTarget,
-            debugMode: this.debugMode
-        }, this.name);
+
+        this.strategyUtils.logStrategyInfo(`📈 Selling ${instrumentToSell.symbol} @ ${instrumentToSell.last}`);
+        this.strategyUtils.logStrategyInfo(`📉 Keeping ${remainingInstrument.symbol} @ ${remainingInstrument.last}`);
+
+        try {
+            // Place sell order for the token to sell
+            const sellResult = await this.tradingUtils.placeSellOrder(
+                instrumentToSell.symbol,
+                instrumentToSell.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Sell order placed for ${instrumentToSell.symbol}`);
+                this.strategyUtils.logOrderPlaced('sell', instrumentToSell.symbol, instrumentToSell.last, this.globalDict.quantity || 75, tokenToSell);
+                
+                // Calculate and log P&L for sold token
+                const soldPnL = (instrumentToSell.last - instrumentToSell.buyPrice) * (this.globalDict.quantity || 75);
+                this.strategyUtils.logStrategyInfo(`💰 Sold token P&L: ${soldPnL.toFixed(2)}`);
+                
+                this.strategyUtils.logTradeAction('sell_at_24', {
+                    soldToken: tokenToSell,
+                    remainingToken: remainingToken,
+                    soldPrice: instrumentToSell.last,
+                    soldPnL: soldPnL,
+                    target: this.mtmAssistedTarget,
+                    debugMode: this.debugMode
+                }, this.name);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place sell order for ${instrumentToSell.symbol}: ${sellResult.error}`);
+                this.strategyUtils.logOrderFailed('sell', instrumentToSell.symbol, instrumentToSell.last, this.globalDict.quantity || 75, tokenToSell, sellResult.error);
+            }
+
+        } catch (error) {
+            this.strategyUtils.logStrategyError(`❌ Exception while selling at 24: ${error.message}`);
+        }
     }
 
-    sellAt36() {
-        console.log('💰 Selling at 36 points');
+    async sellAt36() {
+        this.strategyUtils.logStrategyInfo('💰 Selling at 36 points');
         this.mtmSoldAt36 = true;
         
-        // Sell the remaining option
-        this.boughtSold = true;
-        
-        this.strategyUtils.logTradeAction('sell_at_36', {
-            soldToken: this.mtmNextToSell.token,
-            price: this.mtmNextToSell.last,
-            debugMode: this.debugMode
-        }, this.name);
+        if (!this.mtmNextToSell) {
+            this.strategyUtils.logStrategyError('❌ Cannot sell at 36 - mtmNextToSell not set');
+            return;
+        }
+
+        this.strategyUtils.logStrategyInfo(`📈 Selling remaining option: ${this.mtmNextToSell.symbol} @ ${this.mtmNextToSell.last}`);
+
+        try {
+            // Place sell order for the remaining token
+            const sellResult = await this.tradingUtils.placeSellOrder(
+                this.mtmNextToSell.symbol,
+                this.mtmNextToSell.last,
+                this.globalDict.quantity || 75
+            );
+
+            if (sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`✅ Sell order placed for ${this.mtmNextToSell.symbol}`);
+                this.strategyUtils.logOrderPlaced('sell', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token);
+                
+                // Calculate and log P&L for the remaining token
+                const remainingPnL = (this.mtmNextToSell.last - this.mtmNextToSell.buyPrice) * (this.globalDict.quantity || 75);
+                this.strategyUtils.logStrategyInfo(`💰 Remaining token P&L: ${remainingPnL.toFixed(2)}`);
+                
+                // Sell the remaining option
+                this.boughtSold = true;
+                
+                this.strategyUtils.logTradeAction('sell_at_36', {
+                    soldToken: this.mtmNextToSell.token,
+                    price: this.mtmNextToSell.last,
+                    pnl: remainingPnL,
+                    debugMode: this.debugMode
+                }, this.name);
+            } else {
+                this.strategyUtils.logStrategyError(`❌ Failed to place sell order for ${this.mtmNextToSell.symbol}: ${sellResult.error}`);
+                this.strategyUtils.logOrderFailed('sell', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token, sellResult.error);
+            }
+
+        } catch (error) {
+            this.strategyUtils.logStrategyError(`❌ Exception while selling at 36: ${error.message}`);
+        }
     }
 
     resetForNextCycle() {
-        console.log('🔄 Resetting for next cycle');
+        this.strategyUtils.logStrategyInfo('🔄 Resetting for next cycle');
         
         // Increment cycle count
         this.universalDict.cycles = (this.universalDict.cycles || 0) + 1;
@@ -748,11 +936,11 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockDiff10 = false;
         this.blockNextCycle = false;
         
-        console.log(`🔄 Cycle ${this.universalDict.cycles} started`);
+        this.strategyUtils.logStrategyInfo(`🔄 Cycle ${this.universalDict.cycles} started`);
     }
 
     resetCycleForNewInstrument() {
-        console.log('\n🔄 Resetting cycle for new instrument selection...');
+        this.strategyUtils.logStrategyInfo('🔄 Resetting cycle for new instrument selection...');
         
         // Reset position state
         this.hasActivePosition = false;
@@ -770,25 +958,13 @@ class MTMV2Strategy extends BaseStrategy {
         this.buyCompleted = false;
         this.sellCompleted = false;
         
-        console.log(`🔄 Cycle ${this.cycleCount} started`);
-        console.log('🎯 Will select new instrument for this cycle');
-        console.log('⏰ Ready for new buy-sell cycle');
-        console.log('🔧 Debug Mode:', this.debugMode ? 'ENABLED' : 'DISABLED');
+        this.strategyUtils.logStrategyInfo(`🔄 Cycle ${this.cycleCount} started`);
+        this.strategyUtils.logStrategyInfo('🎯 Will select new instrument for this cycle');
+        this.strategyUtils.logStrategyInfo('⏰ Ready for new buy-sell cycle');
+        this.strategyUtils.logStrategyInfo(`🔧 Debug Mode: ${this.debugMode ? 'ENABLED' : 'DISABLED'}`);
     }
 
-    getSymbolFromToken(token) {
-        // This would typically come from a mapping
-        // For now, return a more realistic placeholder for debugging
-        const tokenStr = token.toString();
-        const lastDigit = parseInt(tokenStr.slice(-1));
-        const isCE = lastDigit % 2 === 0;
-        const strike = 100 + (lastDigit * 5);
-        return `NIFTY${strike}${isCE ? 'CE' : 'PE'}`;
-    }
 
-    isOptionsInstrument(symbol) {
-        return symbol && (symbol.includes('CE') || symbol.includes('PE'));
-    }
 
     getConfig() {
         const config = {
@@ -826,14 +1002,14 @@ class MTMV2Strategy extends BaseStrategy {
             universalDict: this.universalDict
         };
         
-        console.log('🔧 MTM V2 getConfig() called');
-        console.log('📊 Config data:', {
+        this.strategyUtils.logStrategyDebug('🔧 MTM V2 getConfig() called');
+        this.strategyUtils.logStrategyDebug(`📊 Config data: ${JSON.stringify({
             name: config.name,
             mainToken: config.mainToken,
             oppToken: config.oppToken,
             universalDictKeys: config.universalDict ? Object.keys(config.universalDict) : 'undefined',
             instrumentMapKeys: config.universalDict?.instrumentMap ? Object.keys(config.universalDict.instrumentMap) : 'undefined'
-        });
+        })}`);
         
         return config;
     }
@@ -906,11 +1082,6 @@ class MTMV2Strategy extends BaseStrategy {
 
     getUniversalDictParameters() {
         return {
-            enableLogging: {
-                type: 'boolean',
-                default: true,
-                description: 'Enable/disable detailed logging'
-            },
             expiry: {
                 type: 'number',
                 default: 3,
