@@ -64,6 +64,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
+        // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
         this.strategyUtils.logStrategyInfo('=== MTM V2 Strategy Initialization ===');

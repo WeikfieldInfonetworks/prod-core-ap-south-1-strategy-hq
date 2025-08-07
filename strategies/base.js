@@ -27,7 +27,6 @@ class BaseStrategy {
      */
     validateRequiredMethods() {
         const requiredMethods = [
-            'initialize',
             'processTicks', 
             'getConfig',
             'getGlobalDictParameters',
@@ -51,10 +50,15 @@ class BaseStrategy {
      * @param {Object} universalDict - Universal parameters dictionary  
      * @param {Object} blockDict - Block-specific parameters dictionary
      * @param {string} accessToken - Trading API access token
-     * @abstract
      */
     initialize(globalDict, universalDict, blockDict, accessToken) {
-        throw new Error('initialize() method must be implemented by subclass');
+        // Store references to dictionaries
+        this.globalDict = globalDict || {};
+        this.universalDict = universalDict || {};
+        this.blockDict = blockDict || {};
+        this.accessToken = accessToken;
+        
+        console.log(`✅ BaseStrategy initialized with ${Object.keys(this.globalDict).length} global, ${Object.keys(this.universalDict).length} universal, and ${Object.keys(this.blockDict).length} block parameters`);
     }
 
     /**
