@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Strategy Dashboard - Strategy HQ</title>
     <script src="/socket.io/socket.io.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -354,6 +355,136 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Notification System Styles */
+        .notification-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .notification {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border-left: 4px solid #667eea;
+            transform: translateX(100%);
+            animation: slideIn 0.3s ease-out forwards;
+            font-size: 0.9rem;
+        }
+
+        .notification.success {
+            border-left-color: #28a745;
+        }
+
+        .notification.warning {
+            border-left-color: #ffc107;
+        }
+
+        .notification.error {
+            border-left-color: #dc3545;
+        }
+
+        .notification.info {
+            border-left-color: #17a2b8;
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .notification.fade-out {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .notification-close {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .notification-close:hover {
+            color: #333;
+        }
+
+        .notification-message {
+            color: #555;
+            line-height: 1.4;
+        }
+
+        .notification-details {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #666;
+            background: #f8f9fa;
+            padding: 5px 8px;
+            border-radius: 4px;
+        }
+
+        /* Sound notification indicator */
+        .sound-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            transition: all 0.3s ease;
+        }
+
+        .sound-indicator:hover {
+            transform: scale(1.1);
+        }
+
+        .sound-indicator.muted {
+            opacity: 0.5;
+        }
+
+        .sound-indicator i {
+            font-size: 1.2rem;
+            color: #667eea;
+        }
+
         @media (max-width: 768px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
@@ -362,6 +493,12 @@
             .header {
                 flex-direction: column;
                 gap: 15px;
+            }
+
+            .notification-container {
+                right: 10px;
+                left: 10px;
+                max-width: none;
             }
         }
     </style>
@@ -678,31 +815,15 @@
             }
         });
 
-        // Handle strategy updates
-        socket.on('strategy_updated', (strategyConfig) => {
-            console.log('Strategy updated:', strategyConfig);
-            currentStrategy = strategyConfig;
-            updateStrategyDisplay();
-        });
-
         // Handle strategy errors
         socket.on('strategy_error', (error) => {
             console.error('Strategy error:', error);
-            alert('Strategy error: ' + error);
-        });
-
-        // Handle parameter update confirmations
-        socket.on('global_dict_parameter_updated', (data) => {
-            console.log('Global parameter updated:', data);
-        });
-
-        socket.on('universal_dict_parameter_updated', (data) => {
-            console.log('Universal parameter updated:', data);
-        });
-
-        socket.on('parameter_error', (error) => {
-            console.error('Parameter error:', error);
-            alert('Parameter error: ' + error);
+            showNotification(
+                'Strategy Error',
+                error,
+                'error',
+                'Please check the strategy configuration and try again'
+            );
         });
 
         // Update selected instrument display
@@ -811,8 +932,6 @@
                     input = document.createElement('input');
                     input.type = 'number';
                     input.value = param.default;
-                    if (param.min !== undefined) input.min = param.min;
-                    if (param.max !== undefined) input.max = param.max;
                     input.step = 'any'; // Allow decimal values
                 } else {
                     input = document.createElement('input');
@@ -828,19 +947,6 @@
                 description.className = 'parameter-description';
                 description.textContent = param.description;
                 
-                // Add range info for number parameters
-                if (param.type === 'number' && (param.min !== undefined || param.max !== undefined)) {
-                    const rangeInfo = document.createElement('div');
-                    rangeInfo.className = 'parameter-description';
-                    rangeInfo.style.fontSize = '0.75rem';
-                    rangeInfo.style.color = '#999';
-                    const rangeText = [];
-                    if (param.min !== undefined) rangeText.push(`Min: ${param.min}`);
-                    if (param.max !== undefined) rangeText.push(`Max: ${param.max}`);
-                    rangeInfo.textContent = `Range: ${rangeText.join(', ')}`;
-                    paramDiv.appendChild(rangeInfo);
-                }
-                
                 // Create individual update button for each parameter
                 const updateButton = document.createElement('button');
                 updateButton.className = 'btn';
@@ -854,14 +960,6 @@
                         value = parseFloat(input.value);
                         if (isNaN(value)) {
                             alert(`Invalid number for parameter ${key}`);
-                            return;
-                        }
-                        if (param.min !== undefined && value < param.min) {
-                            alert(`Value for ${key} must be at least ${param.min}`);
-                            return;
-                        }
-                        if (param.max !== undefined && value > param.max) {
-                            alert(`Value for ${key} must be at most ${param.max}`);
                             return;
                         }
                     } else {
@@ -965,6 +1063,9 @@
                 
                 // Update strategy-specific data
                 updateStrategySpecificData(currentStrategy);
+                
+                // Track parameter changes
+                trackParameterChanges(currentStrategy);
             } else {
                 output.textContent = 'No strategy active. Select and apply a strategy to see output.';
                 hideStrategySpecificDisplay();
@@ -1302,6 +1403,275 @@
                     });
             }
         }, 3000); // Wait 3 seconds before trying fallback
+
+        // Notification System
+        let soundEnabled = true;
+        let notificationCount = 0;
+
+        // Create notification container and sound indicator
+        function createNotificationElements() {
+            // Create notification container
+            const notificationContainer = document.createElement('div');
+            notificationContainer.className = 'notification-container';
+            notificationContainer.id = 'notificationContainer';
+            document.body.appendChild(notificationContainer);
+
+            // Create sound indicator
+            const soundIndicator = document.createElement('div');
+            soundIndicator.className = 'sound-indicator';
+            soundIndicator.id = 'soundIndicator';
+            soundIndicator.title = 'Toggle Sound Notifications';
+            soundIndicator.innerHTML = '<i class="fas fa-volume-up"></i>';
+            document.body.appendChild(soundIndicator);
+
+            // Add click event to toggle sound
+            soundIndicator.addEventListener('click', toggleSound);
+        }
+
+        // Toggle sound notifications
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const soundIndicator = document.getElementById('soundIndicator');
+            const icon = soundIndicator.querySelector('i');
+            
+            if (soundEnabled) {
+                soundIndicator.classList.remove('muted');
+                icon.className = 'fas fa-volume-up';
+                soundIndicator.title = 'Sound Notifications Enabled';
+                showNotification('Sound Enabled', 'Sound notifications are now enabled', 'info');
+            } else {
+                soundIndicator.classList.add('muted');
+                icon.className = 'fas fa-volume-mute';
+                soundIndicator.title = 'Sound Notifications Disabled';
+                showNotification('Sound Disabled', 'Sound notifications are now disabled', 'info');
+            }
+        }
+
+        // Show notification
+        function showNotification(title, message, type = 'info', details = null, duration = 5000) {
+            const container = document.getElementById('notificationContainer');
+            if (!container) return;
+
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.id = `notification-${++notificationCount}`;
+
+            notification.innerHTML = `
+                <div class="notification-header">
+                    <div class="notification-title">${title}</div>
+                    <button class="notification-close" onclick="removeNotification('${notification.id}')">&times;</button>
+                </div>
+                <div class="notification-message">${message}</div>
+                ${details ? `<div class="notification-details">${details}</div>` : ''}
+            `;
+
+            container.appendChild(notification);
+
+            // Play sound if enabled
+            if (soundEnabled) {
+                playNotificationSound(type);
+            }
+
+            // Auto-remove after duration
+            setTimeout(() => {
+                removeNotification(notification.id);
+            }, duration);
+
+            return notification.id;
+        }
+
+        // Remove notification
+        function removeNotification(notificationId) {
+            const notification = document.getElementById(notificationId);
+            if (notification) {
+                notification.classList.add('fade-out');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }
+        }
+
+        // Play notification sound
+        function playNotificationSound(type) {
+            try {
+                // Create audio context for notification sounds
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // Set frequency and duration based on notification type
+                let frequency = 800;
+                let duration = 0.2;
+
+                switch (type) {
+                    case 'success':
+                        frequency = 1000;
+                        duration = 0.3;
+                        break;
+                    case 'warning':
+                        frequency = 600;
+                        duration = 0.4;
+                        break;
+                    case 'error':
+                        frequency = 400;
+                        duration = 0.5;
+                        break;
+                    case 'info':
+                    default:
+                        frequency = 800;
+                        duration = 0.2;
+                        break;
+                }
+
+                oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + duration);
+            } catch (error) {
+                console.log('Could not play notification sound:', error);
+            }
+        }
+
+        // Track parameter changes
+        let previousParameters = {};
+
+        // Monitor parameter updates
+        function trackParameterChanges(strategy) {
+            if (!strategy || !strategy.globalDict) return;
+
+            const currentParams = strategy.globalDict;
+            const changes = [];
+
+            // Check for changes in global parameters
+            Object.keys(currentParams).forEach(key => {
+                if (key !== 'api_key' && key !== 'secret_key' && key !== 'access_token') {
+                    const currentValue = currentParams[key];
+                    const previousValue = previousParameters[key];
+
+                    if (previousValue !== undefined && previousValue !== currentValue) {
+                        changes.push({
+                            parameter: key,
+                            oldValue: previousValue,
+                            newValue: currentValue,
+                            type: 'global'
+                        });
+                    }
+                }
+            });
+
+            // Check for changes in universal parameters
+            if (strategy.universalDict) {
+                Object.keys(strategy.universalDict).forEach(key => {
+                    const currentValue = strategy.universalDict[key];
+                    const previousValue = previousParameters[`universal_${key}`];
+
+                    if (previousValue !== undefined && previousValue !== currentValue) {
+                        changes.push({
+                            parameter: key,
+                            oldValue: previousValue,
+                            newValue: currentValue,
+                            type: 'universal'
+                        });
+                    }
+                });
+            }
+
+            // Show notifications for changes
+            changes.forEach(change => {
+                const title = `Parameter Updated`;
+                const message = `${change.parameter} changed from ${change.oldValue} to ${change.newValue}`;
+                const details = `Type: ${change.type === 'global' ? 'Global' : 'Universal'} parameter`;
+                
+                showNotification(title, message, 'success', details, 4000);
+            });
+
+            // Update previous parameters
+            previousParameters = { ...currentParams };
+            if (strategy.universalDict) {
+                Object.keys(strategy.universalDict).forEach(key => {
+                    previousParameters[`universal_${key}`] = strategy.universalDict[key];
+                });
+            }
+        }
+
+        // Enhanced parameter update handlers
+        socket.on('global_dict_parameter_updated', (data) => {
+            console.log('Global parameter updated:', data);
+            showNotification(
+                'Global Parameter Updated',
+                `${data.parameter} updated to ${data.value}`,
+                'success',
+                'Global parameter change applied successfully'
+            );
+        });
+
+        socket.on('universal_dict_parameter_updated', (data) => {
+            console.log('Universal parameter updated:', data);
+            showNotification(
+                'Universal Parameter Updated',
+                `${data.parameter} updated to ${data.value}`,
+                'success',
+                'Universal parameter change applied successfully'
+            );
+        });
+
+        socket.on('parameter_error', (error) => {
+            console.error('Parameter error:', error);
+            showNotification(
+                'Parameter Update Failed',
+                error,
+                'error',
+                'Please check the parameter value and try again'
+            );
+        });
+
+        // Enhanced strategy update handler
+        socket.on('strategy_updated', (strategyConfig) => {
+            console.log('Strategy updated:', strategyConfig);
+            currentStrategy = strategyConfig;
+            updateStrategyDisplay();
+            
+            // Track parameter changes
+            trackParameterChanges(strategyConfig);
+            
+            showNotification(
+                'Strategy Applied',
+                `${strategyConfig.name} has been applied successfully`,
+                'success',
+                'Strategy configuration loaded and ready'
+            );
+        });
+
+        // Enhanced strategy error handler
+        socket.on('strategy_error', (error) => {
+            console.error('Strategy error:', error);
+            showNotification(
+                'Strategy Error',
+                error,
+                'error',
+                'Please check the strategy configuration and try again'
+            );
+        });
+
+        // Initialize notification system
+        createNotificationElements();
+
+        // Show welcome notification
+        setTimeout(() => {
+            showNotification(
+                'Dashboard Ready',
+                'Strategy HQ dashboard is ready for configuration',
+                'info',
+                'You can now select and configure strategies'
+            );
+        }, 1000);
     </script>
 </body>
 </html> 

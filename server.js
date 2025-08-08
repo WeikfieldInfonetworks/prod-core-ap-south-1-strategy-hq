@@ -220,8 +220,8 @@ ioServer.of("/live").on("connection", socket => {
                 console.log(`GlobalDict parameter ${parameter} updated to ${value} for user ${currentUserId}`);
                 socket.emit("global_dict_parameter_updated", { parameter, value });
                 
-                // Broadcast the updated dictionaries to user's room
-                const userData = userStrategyManager.processTicksForUser(currentUserId, []);
+                // Get updated strategy data without processing ticks
+                const userData = userStrategyManager.getStrategyDataForUser(currentUserId);
                 if (userData) {
                     ioServer.to(`user_${currentUserId}`).emit("node_update", userData);
                 }
@@ -258,8 +258,8 @@ ioServer.of("/live").on("connection", socket => {
                 console.log(`UniversalDict parameter ${parameter} updated to ${value} for user ${currentUserId}`);
                 socket.emit("universal_dict_parameter_updated", { parameter, value });
                 
-                // Broadcast the updated dictionaries to user's room
-                const userData = userStrategyManager.processTicksForUser(currentUserId, []);
+                // Get updated strategy data without processing ticks
+                const userData = userStrategyManager.getStrategyDataForUser(currentUserId);
                 if (userData) {
                     ioServer.to(`user_${currentUserId}`).emit("node_update", userData);
                 }

@@ -537,15 +537,11 @@ class SimpleBuySellStrategy extends BaseStrategy {
             target: {
                 type: 'number',
                 default: 5,
-                min: 1,
-                max: 20,
                 description: 'Target profit in rupees to sell (hard coded to 5)'
             },
             stoploss: {
                 type: 'number',
                 default: 5,
-                min: 1,
-                max: 20,
                 description: 'Stop loss in rupees to sell (hard coded to 5)'
             },
             enableTrading: {

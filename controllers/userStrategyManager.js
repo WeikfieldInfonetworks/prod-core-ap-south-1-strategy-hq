@@ -51,6 +51,34 @@ class UserStrategyManager {
         return initialized;
     }
 
+    // Get strategy data without processing ticks (for parameter updates)
+    getStrategyDataForUser(userId) {
+        const strategyManager = this.getUserStrategyManager(userId);
+        
+        if (!strategyManager) {
+            console.error(`No strategy manager found for user: ${userId}`);
+            return null;
+        }
+        
+        try {
+            console.log(`📊 Getting strategy data for user ${userId} (no tick processing)`);
+            
+            // Get current strategy info without processing ticks
+            const currentStrategy = strategyManager.getCurrentStrategy();
+            const selectedInstrument = currentStrategy?.selectedInstrument;
+            
+            return {
+                tickData: [], // Empty since no ticks were processed
+                ...strategyManager.getCurrentDictionaries(),
+                currentStrategy: currentStrategy,
+                selectedInstrument: selectedInstrument
+            };
+        } catch (error) {
+            console.error(`Error getting strategy data for user ${userId}:`, error);
+            return null;
+        }
+    }
+
     // Process ticks for specific user
     processTicksForUser(userId, ticks) {
         const strategyManager = this.getUserStrategyManager(userId);
@@ -62,6 +90,8 @@ class UserStrategyManager {
         }
         
         try {
+            console.log(`🔄 Processing ${ticks.length} ticks for user ${userId}`);
+            
             // Inject the user's trading utils into the current strategy
             if (strategyManager.currentStrategy) {
                 strategyManager.currentStrategy.tradingUtils = tradingUtils;
