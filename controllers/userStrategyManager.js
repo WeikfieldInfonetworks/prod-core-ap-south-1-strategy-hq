@@ -61,7 +61,6 @@ class UserStrategyManager {
         }
         
         try {
-            console.log(`📊 Getting strategy data for user ${userId} (no tick processing)`);
             
             // Get current strategy info without processing ticks
             const currentStrategy = strategyManager.getCurrentStrategy();
