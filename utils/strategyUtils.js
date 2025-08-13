@@ -863,7 +863,7 @@ class StrategyUtils {
      * @returns {Object} - Object containing final results and updated flags
      */
     applySequentialFilterFlow(acceptedTokens, instrumentMap, ceTokens, peTokens, flags, globalDict) {
-        this.logStrategyInfo(`Starting sequential filtering with ${acceptedTokens.length} tokens`);
+        // this.logStrategyInfo(`Starting sequential filtering with ${acceptedTokens.length} tokens`);
 
         // Track tokens that have passed each checkpoint
         let tokensPassedPlus3 = [];
@@ -874,11 +874,11 @@ class StrategyUtils {
         // Filter 1: Plus3 Conditions - Apply to all tokens
         const plus3Result = this.applyPlus3Filter(acceptedTokens, instrumentMap, ceTokens, peTokens, flags, globalDict);
         tokensPassedPlus3 = plus3Result.tokens;
-        this.logStrategyInfo(`Plus3 filter: ${tokensPassedPlus3.length} tokens passed`);
+        console.log(`Plus3 filter: ${tokensPassedPlus3.length} tokens passed`);
         
         // Check if plus3 filter produced any tokens
         if (tokensPassedPlus3.length === 0) {
-            this.logStrategyInfo(`Plus3 filter produced no tokens - stopping all filters`);
+            console.log(`Plus3 filter produced no tokens - stopping all filters`);
             return { success: false, reason: 'No tokens passed plus3 filter' };
         }
 
@@ -892,11 +892,11 @@ class StrategyUtils {
         // Filter 2: Peak and Fall Conditions - Apply to tokens that passed plus3
         const peakFallResult = this.applyPeakAndFallFilter(tokensPassedPlus3, instrumentMap, updatedFlags);
         tokensPassedPeakFall = peakFallResult;
-        this.logStrategyInfo(`Peak and Fall filter: ${tokensPassedPeakFall.length} tokens passed`);
+        console.log(`Peak and Fall filter: ${tokensPassedPeakFall.length} tokens passed`);
         
         // Check if peak and fall filter produced any tokens
         if (tokensPassedPeakFall.length === 0) {
-            this.logStrategyInfo(`Peak and Fall filter produced no tokens - continuing with plus3 tokens`);
+            console.log(`Peak and Fall filter produced no tokens - continuing with plus3 tokens`);
             // Continue with plus3 tokens if no peak and fall tokens found
             tokensPassedPeakFall = tokensPassedPlus3;
         }
@@ -904,11 +904,11 @@ class StrategyUtils {
         // Filter 3: Calc Ref Conditions - Apply to tokens that passed peak and fall
         const calcRefResult = this.applyCalcRefFilter(tokensPassedPeakFall, instrumentMap, updatedFlags);
         tokensPassedCalcRef = calcRefResult;
-        this.logStrategyInfo(`Calc Ref filter: ${tokensPassedCalcRef.length} tokens passed`);
+        console.log(`Calc Ref filter: ${tokensPassedCalcRef.length} tokens passed`);
         
         // Check if calc ref filter produced any tokens
         if (tokensPassedCalcRef.length === 0) {
-            this.logStrategyInfo(`Calc Ref filter produced no tokens - continuing with peak and fall tokens`);
+            console.log(`Calc Ref filter produced no tokens - continuing with peak and fall tokens`);
             // Continue with peak and fall tokens if no calc ref tokens found
             tokensPassedCalcRef = tokensPassedPeakFall;
         }
@@ -916,11 +916,11 @@ class StrategyUtils {
         // Filter 4: Interim Low Conditions - Apply to tokens that passed calc ref
         const interimLowResult = this.applyInterimLowFilter(tokensPassedCalcRef, instrumentMap, updatedFlags, globalDict);
         tokensPassedInterimLow = interimLowResult.tokens;
-        this.logStrategyInfo(`Interim Low filter: ${tokensPassedInterimLow.length} tokens passed`);
+        console.log(`Interim Low filter: ${tokensPassedInterimLow.length} tokens passed`);
         
         // Check if interim low filter produced any tokens
         if (tokensPassedInterimLow.length === 0) {
-            this.logStrategyInfo(`Interim Low filter produced no tokens - continuing with calc ref tokens`);
+            console.log(`Interim Low filter produced no tokens - continuing with calc ref tokens`);
             // Continue with calc ref tokens if no interim low tokens found
             tokensPassedInterimLow = tokensPassedCalcRef;
         }

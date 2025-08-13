@@ -103,9 +103,9 @@ class SimpleBuySellStrategy extends BaseStrategy {
         }
 
         this.tickCount++;
-        this.strategyUtils.logStrategyInfo(`=== Processing Tick Batch #${this.tickCount} ===`);
-        this.strategyUtils.logStrategyInfo(`Number of ticks received: ${ticks.length}`);
-        this.strategyUtils.logStrategyInfo(`Current Cycle: ${this.cycleCount}`);
+        console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
+        console.log(`Number of ticks received: ${ticks.length}`);
+        console.log(`Current Cycle: ${this.cycleCount}`);
         
         // If instrument selection is not complete, try to select the best instrument
         if (!this.instrumentSelectionComplete) {

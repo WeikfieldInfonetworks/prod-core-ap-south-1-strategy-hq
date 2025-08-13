@@ -71,11 +71,11 @@ class MTMV2Strategy extends BaseStrategy {
         // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
-        this.strategyUtils.logStrategyInfo('=== MTM V2 Strategy Initialization ===');
-        this.strategyUtils.logStrategyInfo(`Strategy Name: ${this.name}`);
-        this.strategyUtils.logStrategyInfo(`Strategy Description: ${this.description}`);
-        this.strategyUtils.logStrategyInfo(`Access Token Available: ${!!this.accessToken}`);
-        this.strategyUtils.logStrategyInfo(`API Key Available: ${!!this.globalDict.api_key}`);
+        console.log('=== MTM V2 Strategy Initialization ===');
+        console.log(`Strategy Name: ${this.name}`);
+        console.log(`Strategy Description: ${this.description}`);
+        console.log(`Access Token Available: ${!!this.accessToken}`);
+        console.log(`API Key Available: ${!!this.globalDict.api_key}`);
         
         // Note: TradingUtils will be injected by UserStrategyManager
         // No need to initialize here as it will be set by the manager
@@ -115,7 +115,6 @@ class MTMV2Strategy extends BaseStrategy {
 
         // Log enableTrading status
         this.strategyUtils.logStrategyInfo(`Enable Trading Status: ${this.globalDict.enableTrading}`);
-        this.strategyUtils.logStrategyInfo(`Enable Trading Type: ${typeof this.globalDict.enableTrading}`);
 
         // Reset position state
         this.hasActivePosition = false;
@@ -168,7 +167,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.finalRefFlag = false;
         this.skipBuy = false;
 
-        this.strategyUtils.logStrategyInfo('=== Initialization Complete ===');
+        console.log('=== Initialization Complete ===');
     }
 
     // Override parameter update methods to add debugging
@@ -176,8 +175,7 @@ class MTMV2Strategy extends BaseStrategy {
         const success = super.updateGlobalDictParameter(parameter, value);
         
         if (parameter === 'enableTrading') {
-            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value} (Type: ${typeof value})`);
-            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Boolean Check: ${value === true}`);
+            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
         }
         
         return success;
@@ -223,17 +221,17 @@ class MTMV2Strategy extends BaseStrategy {
             this.processNextCycleBlock(ticks);
         }
         
-        this.strategyUtils.logStrategyInfo(`=== Tick Batch #${this.tickCount} Complete ===`);
+        console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
     }
 
     processInitBlock(ticks) {
         this.strategyUtils.logStrategyInfo('Processing INIT block');
-        this.strategyUtils.logStrategyInfo(`Received ticks: ${ticks.length}`);
-        this.strategyUtils.logStrategyDebug(`Sample tick data: ${JSON.stringify(ticks.slice(0, 3).map(t => ({
-            token: t.instrument_token,
-            symbol: t.symbol,
-            price: t.last_price
-        })))}`);
+        // this.strategyUtils.logStrategyInfo(`Received ticks: ${ticks.length}`);
+        // this.strategyUtils.logStrategyDebug(`Sample tick data: ${JSON.stringify(ticks.slice(0, 3).map(t => ({
+        //     token: t.instrument_token,
+        //     symbol: t.symbol,
+        //     price: t.last_price
+        // })))}`);
         
         // Skip buy after first cycle
         if (this.universalDict.cycles >= 1) {
@@ -329,11 +327,11 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockInit = false;
         this.blockUpdate = true;
         
-        this.strategyUtils.logStrategyInfo('Transitioning from INIT to UPDATE block');
+        console.log('Transitioning from INIT to UPDATE block');
     }
 
     processUpdateBlock(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing UPDATE block');
+        console.log('Processing UPDATE block');
         
         const currentTime = new Date().toISOString();
         this.globalDict.timestamp = currentTime;
@@ -449,7 +447,7 @@ class MTMV2Strategy extends BaseStrategy {
         if (this.shouldTransitionToFinalRef()) {
             // this.blockUpdate = false;
             this.blockFinalRef = true;
-            this.strategyUtils.logStrategyInfo('Transitioning from UPDATE to FINAL REF block');
+            // this.strategyUtils.logStrategyInfo('Transitioning from UPDATE to FINAL REF block');
         }
         // Note: UPDATE block continues monitoring until transition conditions are met
         // This is by design - the block monitors for interimLowReached or calcRefReached
@@ -457,7 +455,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processFinalRefBlock(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing FINAL REF block');
+        // this.strategyUtils.logStrategyInfo('Processing FINAL REF block');
         
         if (this.interimLowReached && !this.refCapture) {
             this.refCapture = true;
@@ -520,7 +518,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processRef3Block(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing REF3 block');
+        console.log('Processing REF3 block');
         
         // Check if either token has reached calc ref
         if (this.shouldCaptureRef()) {
@@ -535,7 +533,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processDiff10Block(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing DIFF10 block');
+        console.log('Processing DIFF10 block');
         
         // Check for sell conditions
         if (this.shouldSellOptions()) {
@@ -564,7 +562,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processNextCycleBlock(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing NEXT CYCLE block');
+        // this.strategyUtils.logStrategyInfo('Processing NEXT CYCLE block');
         
         // Reset for next cycle
         this.resetForNextCycle();
