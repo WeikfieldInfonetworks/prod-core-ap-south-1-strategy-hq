@@ -225,7 +225,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processInitBlock(ticks) {
-        this.strategyUtils.logStrategyInfo('Processing INIT block');
+        // this.strategyUtils.logStrategyInfo('Processing INIT block');
         // this.strategyUtils.logStrategyInfo(`Received ticks: ${ticks.length}`);
         // this.strategyUtils.logStrategyDebug(`Sample tick data: ${JSON.stringify(ticks.slice(0, 3).map(t => ({
         //     token: t.instrument_token,
@@ -692,10 +692,11 @@ class MTMV2Strategy extends BaseStrategy {
             const oppChange = Number(oppInstrument.last || 0) - Number(oppInstrument.buyPrice || 0);
             const totalChange = mainChange + oppChange;
             const target = Number(this.globalDict.target || 7);
+            const stoploss = Number(this.globalDict.stoploss || -100);
             
             this.strategyUtils.logStrategyInfo(`Main change: ${mainChange.toFixed(2)}, Opp change: ${oppChange.toFixed(2)}, Total: ${totalChange.toFixed(2)}, Target: ${target}`);
             
-            return totalChange >= target;
+            return totalChange >= target || totalChange <= stoploss;
         }
         
         return false;
