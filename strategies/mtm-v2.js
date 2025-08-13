@@ -566,7 +566,7 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
@@ -576,7 +576,7 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellAt36();
         } 
 
-        if (this.shouldSellRemainingAtTargetAfter36() && !this.mtmBothSold && this.mtmSoldAt36 && !this.mtmSoldAt24) {
+        if (this.shouldSellRemainingAtTargetAfter36() && !this.mtmBothSold && this.mtmSoldAt36 && !this.mtmSoldAt24 && !this.boughtSold) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 36 point. Buying if stoploss is reached');
             this.sellRemainingAtTargetAfter36();
         }
@@ -876,7 +876,40 @@ class MTMV2Strategy extends BaseStrategy {
             this.mtmAssistedTarget = this.globalDict.target - (this.changeAt24 + this.changeAt36After24);
             this.mtmBuyBackPrice = this.mtmNextToSell.last;
             this.mtmBuyBackTarget = this.mtmAssistedTarget;
-            //complete this code for buying this instrument.
+            
+            // Buy back the instrument that was sold at +24
+            try {
+                if (tradingEnabled) {
+                    // Place buy order for the buy back instrument
+                    const buyBackResult = tradingUtils.placeBuyOrder(
+                        this.mtmNextToSell.symbol,
+                        this.mtmNextToSell.last,
+                        this.globalDict.quantity || 75
+                    );
+
+                    if (buyBackResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Buy back order placed for ${this.mtmNextToSell.symbol}`);
+                        this.strategyUtils.logOrderPlaced('buy', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token);
+                        
+                        // Update buy price for the buy back instrument
+                        this.mtmNextToSell.buyPrice = this.mtmNextToSell.last;
+                        this.strategyUtils.logStrategyInfo(`Buy back completed at ${this.mtmNextToSell.last} with target: ${this.mtmAssistedTarget}`);
+                    } else {
+                        this.strategyUtils.logStrategyError(`Failed to place buy back order for ${this.mtmNextToSell.symbol}: ${buyBackResult.error}`);
+                        this.strategyUtils.logOrderFailed('buy', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token, buyBackResult.error);
+                    }
+                } else {
+                    // Paper trading - log the buy back order without placing it
+                    this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy back order for ${this.mtmNextToSell.symbol} @ ${this.mtmNextToSell.last}`);
+                    this.strategyUtils.logOrderPlaced('buy', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token);
+                    
+                    // Update buy price for the buy back instrument
+                    this.mtmNextToSell.buyPrice = this.mtmNextToSell.last;
+                    this.strategyUtils.logStrategyInfo(`Buy back completed at ${this.mtmNextToSell.last} with target: ${this.mtmAssistedTarget}`);
+                }
+            } catch (error) {
+                this.strategyUtils.logStrategyError(`Exception while placing buy back order: ${error.message}`);
+            }
         }
         else{
             this.boughtSold = true;
@@ -1263,6 +1296,70 @@ class MTMV2Strategy extends BaseStrategy {
         }
         return false;
     }
+
+    sellRemainingAtTargetAfter36() {
+        this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 36 point');
+        this.boughtSold = true;
+        const remainingInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
+        const currentPrice = Number(remainingInstrument.last || 0);
+        
+        if (!this.mtmFirstToSell) {
+            this.strategyUtils.logStrategyError('Cannot sell remaining instrument - mtmFirstToSell not set');
+            return;
+        }
+
+        if (!remainingInstrument) {
+            this.strategyUtils.logStrategyError('Cannot sell remaining instrument - instrument data not found');
+            return;
+        }
+
+        this.strategyUtils.logStrategyInfo(`Selling remaining instrument: ${remainingInstrument.symbol} @ ${remainingInstrument.last}`);
+
+        // Check if trading is enabled
+        const tradingEnabled = this.globalDict.enableTrading === true;
+        this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
+
+        // Use the injected TradingUtils instance
+        const tradingUtils = this.tradingUtils;
+
+        try {
+            if (tradingEnabled) {
+                // Place sell order for the remaining token
+                const sellResult = tradingUtils.placeSellOrder(
+                    remainingInstrument.symbol,
+                    remainingInstrument.last,
+                    this.globalDict.quantity || 75
+                );
+
+                if (sellResult.success) {
+                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${remainingInstrument.symbol}`);
+                    this.strategyUtils.logOrderPlaced('sell', remainingInstrument.symbol, remainingInstrument.last, this.globalDict.quantity || 75, this.mtmFirstToSell.token);
+                } else {
+                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${remainingInstrument.symbol}: ${sellResult.error}`);
+                    this.strategyUtils.logOrderFailed('sell', remainingInstrument.symbol, remainingInstrument.last, this.globalDict.quantity || 75, this.mtmFirstToSell.token, sellResult.error);
+                }
+            } else {
+                // Paper trading - log the order without placing it
+                this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${remainingInstrument.symbol} @ ${remainingInstrument.last}`);
+                this.strategyUtils.logOrderPlaced('sell', remainingInstrument.symbol, remainingInstrument.last, this.globalDict.quantity || 75, this.mtmFirstToSell.token);
+            }
+            
+            // Calculate and log P&L for the remaining token
+            const remainingPnL = (remainingInstrument.last - remainingInstrument.buyPrice) * (this.globalDict.quantity || 75);
+            this.strategyUtils.logStrategyInfo(`Remaining token P&L: ${remainingPnL.toFixed(2)}`);
+            
+            this.strategyUtils.logTradeAction('sell_remaining_after_36', {
+                remainingToken: this.mtmFirstToSell.token,
+                remainingPrice: remainingInstrument.last,
+                remainingPnL: remainingPnL,
+                debugMode: this.debugMode
+            }, this.name);
+
+        } catch (error) {
+            this.strategyUtils.logStrategyError(`Exception while selling remaining instrument after 36: ${error.message}`);
+        }
+    }
+    
     resetForNextCycle() {
         this.strategyUtils.logStrategyInfo('Resetting for next cycle');
         
