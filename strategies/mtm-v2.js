@@ -362,6 +362,7 @@ class MTMV2Strategy extends BaseStrategy {
             // Initialize instrument data if not exists
             if (!this.universalDict.instrumentMap[token]) {
                 this.universalDict.instrumentMap[token] = {
+                    token: token,
                     time: currentTime,
                     symbol: tick.symbol,
                     firstPrice: tick.last_price,
@@ -374,23 +375,14 @@ class MTMV2Strategy extends BaseStrategy {
                     change: -1,
                     peakAtRef: -1,
                     peakTime: null,
-                    peak2Time: null,
                     buyPrice: -1,
-                    peak2: -1,
                     changeFromBuy: -1,
                     calcRef: -1,
                     prevCalcRef: -1,
                     flagPlus3: false,
                     flagPeakAndFall: false,
                     flagCalcRef: false,
-                    flagInterim: false,
-                    higherStrikeToken: null,
-                    higherStrikeTokenOpen: -1,
-                    refPrice: -1,
-                    lowAfterSl: -1,
-                    buyAtSl: -1,
-                    highAfterBuy: -1,
-                    lowAfterBuy: -1
+                    flagInterim: false
                 };
             }
 
@@ -421,9 +413,9 @@ class MTMV2Strategy extends BaseStrategy {
             }
 
             // Update peak2 if applicable
-            if (instrument.peak2 > -1 && newPrice > instrument.peak2) {
-                instrument.peak2 = newPrice;
-            }
+            // if (instrument.peak2 > -1 && newPrice > instrument.peak2) {
+            //     instrument.peak2 = newPrice;
+            // }
         }
 
         // Use StrategyUtils sequential filtering flow
@@ -551,22 +543,22 @@ class MTMV2Strategy extends BaseStrategy {
         console.log('Processing DIFF10 block');
         
         // Check for sell conditions
-        if (this.shouldSellOptions()) {
+        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling options due to target/stoploss');
             this.sellOptions();
         }
         
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24) {
+        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
             this.sellAt24();
         } 
         
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24) {
+        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
@@ -781,7 +773,7 @@ class MTMV2Strategy extends BaseStrategy {
 
     shouldSellRemainingAtTarget() {
         // Check if the remaining instrument (after sellAt24) has reached its target
-        if (this.mtmNextToSell && this.mtmAssistedTarget !== undefined) {
+        if (this.mtmNextToSell && this.mtmAssistedTarget !== undefined && this.mtmSoldAt24) {
             const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
             const currentPrice = Number(remainingInstrument.last || 0);
             const buyPrice = Number(remainingInstrument.buyPrice || 0);
@@ -790,7 +782,7 @@ class MTMV2Strategy extends BaseStrategy {
             const assistedTarget = Number(this.mtmAssistedTarget || 0);
             const stoploss = Number(this.globalDict.buyBackTrigger || -36);
             
-            this.strategyUtils.logStrategyInfo(`Remaining instrument: ${remainingInstrument.symbol} @ ${currentPrice}, Buy price: ${buyPrice}, Change from buy: ${changeFromBuy.toFixed(2)}, Assisted Target: ${assistedTarget.toFixed(2)}`);
+            console.log(`Remaining instrument: ${remainingInstrument.symbol} @ ${currentPrice}, Buy price: ${buyPrice}, Change from buy: ${changeFromBuy.toFixed(2)}, Assisted Target: ${assistedTarget.toFixed(2)}`);
             
             return changeFromBuy <= stoploss || change_from_24_point >= assistedTarget; // Check if change from buy price reaches the assisted target
         }
@@ -918,7 +910,7 @@ class MTMV2Strategy extends BaseStrategy {
 
     shouldSellBuyBack() {
         // Check if buy-back instrument has reached its target
-        if (this.mtmBuyBackPrice && this.mtmBuyBackTarget) {
+        if (this.mtmBuyBackPrice && this.mtmBuyBackTarget && this.buyBackAfter24) {
             const buyBackInstrument = this.mtmNextToSell;
             
             if (buyBackInstrument) {
@@ -1141,7 +1133,6 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     sellAt36() {
-        this.strategyUtils.logStrategyInfo('Selling remaining instrument and buying back first instrument');
         this.mtmSoldAt36 = true;
         
         if (!this.boughtToken || !this.oppBoughtToken) {
@@ -1284,7 +1275,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     shouldSellRemainingAtTargetAfter36() {
-        if (this.mtmFirstToSell && this.mtmAssistedTarget !== undefined) {
+        if (this.mtmFirstToSell && this.mtmAssistedTarget !== undefined && this.mtmSoldAt36) {
             const firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
             const currentPrice = Number(firstInstrument.last || 0);
             const buyPrice = Number(firstInstrument.buyPrice || 0);
@@ -1410,6 +1401,11 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockRef3 = false;
         this.blockDiff10 = false;
         this.blockNextCycle = false;
+
+        this.universalDict.instrumentMap = {};
+        this.universalDict.ceTokens = [];
+        this.universalDict.peTokens = [];
+        this.universalDict.observedTicks = [];
         
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
     }
@@ -1520,16 +1516,6 @@ class MTMV2Strategy extends BaseStrategy {
                 type: 'number',
                 default: -10,
                 description: 'Lower limit for MTM'
-            },
-            preBuyUpperLimit: {
-                type: 'number',
-                default: 24,
-                description: 'Pre-buy upper limit'
-            },
-            preBuyLowerLimit: {
-                type: 'number',
-                default: -36,
-                description: 'Pre-buy lower limit'
             },
             quantity: {
                 type: 'number',
