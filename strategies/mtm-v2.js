@@ -623,6 +623,13 @@ class MTMV2Strategy extends BaseStrategy {
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
 
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
+
         // Use the injected TradingUtils instance (with proper credentials) instead of this.tradingUtils
         const tradingUtils = this.tradingUtils;
 
@@ -814,6 +821,13 @@ class MTMV2Strategy extends BaseStrategy {
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
 
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
+
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
 
@@ -868,6 +882,13 @@ class MTMV2Strategy extends BaseStrategy {
             this.mtmAssistedTarget = this.globalDict.target - (this.changeAt24 + this.changeAt36After24);
             this.mtmBuyBackPrice = this.mtmNextToSell.last;
             this.mtmBuyBackTarget = this.mtmAssistedTarget;
+            
+            // CRITICAL FIX: Ensure TradingUtils is available before buy back
+            if (!this.tradingUtils) {
+                this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available for buy back - cannot place buy back order');
+                this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+                return;
+            }
             
             // Buy back the instrument that was sold at +24
             try {
@@ -936,7 +957,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmBothSold = true;
         
         if (!this.boughtToken || !this.oppBoughtToken) {
-            this.strategyUtils.logStrategyError('Cannot sell options - boughtToken or oppBoughtToken not set');
+            this.strategyUtils.logStrategyInfo('Cannot sell options - boughtToken or oppBoughtToken not set');
             return;
         }
 
@@ -944,7 +965,7 @@ class MTMV2Strategy extends BaseStrategy {
         const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
 
         if (!mainInstrument || !oppInstrument) {
-            this.strategyUtils.logStrategyError('Cannot sell options - instrument data not found');
+            this.strategyUtils.logStrategyInfo('Cannot sell options - instrument data not found');
             return;
         }
 
@@ -954,6 +975,13 @@ class MTMV2Strategy extends BaseStrategy {
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
+
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
 
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
@@ -1018,7 +1046,7 @@ class MTMV2Strategy extends BaseStrategy {
             }, this.name);
 
         } catch (error) {
-            this.strategyUtils.logStrategyError(`Exception while selling options: ${error.message}`);
+            this.strategyUtils.logStrategyInfo(`Exception while selling options: ${error.message}`);
         }
     }
 
@@ -1086,6 +1114,13 @@ class MTMV2Strategy extends BaseStrategy {
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
+
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
 
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
@@ -1175,6 +1210,13 @@ class MTMV2Strategy extends BaseStrategy {
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
 
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
+
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
 
@@ -1200,7 +1242,8 @@ class MTMV2Strategy extends BaseStrategy {
                 this.strategyUtils.logOrderPlaced('sell', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token);
             }
 
-            this.mtmAssistedTarget = this.globalDict.target - change;
+            let other_price_diff = Number(this.mtmFirstToSell.last || 0) - Number(this.mtmFirstToSell.buyPrice || 0);
+            this.mtmAssistedTarget = this.globalDict.target - (change + other_price_diff);
             this.mtmPriceAt36Sell = this.mtmFirstToSell.last;
            
         } catch (error) {
@@ -1229,6 +1272,13 @@ class MTMV2Strategy extends BaseStrategy {
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
+
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
 
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
@@ -1310,6 +1360,13 @@ class MTMV2Strategy extends BaseStrategy {
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
+
+        // CRITICAL FIX: Ensure TradingUtils is available before proceeding
+        if (!this.tradingUtils) {
+            this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
+            this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
+            return;
+        }
 
         // Use the injected TradingUtils instance
         const tradingUtils = this.tradingUtils;
