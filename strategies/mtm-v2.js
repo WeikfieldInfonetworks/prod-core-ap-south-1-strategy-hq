@@ -548,17 +548,17 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellOptions();
         }
         
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
+        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && false) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
             this.sellAt24();
         } 
         
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36) {
+        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && false) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && false) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
@@ -795,7 +795,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmNextSellAfter24 = true;
         const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
         const currentPrice = Number(remainingInstrument.last || 0);
-        this.changeAt36After24 = currentPrice - this.mtmPriceAt24Sell;
+        this.changeAt36After24 = currentPrice - remainingInstrument.buyPrice;
         const buy_back_required = (this.changeAt36After24 <= Number(this.globalDict.buyBackTrigger || -36));
         
         if (!this.mtmNextToSell) {
@@ -933,6 +933,7 @@ class MTMV2Strategy extends BaseStrategy {
     sellOptions() {
         this.strategyUtils.logStrategyInfo('Selling both options');
         this.boughtSold = true;
+        this.mtmBothSold = true;
         
         if (!this.boughtToken || !this.oppBoughtToken) {
             this.strategyUtils.logStrategyError('Cannot sell options - boughtToken or oppBoughtToken not set');
