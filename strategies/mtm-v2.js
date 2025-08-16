@@ -548,27 +548,27 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellOptions();
         }
         
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && false) {
+        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
             this.sellAt24();
         } 
         
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && false) {
+        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && false) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
 
-        if (this.shouldSellAt36() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
+        if (this.shouldSellAt36() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && false) {
             this.strategyUtils.logStrategyInfo('Selling at -36 points.');
             this.sellAt36();
         } 
 
-        if (this.shouldSellRemainingAtTargetAfter36() && !this.mtmBothSold && this.mtmSoldAt36 && !this.mtmSoldAt24 && !this.boughtSold) {
+        if (this.shouldSellRemainingAtTargetAfter36() && !this.mtmBothSold && this.mtmSoldAt36 && !this.mtmSoldAt24 && !this.boughtSold && false) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 36 point. Buying if stoploss is reached');
             this.sellRemainingAtTargetAfter36();
         }
@@ -745,7 +745,7 @@ class MTMV2Strategy extends BaseStrategy {
             const oppChange = Number(oppInstrument.last || 0) - Number(oppInstrument.buyPrice || 0);
             const total_change = mainChange + oppChange;
             const sellAt24Limit = Number(this.globalDict.sellAt24Limit || 24);
-            if (total_change <= Number(this.globalDict.lowerLimit || -5)){
+            if (total_change < Number(this.globalDict.lowerLimit || 0)){
                 return mainChange >= sellAt24Limit || oppChange >= sellAt24Limit;
             }
             else{
@@ -758,7 +758,7 @@ class MTMV2Strategy extends BaseStrategy {
 
     shouldSellAt36() {
         // Check if remaining option has gone 12 points lower than its price at +24 sell time
-        if (this.boughtToken && this.oppBoughtToken) {
+        if (this.boughtToken && this.oppBoughtToken && false) {
             const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
             const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
             
@@ -1572,7 +1572,7 @@ class MTMV2Strategy extends BaseStrategy {
             },
             lowerLimit: {
                 type: 'number',
-                default: -10,
+                default: 0,
                 description: 'Lower limit for MTM'
             },
             quantity: {
