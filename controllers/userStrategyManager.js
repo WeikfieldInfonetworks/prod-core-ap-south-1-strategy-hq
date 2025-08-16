@@ -91,9 +91,24 @@ class UserStrategyManager {
         try {
             console.log(`🔄 Processing ${ticks.length} ticks for user ${userId}`);
             
-            // Inject the user's trading utils into the current strategy
+            // CRITICAL FIX: Ensure TradingUtils is always injected before processing
             if (strategyManager.currentStrategy) {
-                strategyManager.currentStrategy.tradingUtils = tradingUtils;
+                // Double-check that TradingUtils is available
+                if (!strategyManager.currentStrategy.tradingUtils) {
+                    console.log(`Re-injecting TradingUtils for user ${userId} before tick processing`);
+                    strategyManager.currentStrategy.tradingUtils = tradingUtils;
+                }
+                
+                // Verify TradingUtils is properly injected
+                if (!strategyManager.currentStrategy.tradingUtils) {
+                    console.error(`CRITICAL ERROR: TradingUtils still not available for user ${userId} after injection attempt`);
+                    return; // Skip processing if TradingUtils is not available
+                }
+                
+                console.log(`✅ TradingUtils verified for user ${userId} before tick processing`);
+            } else {
+                console.warn(`No current strategy for user ${userId} - skipping tick processing`);
+                return;
             }
             
             // Process ticks through user's strategy manager
@@ -133,7 +148,7 @@ class UserStrategyManager {
         console.log(`Setting strategy ${strategyName} for user ${userName} (${userId})`);
         console.log('Strategy manager state:', {
             hasGlobalDict: !!strategyManager.globalDict,
-            hasUniversalDict: !!strategyManager.universalDict,
+            hasUniversalDict: !!strategyManager.globalDict,
             hasBlockDict: !!strategyManager.blockDict,
             hasTradingUtils: !!tradingUtils,
             hasApiKey: !!strategyManager.globalDict?.api_key,
@@ -150,7 +165,7 @@ class UserStrategyManager {
         const result = strategyManager.setStrategy(
             strategyName,
             strategyManager.globalDict,
-            strategyManager.universalDict,
+            strategyManager.globalDict,
             strategyManager.blockDict
         );
         
@@ -160,17 +175,26 @@ class UserStrategyManager {
             instrumentMapKeys: result.universalDict?.instrumentMap ? Object.keys(result.universalDict.instrumentMap) : 'none'
         });
         
-        // Ensure the strategy has user info set and uses the user's trading utils
+        // CRITICAL FIX: Inject TradingUtils immediately after strategy initialization
         if (strategyManager.currentStrategy && userName && userId) {
             strategyManager.currentStrategy.setUserInfo(userName, userId);
-            strategyManager.currentStrategy.tradingUtils = tradingUtils; // Inject user's trading utils
             
-            // Verify that the strategy has access to credentials
+            // Inject user's trading utils immediately and verify
+            strategyManager.currentStrategy.tradingUtils = tradingUtils;
+            
+            // Verify that the strategy has access to credentials and TradingUtils
             console.log('Strategy credentials verification:', {
                 hasApiKey: !!strategyManager.currentStrategy.globalDict?.api_key,
                 hasAccessToken: !!strategyManager.currentStrategy.accessToken,
-                tradingUtilsInitialized: !!strategyManager.currentStrategy.tradingUtils?.kite
+                tradingUtilsInitialized: !!strategyManager.currentStrategy.tradingUtils?.kite,
+                tradingUtilsInstance: !!strategyManager.currentStrategy.tradingUtils
             });
+            
+            // Additional safety check - ensure TradingUtils is properly injected
+            if (!strategyManager.currentStrategy.tradingUtils) {
+                console.error('CRITICAL ERROR: TradingUtils injection failed for user:', userId);
+                throw new Error('TradingUtils injection failed - strategy cannot function properly');
+            }
         }
         
         return result;

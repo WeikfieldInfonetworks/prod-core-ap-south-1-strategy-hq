@@ -656,7 +656,7 @@ class StrategyUtils {
                 // Check if price has made at least peakDef high from its lowest point
                 if (instrument.lowAtRef > -1) {
                     const recoveryFromLow = instrument.last - instrument.lowAtRef;
-                    if (recoveryFromLow >= globalDict.peakDef && !flags.interimLowDisabled && !instrument.flagInterim) {
+                    if (recoveryFromLow >= globalDict.upperLimit && !flags.interimLowDisabled && !instrument.flagInterim) {
                         instrument.flagInterim = true;
                         result.interimLowReached = true;
                         result.mtmFirstOption = {

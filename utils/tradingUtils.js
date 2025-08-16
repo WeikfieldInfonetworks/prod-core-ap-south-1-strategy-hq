@@ -49,7 +49,7 @@ class TradingUtils {
                 exchange: "NFO", // Required field for options trading
                 transaction_type: "BUY",
                 quantity: parseInt(quantity),
-                product: "NRML",
+                product: "MIS",
                 order_type: "MARKET"
             };
             
@@ -100,7 +100,7 @@ class TradingUtils {
                 exchange: "NFO", // Required field for options trading
                 transaction_type: "SELL",
                 quantity: parseInt(quantity),
-                product: "NRML",
+                product: "MIS",
                 order_type: "MARKET"
             };
             
