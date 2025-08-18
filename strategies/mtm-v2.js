@@ -502,8 +502,8 @@ class MTMV2Strategy extends BaseStrategy {
             }
             else {
                 // If sum is less than 390, use the main token and opp token as the closest CE and PE
-                closestCE = this.mainToken.symbol.includes('CE') ? this.mainToken : this.oppToken;
-                closestPE = this.mainToken.symbol.includes('PE') ? this.mainToken : this.oppToken;
+                closestCE = mainOption.symbol.includes('CE') ? mainOption : oppOption;
+                closestPE = mainOption.symbol.includes('PE') ? mainOption : oppOption;
             }
             // Assign boughtToken and oppBoughtToken based on mtmFirstOption
             if (this.mtmFirstOption) {
@@ -627,12 +627,20 @@ class MTMV2Strategy extends BaseStrategy {
         if (this.boughtToken && this.oppBoughtToken){
             const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
             const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+            
+            // Add null checks for instruments
+            if (!mainInstrument || !oppInstrument) {
+                this.strategyUtils.logStrategyError('Cannot check sell at 10 - instrument data not found');
+                return false;
+            }
+            
             const sum = mainInstrument.last + oppInstrument.last;
             const buyingSum = mainInstrument.buyPrice + oppInstrument.buyPrice;
             const change = sum - buyingSum;
             const sellAt10Limit = Number(this.globalDict.sellAt10Limit || -10);
             return change <= sellAt10Limit;
         }
+        return false;
     }
 
     sellAt10(){
@@ -646,6 +654,13 @@ class MTMV2Strategy extends BaseStrategy {
 
         const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
         const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+        
+        // Add null checks for instruments
+        if (!mainInstrument || !oppInstrument) {
+            this.strategyUtils.logStrategyError('Cannot sell at 10 - instrument data not found');
+            return;
+        }
+        
         const mainChange = mainInstrument.last - mainInstrument.buyPrice;
         const oppChange = oppInstrument.last - oppInstrument.buyPrice;
         const greaterInstrument = (mainInstrument.last - mainInstrument.buyPrice) >= (oppInstrument.last - oppInstrument.buyPrice) ? mainInstrument : oppInstrument;
@@ -694,6 +709,13 @@ class MTMV2Strategy extends BaseStrategy {
     shouldSellRemainingAtTargetAfter10(){
         if (this.mtmNextToSell && this.mtmSoldAt10){
             const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
+            
+            // Add null check for remaining instrument
+            if (!remainingInstrument) {
+                this.strategyUtils.logStrategyError('Cannot check remaining instrument after 10 - instrument data not found');
+                return false;
+            }
+            
             const changeFrom10 = remainingInstrument.last - this.mtmPriceAt10Sell;
             return changeFrom10 >= this.mtmAssistedTarget;
         }
@@ -705,6 +727,12 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmNextSellAfter10 = true;
         this.boughtSold = true;
         const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
+        
+        // Add null check for remaining instrument
+        if (!remainingInstrument) {
+            this.strategyUtils.logStrategyError('Cannot sell remaining instrument after 10 - instrument data not found');
+            return;
+        }
         const tradingEnabled = this.globalDict.enableTrading === true;
         if (tradingEnabled){
             // CRITICAL FIX: Ensure TradingUtils is available before proceeding
@@ -1327,7 +1355,7 @@ class MTMV2Strategy extends BaseStrategy {
 
         if (!mainInstrument || !oppInstrument) {
             this.strategyUtils.logStrategyError('Cannot sell at 36 - instrument data not found');
-            return false;
+            return;
         }
 
         const mainChange = Number(mainInstrument.last || 0) - Number(mainInstrument.buyPrice || 0);
@@ -1454,9 +1482,6 @@ class MTMV2Strategy extends BaseStrategy {
             // Calculate and log P&L for the buy-back token
             const buyBackPnL = (buyBackInstrument.last - buyBackInstrument.buyPrice) * (this.globalDict.quantity || 75);
             this.strategyUtils.logStrategyInfo(`Buy-back token P&L: ${buyBackPnL.toFixed(2)}`);
-            
-            // Set boughtSold flag to complete the cycle
-            this.boughtSold = true;
             
             this.strategyUtils.logTradeAction('sell_buyback', {
                 buyBackSymbol: buyBackInstrument.symbol,
