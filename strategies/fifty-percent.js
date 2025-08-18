@@ -246,6 +246,10 @@ class FiftyPercentStrategy extends BaseStrategy {
         this.universalDict.ceTokens = ceTokens.map(token => token.toString());
         this.universalDict.peTokens = peTokens.map(token => token.toString());
 
+        // TEMPORARY FIX: For testing
+        // this.universalDict.ceTokens = ["12091138"]
+        // this.universalDict.peTokens = ["12087554"]
+
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
 
@@ -287,7 +291,6 @@ class FiftyPercentStrategy extends BaseStrategy {
                 continue;
             }
 
-            console.log("Reached Update Block")
             // Initialize instrument data if not exists
             if (!this.universalDict.instrumentMap[token]) {
                 this.universalDict.instrumentMap[token] = {
@@ -324,6 +327,15 @@ class FiftyPercentStrategy extends BaseStrategy {
             instrument.plus3 = newPrice - instrument.firstPrice;
             instrument.change = newPrice - oldPrice;
             instrument.last = newPrice;
+
+            // TEMPORARY FIX: For testing
+            // if (token === "12091138"){
+            //     instrument.firstPrice = 110.95
+            // }
+
+            // if (token === "12087554"){
+            //     instrument.firstPrice = 117.8
+            // }
             
             // Other updates only for selected instruments.
             if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {

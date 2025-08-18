@@ -663,9 +663,9 @@ class MTMV2Strategy extends BaseStrategy {
         
         const mainChange = mainInstrument.last - mainInstrument.buyPrice;
         const oppChange = oppInstrument.last - oppInstrument.buyPrice;
-        const greaterInstrument = (mainInstrument.last - mainInstrument.buyPrice) >= (oppInstrument.last - oppInstrument.buyPrice) ? mainInstrument : oppInstrument;
-        const otherInstrument = greaterInstrument === mainInstrument ? oppInstrument : mainInstrument;
-        this.mtmFirstToSell = greaterInstrument;
+        const lesserInstrument = (mainInstrument.last - mainInstrument.buyPrice) <= (oppInstrument.last - oppInstrument.buyPrice) ? mainInstrument : oppInstrument;
+        const otherInstrument = lesserInstrument === mainInstrument ? oppInstrument : mainInstrument;
+        this.mtmFirstToSell = lesserInstrument;
         this.mtmNextToSell = otherInstrument;
         this.mtmAssistedTarget = this.globalDict.target - (mainChange + oppChange);
         this.mtmPriceAt10Sell = otherInstrument.last;
@@ -682,27 +682,27 @@ class MTMV2Strategy extends BaseStrategy {
             const tradingUtils = this.tradingUtils;
 
             try {
-                // Place sell order for the greater instrument - synchronous
+                // Place sell order for the lesser instrument - synchronous
                 const sellResult = tradingUtils.placeSellOrder(
-                    greaterInstrument.symbol,
-                    greaterInstrument.last,
+                    lesserInstrument.symbol,
+                    lesserInstrument.last,
                     this.globalDict.quantity || 75
                 );
 
                 if (sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${greaterInstrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('sell', greaterInstrument.symbol, greaterInstrument.last, this.globalDict.quantity || 75, greaterInstrument.token);
+                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${lesserInstrument.symbol}`);
+                    this.strategyUtils.logOrderPlaced('sell', lesserInstrument.symbol, lesserInstrument.last, this.globalDict.quantity || 75, lesserInstrument.token);
                 } else {
-                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${greaterInstrument.symbol}: ${sellResult.error}`);
-                    this.strategyUtils.logOrderFailed('sell', greaterInstrument.symbol, greaterInstrument.last, this.globalDict.quantity || 75, greaterInstrument.token, sellResult.error);
+                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${lesserInstrument.symbol}: ${sellResult.error}`);
+                    this.strategyUtils.logOrderFailed('sell', lesserInstrument.symbol, lesserInstrument.last, this.globalDict.quantity || 75, lesserInstrument.token, sellResult.error);
                 }
             } catch (error) {
                 this.strategyUtils.logStrategyError(`Exception while selling at 10: ${error.message}`);
             }
         } else {
             // Paper trading - log the order without placing it
-            this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${greaterInstrument.symbol} @ ${greaterInstrument.last}`);
-            this.strategyUtils.logOrderPlaced('sell', greaterInstrument.symbol, greaterInstrument.last, this.globalDict.quantity || 75, greaterInstrument.token);
+            this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${lesserInstrument.symbol} @ ${lesserInstrument.last}`);
+            this.strategyUtils.logOrderPlaced('sell', lesserInstrument.symbol, lesserInstrument.last, this.globalDict.quantity || 75, lesserInstrument.token);
         }
     }
 
