@@ -21,24 +21,29 @@ class TickProcessor {
      */
     async processUserTicks(userId, tickData, processFunction, emitFunction) {
         return new Promise((resolve, reject) => {
-            const processTask = () => {
+            const processTask = async () => {
                 const startTime = Date.now();
                 
                 try {
-                    const userData = processFunction(userId, tickData);
+                    const userData = await processFunction(userId, tickData);
                     const processingTime = Date.now() - startTime;
                     
                     // Update stats
                     this.updateStats(processingTime, false);
                     
                     if (userData) {
-                        emitFunction(`user_${userId}`, "node_update", userData);
-                        console.log(`Processed ticks for user ${userId} in ${processingTime}ms`);
+                        try {
+                            emitFunction(`user_${userId}`, "node_update", userData);
+                            console.log(`Processed ticks for user ${userId} in ${processingTime}ms`);
+                            resolve({ userId, success: true, processingTime });
+                        } catch (emitError) {
+                            console.error(`Error emitting data for user ${userId}:`, emitError);
+                            reject({ userId, error: emitError, processingTime });
+                        }
                     } else {
                         console.warn(`⚠️ No user data returned for user ${userId}`);
+                        resolve({ userId, success: false, processingTime, reason: 'No data' });
                     }
-                    
-                    resolve({ userId, success: true, processingTime });
                 } catch (error) {
                     const processingTime = Date.now() - startTime;
                     this.updateStats(processingTime, true);
@@ -63,7 +68,14 @@ class TickProcessor {
                 this.queue.push(processTask);
             } else {
                 this.activeProcessors++;
-                setImmediate(processTask);
+                setImmediate(async () => {
+                    try {
+                        await processTask();
+                    } catch (error) {
+                        console.error('Error in processTask:', error);
+                        reject({ userId, error, processingTime: Date.now() - Date.now() });
+                    }
+                });
             }
         });
     }
@@ -92,10 +104,21 @@ class TickProcessor {
         try {
             const results = await Promise.allSettled(promises);
             
-            const successful = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
-            const failed = results.filter(r => r.status === 'rejected' || r.value === null).length;
+            const successful = results.filter(r => r.status === 'fulfilled' && r.value?.success === true).length;
+            const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value?.success === false)).length;
+            const errors = results.filter(r => r.status === 'rejected').length;
             
-            console.log(`Tick processing complete: ${successful} successful, ${failed} failed`);
+            console.log(`Tick processing complete: ${successful} successful, ${failed} failed, ${errors} errors`);
+            
+            // Log detailed error information for debugging
+            const rejectedResults = results.filter(r => r.status === 'rejected');
+            if (rejectedResults.length > 0) {
+                console.log(`Rejected promises details:`, rejectedResults.map(r => ({
+                    reason: r.reason,
+                    userId: r.reason?.userId,
+                    error: r.reason?.error?.message || r.reason?.error
+                })));
+            }
             
         } catch (error) {
             console.error('Error in batch tick processing:', error);
@@ -109,7 +132,14 @@ class TickProcessor {
         if (this.queue.length > 0 && this.activeProcessors < this.maxConcurrent) {
             this.activeProcessors++;
             const task = this.queue.shift();
-            setImmediate(task);
+            setImmediate(async () => {
+                try {
+                    await task();
+                } catch (error) {
+                    console.error('Error in queued task:', error);
+                    // The error handling should be already handled in the task itself
+                }
+            });
         }
     }
 

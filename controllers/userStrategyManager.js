@@ -79,7 +79,7 @@ class UserStrategyManager {
     }
 
     // Process ticks for specific user
-    processTicksForUser(userId, ticks) {
+    async processTicksForUser(userId, ticks) {
         const strategyManager = this.getUserStrategyManager(userId);
         const tradingUtils = this.getUserTradingUtils(userId);
         
@@ -111,8 +111,8 @@ class UserStrategyManager {
                 return;
             }
             
-            // Process ticks through user's strategy manager
-            strategyManager.processTicks(ticks);
+            // Process ticks through user's strategy manager (now async)
+            await strategyManager.processTicks(ticks);
             
             // Get current strategy info
             const currentStrategy = strategyManager.getCurrentStrategy();

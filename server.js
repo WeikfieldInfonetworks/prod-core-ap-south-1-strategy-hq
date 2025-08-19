@@ -35,6 +35,20 @@ const ioServer = new Server(server, {
 // Connect to MongoDB
 connectDB();
 
+// Global error handlers for unhandled promises
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
+    // Log the error but don't crash the application
+    console.error('Stack trace:', reason?.stack || 'No stack trace available');
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    console.error('Stack trace:', error.stack);
+    // In production, you might want to gracefully shut down here
+    // process.exit(1);
+});
+
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
@@ -81,7 +95,14 @@ centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" t
             activeUsers,
             tickData,
             userStrategyManager.processTicksForUser.bind(userStrategyManager),
-            (room, event, data) => ioServer.to(room).emit(event, data)
+            (room, event, data) => {
+                try {
+                    ioServer.to(room).emit(event, data);
+                } catch (emitError) {
+                    console.error(`Error emitting to room ${room}:`, emitError);
+                    throw emitError; // Re-throw to be caught by tick processor
+                }
+            }
         ).catch(error => {
             console.error('Error in batch tick processing:', error);
         });

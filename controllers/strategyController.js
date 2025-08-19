@@ -102,16 +102,17 @@ class StrategyManager {
         return config;
     }
 
-    processTicks(ticks) {
+    async processTicks(ticks) {
         if (!this.currentStrategy) {
             console.warn('No strategy selected for tick processing');
             return;
         }
         
         try {
-            this.currentStrategy.processTicks(ticks);
+            await this.currentStrategy.processTicks(ticks);
         } catch (error) {
             console.error('Error processing ticks:', error);
+            throw error; // Re-throw to be handled by the caller
         }
     }
 
