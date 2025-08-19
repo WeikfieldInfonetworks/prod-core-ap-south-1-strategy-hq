@@ -139,30 +139,36 @@ class FiftyPercentStrategy extends BaseStrategy {
     }
     
     async processTicks(ticks) {
-        this.tickCount++;
-        console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
-        console.log(`Number of ticks received: ${ticks.length}`);
-        console.log(`Current Cycle: ${this.cycleCount}`);
-        
-        // Process ticks based on current block state
-        // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
-        if (this.blockInit) {
-            this.processInitBlock(ticks);
+        try {
+
+            this.tickCount++;
+            console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
+            console.log(`Number of ticks received: ${ticks.length}`);
+            console.log(`Current Cycle: ${this.cycleCount}`);
+            
+            // Process ticks based on current block state
+            // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
+            if (this.blockInit) {
+                this.processInitBlock(ticks);
+            }
+            
+            if (this.blockUpdate) {
+                this.processUpdateBlock(ticks);
+            }
+            
+            if (this.blockDiff10) {
+                this.processDiff10Block(ticks);
+            }
+            
+            if (this.blockNextCycle) {
+                this.processNextCycleBlock(ticks);
+            }
+            
+            console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
+        } catch (error) {
+            console.error('Error in processTicks:', error);
+            this.strategyUtils.logStrategyError('Error in processTicks');
         }
-        
-        if (this.blockUpdate) {
-            this.processUpdateBlock(ticks);
-        }
-        
-        if (this.blockDiff10) {
-            this.processDiff10Block(ticks);
-        }
-        
-        if (this.blockNextCycle) {
-            this.processNextCycleBlock(ticks);
-        }
-        
-        console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
     }
     
     processInitBlock(ticks) {
