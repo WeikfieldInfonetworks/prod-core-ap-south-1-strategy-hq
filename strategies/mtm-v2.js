@@ -688,7 +688,7 @@ class MTMV2Strategy extends BaseStrategy {
 
             try {
                 // Place sell order for the lesser instrument - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     lesserInstrument.symbol,
                     lesserInstrument.last,
                     this.globalDict.quantity || 75
@@ -760,7 +760,7 @@ class MTMV2Strategy extends BaseStrategy {
 
             try {
                 // Place sell order for the remaining instrument - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     remainingInstrument.symbol,
                     remainingInstrument.last,
                     this.globalDict.quantity || 75
@@ -1061,7 +1061,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for the remaining token - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     remainingInstrument.symbol,
                     remainingInstrument.last,
                     this.globalDict.quantity || 75
@@ -1243,7 +1243,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for main token - synchronous
-                const mainSellResult = tradingUtils.placeSellOrder(
+                const mainSellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     mainInstrument.symbol,
                     mainInstrument.last,
                     this.globalDict.quantity || 75
@@ -1265,7 +1265,7 @@ class MTMV2Strategy extends BaseStrategy {
                 });
 
                 // Place sell order for opposite token - synchronous
-                const oppSellResult = tradingUtils.placeSellOrder(
+                const oppSellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     oppInstrument.symbol,
                     oppInstrument.last,
                     this.globalDict.quantity || 75
@@ -1397,7 +1397,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for the token to sell - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     instrumentToSell.symbol,
                     instrumentToSell.last,
                     this.globalDict.quantity || 75
@@ -1499,7 +1499,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for the remaining token - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     this.mtmNextToSell.symbol,
                     this.mtmNextToSell.last,
                     this.globalDict.quantity || 75
@@ -1570,7 +1570,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for the buy-back token - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     buyBackInstrument.symbol,
                     buyBackInstrument.last,
                     this.globalDict.quantity || 75
@@ -1663,7 +1663,7 @@ class MTMV2Strategy extends BaseStrategy {
         try {
             if (tradingEnabled) {
                 // Place sell order for the remaining token
-                const sellResult = tradingUtils.placeSellOrder(
+                const sellResult = tradingUtils.placeLimitThenMarketSellOrder(
                     remainingInstrument.symbol,
                     remainingInstrument.last,
                     this.globalDict.quantity || 75
