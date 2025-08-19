@@ -701,6 +701,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${lesserInstrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', lesserInstrument.symbol, lesserInstrument.last, this.globalDict.quantity || 75, lesserInstrument.token, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } catch (error) {
                 this.strategyUtils.logStrategyError(`Exception while selling at 10: ${error.message}`);
             }
@@ -827,6 +835,25 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${boughtInstrument.symbol}: ${boughtOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken, boughtOrderResult.error);
                 }
+                
+                let boughtPrice = boughtInstrument.last;
+                boughtOrderResult.orderId.then(orderId => {
+                    // this.strategyUtils.logStrategyInfo(`Order ID: ${JSON.stringify(orderId)}`);
+                    tradingUtils.getOrderHistory(orderId.order_id)
+                    .then(result => {
+                        this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                        boughtPrice = result.at(-1).average_price;
+                        this.strategyUtils.logStrategyInfo(`Executed Price: ${boughtPrice}`);
+                        boughtInstrument.buyPrice = boughtPrice;
+                        this.strategyUtils.logStrategyInfo(`Bought Instrument Buy Price: ${this.universalDict.instrumentMap[this.boughtToken].buyPrice}`);
+                    })
+                    .catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                    });
+                }).catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
 
                 // Place order for opposite token - synchronous
                 const oppOrderResult = tradingUtils.placeBuyOrder(
@@ -842,6 +869,24 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppOrderResult.error);
                 }
+
+                let oppPrice = oppInstrument.last;
+                oppOrderResult.orderId.then(orderId => {
+                    tradingUtils.getOrderHistory(orderId.order_id)
+                    .then(result => {
+                        this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                        oppPrice = result.at(-1).average_price;
+                        this.strategyUtils.logStrategyInfo(`Executed Price: ${oppPrice}`);
+                        oppInstrument.buyPrice = oppPrice;
+                        this.strategyUtils.logStrategyInfo(`Opposite Instrument Buy Price: ${this.universalDict.instrumentMap[this.oppBoughtToken].buyPrice}`);
+                    })
+                    .catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                    });
+                }).catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the orders without placing them
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${boughtInstrument.symbol} @ ${boughtInstrument.last}`);
@@ -849,11 +894,14 @@ class MTMV2Strategy extends BaseStrategy {
                 
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${oppInstrument.symbol} @ ${oppInstrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
+
+                boughtInstrument.buyPrice = boughtInstrument.last;
+                oppInstrument.buyPrice = oppInstrument.last;
             }
 
-            // Update instrument buy prices
             boughtInstrument.buyPrice = boughtInstrument.last;
             oppInstrument.buyPrice = oppInstrument.last;
+
 
             this.strategyUtils.logStrategyInfo('Orders placed successfully for MTM strategy');
             this.strategyUtils.logStrategyInfo(`Total investment: ${(boughtInstrument.last + oppInstrument.last) * (this.globalDict.quantity || 75)}`);
@@ -1026,6 +1074,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${remainingInstrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', remainingInstrument.symbol, remainingInstrument.last, this.globalDict.quantity || 75, this.mtmNextToSell.token, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${remainingInstrument.symbol} @ ${remainingInstrument.last}`);
@@ -1090,6 +1146,24 @@ class MTMV2Strategy extends BaseStrategy {
                         this.strategyUtils.logStrategyError(`Failed to place buy back order for ${this.mtmNextToSell.symbol}: ${buyBackResult.error}`);
                         this.strategyUtils.logOrderFailed('buy', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token, buyBackResult.error);
                     }
+
+                    let buyBackPrice = this.mtmNextToSell.last;
+                    buyBackResult.orderId.then(orderId => {
+                        tradingUtils.getOrderHistory(orderId.order_id)
+                        .then(result => {
+                            this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                            buyBackPrice = result.at(-1).average_price;
+                            this.strategyUtils.logStrategyInfo(`Executed Price: ${buyBackPrice}`);
+                            this.mtmNextToSell.buyPrice = buyBackPrice;
+                            this.strategyUtils.logStrategyInfo(`Buy Back Instrument Buy Price: ${this.mtmNextToSell.buyPrice}`);
+                        })
+                        .catch(error => {
+                            this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                        });
+                    }).catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                    });
+
                 } else {
                     // Paper trading - log the buy back order without placing it
                     this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy back order for ${this.mtmNextToSell.symbol} @ ${this.mtmNextToSell.last}`);
@@ -1099,6 +1173,7 @@ class MTMV2Strategy extends BaseStrategy {
                     this.mtmNextToSell.buyPrice = this.mtmNextToSell.last;
                     this.strategyUtils.logStrategyInfo(`Buy back completed at ${this.mtmNextToSell.last} with target: ${this.mtmAssistedTarget}`);
                 }
+                this.mtmNextToSell.buyPrice = this.mtmNextToSell.last;
             } catch (error) {
                 this.strategyUtils.logStrategyError(`Exception while placing buy back order: ${error.message}`);
             }
@@ -1182,6 +1257,13 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logOrderFailed('sell', mainInstrument.symbol, mainInstrument.last, this.globalDict.quantity || 75, this.boughtToken, mainSellResult.error);
                 }
 
+                mainSellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
                 // Place sell order for opposite token - synchronous
                 const oppSellResult = tradingUtils.placeSellOrder(
                     oppInstrument.symbol,
@@ -1196,6 +1278,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${oppInstrument.symbol}: ${oppSellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppSellResult.error);
                 }
+
+                oppSellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the orders without placing them
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${mainInstrument.symbol} @ ${mainInstrument.last}`);
@@ -1320,6 +1410,13 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrumentToSell.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', instrumentToSell.symbol, instrumentToSell.last, this.globalDict.quantity || 75, tokenToSell, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
             } else {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrumentToSell.symbol} @ ${instrumentToSell.last}`);
@@ -1415,6 +1512,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${this.mtmNextToSell.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${this.mtmNextToSell.symbol} @ ${this.mtmNextToSell.last}`);
@@ -1478,6 +1583,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${buyBackInstrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', buyBackInstrument.symbol, buyBackInstrument.last, this.globalDict.quantity || 75, this.boughtToken, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${buyBackInstrument.symbol} @ ${buyBackInstrument.last}`);
@@ -1563,6 +1676,14 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${remainingInstrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', remainingInstrument.symbol, remainingInstrument.last, this.globalDict.quantity || 75, this.mtmFirstToSell.token, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                })
+                .catch(error => {
+                    this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                });
+
             } else {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${remainingInstrument.symbol} @ ${remainingInstrument.last}`);

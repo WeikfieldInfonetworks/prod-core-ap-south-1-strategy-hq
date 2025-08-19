@@ -28,6 +28,19 @@ class TradingUtils {
         }
     }
 
+    async getOrderHistory(orderId){
+
+        console.log('Getting order history for', orderId);
+
+        if(!this.kite){
+            console.log('Paper trading mode - simulating order history');
+            return {success: false, error: 'Paper trading mode - cannot get order history'};
+        }
+
+        const orderHistory = await this.kite.getOrderHistory(orderId);
+        return orderHistory;
+    }
+
     placeBuyOrder(symbol, price, quantity = 75) {
         console.log('Placing buy order for', symbol, price, quantity);
         console.log('Kite instance available:', !!this.kite);
@@ -101,7 +114,7 @@ class TradingUtils {
                 transaction_type: "SELL",
                 quantity: parseInt(quantity),
                 product: "MIS",
-                order_type: "MARKET"
+                order_type: "LIMIT"
             };
             
             console.log('Order params:', orderParams);
