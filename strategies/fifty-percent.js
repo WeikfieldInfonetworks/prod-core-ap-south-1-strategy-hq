@@ -253,8 +253,8 @@ class FiftyPercentStrategy extends BaseStrategy {
         this.universalDict.peTokens = peTokens.map(token => token.toString());
 
         // TEMPORARY FIX: For testing
-        // this.universalDict.ceTokens = ["12091138"]
-        // this.universalDict.peTokens = ["12087554"]
+        // this.universalDict.ceTokens = ["12087298"]
+        // this.universalDict.peTokens = ["12091394"]
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -293,9 +293,9 @@ class FiftyPercentStrategy extends BaseStrategy {
         for (const tick of ticks) {
             const token = tick.instrument_token.toString();
             
-            if (!this.universalDict.observedTicks.includes(Number(token))) {
-                continue;
-            }
+            // if (!this.universalDict.observedTicks.includes(Number(token))) {
+            //     continue;
+            // }
 
             // Initialize instrument data if not exists
             if (!this.universalDict.instrumentMap[token]) {
@@ -335,12 +335,12 @@ class FiftyPercentStrategy extends BaseStrategy {
             instrument.last = newPrice;
 
             // TEMPORARY FIX: For testing
-            // if (token === "12091138"){
-            //     instrument.firstPrice = 110.95
+            // if (token === "12087298"){
+            //     instrument.firstPrice = 98.25
             // }
 
-            // if (token === "12087554"){
-            //     instrument.firstPrice = 117.8
+            // if (token === "12091394"){
+            //     instrument.firstPrice = 100.25
             // }
             
             // Other updates only for selected instruments.
@@ -373,7 +373,7 @@ class FiftyPercentStrategy extends BaseStrategy {
 
         if (this.halfdrop_flag) {
             this.blockDiff10 = true;
-            this.strategyUtils.logStrategyInfo('Transitioning from UPDATE to DIFF10 block');
+            console.log('Transitioning from UPDATE to DIFF10 block');
         }
     }
 
@@ -396,6 +396,7 @@ class FiftyPercentStrategy extends BaseStrategy {
 
         if (this.halfdrop_bought && !this.halfdrop_sold) {
             const change = instrument.last - instrument.buyPrice;
+            console.log(`Symbol: ${instrument.symbol} Change: ${change} Target: ${instrument.buyPrice + this.globalDict.target} Stoploss: ${instrument.buyPrice - Math.abs(this.globalDict.stoploss)}`);
             if (change >= this.globalDict.target) {
                 this.halfdrop_sold = true;
                 this.boughtSold = true;
@@ -461,13 +462,14 @@ class FiftyPercentStrategy extends BaseStrategy {
             }
             
             const change = other_ins.last - other_ins.buyPrice;
+            console.log(`Symbol: ${other_ins.symbol} Change: ${change} Target: ${other_ins.buyPrice + this.mtmAssisstedTarget} Stoploss: ${other_ins.buyPrice - Math.abs(this.globalDict.stoploss)}`);
             if (change >= this.mtmAssisstedTarget) {
                 this.other_sold = true;
                 this.boughtSold = true;
                 this.strategyUtils.logStrategyInfo(`SELL OTHER: ${other_ins.symbol} at ${other_ins.last} AS TARGET OF ${this.mtmAssisstedTarget} REACHED`);
                 this.sellOtherOptions();
             }
-            else if (change <= this.globalDict.stoploss) {
+            else if (change <= -100) {
                 this.other_sold = true;
                 this.boughtSold = true;
                 this.strategyUtils.logStrategyInfo(`SELL OTHER: ${other_ins.symbol} at ${other_ins.last} AS STOPLOSS OF ${this.globalDict.stoploss} REACHED`);
@@ -532,6 +534,23 @@ class FiftyPercentStrategy extends BaseStrategy {
                 if (buyOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                    
+                    // Get executed price from order history
+                    buyOrderResult.orderId.then(orderId => {
+                        tradingUtils.getOrderHistory(orderId.order_id)
+                        .then(result => {
+                            this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                            const executedPrice = result.at(-1).average_price;
+                            this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                            instrument.buyPrice = executedPrice;
+                            this.strategyUtils.logStrategyInfo(`Halfdrop Instrument Buy Price: ${this.universalDict.instrumentMap[instrument.token].buyPrice}`);
+                        })
+                        .catch(error => {
+                            this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                        });
+                    }).catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order ID: ${JSON.stringify(error)}`);
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token, buyOrderResult.error);
@@ -540,10 +559,10 @@ class FiftyPercentStrategy extends BaseStrategy {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                
+                // For paper trading, use last price as buy price
+                instrument.buyPrice = instrument.last;
             }
-
-            // Update instrument buy price
-            instrument.buyPrice = instrument.last;
 
             this.strategyUtils.logStrategyInfo('Order placed successfully for fifty percent strategy');
             this.strategyUtils.logStrategyInfo(`Investment: ${instrument.last * (this.globalDict.quantity || 75)}`);
@@ -584,33 +603,47 @@ class FiftyPercentStrategy extends BaseStrategy {
 
         try {
             if (tradingEnabled) {
-                // Place sell order - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                // Place market sell order - synchronous
+                const sellResult = tradingUtils.placeMarketSellOrder(
                     instrument.symbol,
                     instrument.last,
                     this.globalDict.quantity || 75
                 );
 
                 if (sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
+                    this.strategyUtils.logStrategyInfo(`Market sell order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 } else {
-                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
+                    this.strategyUtils.logStrategyError(`Failed to place market sell order for ${instrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token, sellResult.error);
                 }
+
+                sellResult.orderId.then(orderId => {
+                    tradingUtils.getOrderHistory(orderId.order_id)
+                    .then(result => {
+                        this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                        const executedPrice = result.at(-1).average_price;
+                        this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                        instrument.last = executedPrice;
+                    })
+                    .catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                    });
+                })
+
             } else {
                 // Paper trading - log the order without placing it
-                this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
+                this.strategyUtils.logStrategyInfo(`PAPER TRADING: Market sell order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
             }
 
             // Calculate and log P&L
-            const pnL = (instrument.last - instrument.buyPrice) * (this.globalDict.quantity || 75);
+            const pnL = (instrument.last - instrument.buyPrice)
             this.strategyUtils.logStrategyInfo(`P&L: ${pnL.toFixed(2)}`);
             
             // Store loss for assisted target calculation
             if (pnL < 0) {
-                this.lossAtFirst = Math.abs(pnL);
+                this.lossAtFirst = pnL
             }
 
         } catch (error) {
@@ -624,7 +657,7 @@ class FiftyPercentStrategy extends BaseStrategy {
             return;
         }
 
-        const instrument = this.other_instrument;
+        const instrument = this.universalDict.instrumentMap[this.oppToken];
         
         if (!instrument) {
             this.strategyUtils.logStrategyError('Cannot buy other - instrument data not found');
@@ -659,6 +692,23 @@ class FiftyPercentStrategy extends BaseStrategy {
                 if (buyResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                    
+                    // Get executed price from order history
+                    buyResult.orderId.then(orderId => {
+                        tradingUtils.getOrderHistory(orderId.order_id)
+                        .then(result => {
+                            this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                            const executedPrice = result.at(-1).average_price;
+                            this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                            instrument.buyPrice = executedPrice;
+                            this.strategyUtils.logStrategyInfo(`Other Instrument Buy Price: ${this.universalDict.instrumentMap[instrument.token].buyPrice}`);
+                        })
+                        .catch(error => {
+                            this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                        });
+                    }).catch(error => {
+                        this.strategyUtils.logStrategyError(`Error getting order ID: ${JSON.stringify(error)}`);
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token, buyResult.error);
@@ -667,6 +717,9 @@ class FiftyPercentStrategy extends BaseStrategy {
                 // Paper trading - log the order without placing it
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                
+                // For paper trading, use last price as buy price
+                instrument.buyPrice = instrument.last;
             }
 
         } catch (error) {
@@ -680,7 +733,7 @@ class FiftyPercentStrategy extends BaseStrategy {
             return;
         }
 
-        const instrument = this.other_instrument;
+        const instrument = this.universalDict.instrumentMap[this.oppToken];
         
         if (!instrument) {
             this.strategyUtils.logStrategyError('Cannot sell other - instrument data not found');
@@ -705,30 +758,28 @@ class FiftyPercentStrategy extends BaseStrategy {
 
         try {
             if (tradingEnabled) {
-                // Place sell order - synchronous
-                const sellResult = tradingUtils.placeSellOrder(
+                // Place market sell order - synchronous
+                const sellResult = tradingUtils.placeMarketSellOrder(
                     instrument.symbol,
                     instrument.last,
                     this.globalDict.quantity || 75
                 );
 
                 if (sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
+                    this.strategyUtils.logStrategyInfo(`Market sell order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 } else {
-                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
+                    this.strategyUtils.logStrategyError(`Failed to place market sell order for ${instrument.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token, sellResult.error);
                 }
             } else {
                 // Paper trading - log the order without placing it
-                this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
+                this.strategyUtils.logStrategyInfo(`PAPER TRADING: Market sell order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
             }
 
             // Calculate and log P&L
-            const pnL = (instrument.last - instrument.buyPrice) * (this.globalDict.quantity || 75);
-            const totalPnL = pnL - this.lossAtFirst; // Account for previous loss
-            this.strategyUtils.logStrategyInfo(`Other P&L: ${pnL.toFixed(2)}, Total P&L: ${totalPnL.toFixed(2)}`);
+            // const pnL = instrument.last - instrument.buyPrice;
 
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling other: ${error.message}`);

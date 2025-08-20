@@ -568,6 +568,25 @@ class MTMV2Strategy extends BaseStrategy {
 
     processDiff10Block(ticks) {
         console.log('Processing DIFF10 block');
+
+        if(this.mtmSoldAt10){
+            let status = this.globalDict.sellFirstAt10.toUpperCase()
+            let firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
+            let secondInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
+
+            let firstChange = firstInstrument.last - this.mtmFirstToSellPrice;
+            let secondChange = secondInstrument.last - this.mtmPriceAt10Sell;
+
+            let firstHitTarget = firstChange >= this.mtmAssistedTarget;
+            let secondHitTarget = secondChange >= this.mtmAssistedTarget;
+
+            if(firstHitTarget){
+                this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} hit target with ${status == "HIGHER" ? "LOWER" : "HIGHER"}`);
+            }
+            else if(secondHitTarget){
+                this.strategyUtils.logStrategyInfo(`${secondInstrument.symbol} hit target with ${status}`);
+            }
+        }
         
         // Check for sell conditions
         if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !this.mtmSoldAt10) {
@@ -658,9 +677,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         this.strategyUtils.logStrategyInfo('Selling at -10 points');
-        if(this.globalDict.sellAt10Live){
-            this.mtmSoldAt10 = true;
-        }
+        this.mtmSoldAt10 = true;
 
         const mainInstrument = this.universalDict.instrumentMap[this.boughtToken];
         const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
@@ -688,7 +705,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmNextToSell = secondInstrument;
         this.mtmAssistedTarget = this.globalDict.target - (mainChange + oppChange);
         this.mtmPriceAt10Sell = secondInstrument.last;
-        this.mtmFirstToSellPrice = firstInstrument.last;
+        // this.mtmFirstToSellPrice = firstInstrument.last;
         const tradingEnabled = this.globalDict.enableTrading === true;
         if (tradingEnabled && this.globalDict.sellAt10Live){
             // CRITICAL FIX: Ensure TradingUtils is available before proceeding
@@ -737,7 +754,7 @@ class MTMV2Strategy extends BaseStrategy {
     shouldSellRemainingAtTargetAfter10(){
         if (this.mtmNextToSell && this.mtmSoldAt10){
             const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
-            const firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
+            // const firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
 
             // Add null check for remaining instrument
             if (!remainingInstrument) {
@@ -745,19 +762,19 @@ class MTMV2Strategy extends BaseStrategy {
                 return false;
             }
 
-            const firstChangeFrom10 = firstInstrument.last - this.mtmFirstToSellPrice;
+            // const firstChangeFrom10 = firstInstrument.last - this.mtmFirstToSellPrice;
             const changeFrom10 = remainingInstrument.last - this.mtmPriceAt10Sell;
 
-            if(firstChangeFrom10 >= this.mtmAssistedTarget || changeFrom10 >= this.mtmAssistedTarget){
-                if(firstChangeFrom10 >= this.mtmAssisstedTarget){
-                    let status = this.globalDict.sellFirstAt10.toUpperCase() == "HIGHER" ? "LOWER" : "HIGHER"
-                    this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} achieved target with ${status}`)
-                }
-                else if(changeFrom10 >= this.mtmAssistedTarget){
-                    let status = this.globalDict.sellFirstAt10.toUpperCase()
-                    this.strategyUtils.logStrategyInfo(`${remainingInstrument.symbol} achieved target with ${status}`)
-                }
-            }
+            // if(firstChangeFrom10 >= this.mtmAssistedTarget || changeFrom10 >= this.mtmAssistedTarget){
+            //     if(firstChangeFrom10 >= this.mtmAssisstedTarget){
+            //         let status = this.globalDict.sellFirstAt10.toUpperCase() == "HIGHER" ? "LOWER" : "HIGHER"
+            //         this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} achieved target with ${status}`)
+            //     }
+            //     else if(changeFrom10 >= this.mtmAssistedTarget){
+            //         let status = this.globalDict.sellFirstAt10.toUpperCase()
+            //         this.strategyUtils.logStrategyInfo(`${remainingInstrument.symbol} achieved target with ${status}`)
+            //     }
+            // }
             
             return changeFrom10 >= this.mtmAssistedTarget;
         }
@@ -766,10 +783,8 @@ class MTMV2Strategy extends BaseStrategy {
 
     sellRemainingAtTargetAfter10(){
         this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 10 point');
-        if(this.globalDict.sellAt10Live){
-            this.mtmNextSellAfter10 = true;
-            this.boughtSold = true;
-        }
+        this.mtmNextSellAfter10 = true;
+        this.boughtSold = true;
         const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
         
         // Add null check for remaining instrument
