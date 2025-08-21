@@ -589,7 +589,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
         
         // Check for sell conditions
-        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !this.mtmSoldAt10) {
+        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
             this.strategyUtils.logStrategyInfo('Selling options due to target/stoploss');
             this.sellOptions();
         }
@@ -604,17 +604,17 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellRemainingAtTargetAfter10();
         }
         
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !this.mtmSoldAt10) {
+        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
             this.sellAt24();
         } 
         
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && !this.mtmSoldAt10) {
+        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && !this.mtmSoldAt10) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
