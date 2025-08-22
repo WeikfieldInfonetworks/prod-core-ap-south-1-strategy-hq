@@ -40,6 +40,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.changeAt24 = 0;
         this.changeAt36After24 = 0;
         this.mtmAssistedTarget = 0;
+        this.mtmAssistedTarget2 = 0;
         this.mtmOriginalBuyPrice = null;
         this.mtmSoldAt24Gain = 0;
         this.mtmSoldAt36Loss = 0;
@@ -161,6 +162,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmFirstToSellPrice = null;
         this.mtmNextToSell = null;
         this.mtmAssistedTarget = 0;
+        this.mtmAssistedTarget2 = 0;
         this.mtmOriginalBuyPrice = null;
         this.mtmSoldAt24Gain = 0;
         this.mtmSoldAt36Loss = 0;
@@ -577,8 +579,8 @@ class MTMV2Strategy extends BaseStrategy {
             let firstChange = firstInstrument.last - this.mtmFirstToSellPrice;
             let secondChange = secondInstrument.last - this.mtmPriceAt10Sell;
 
-            let firstHitTarget = firstChange >= this.mtmAssistedTarget;
-            let secondHitTarget = secondChange >= this.mtmAssistedTarget;
+            let firstHitTarget = firstChange >= this.mtmAssistedTarget2;
+            let secondHitTarget = secondChange >= this.mtmAssistedTarget2;
 
             if(firstHitTarget){
                 this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} hit target with ${status == "HIGHER" ? "LOWER" : "HIGHER"}`);
@@ -702,8 +704,9 @@ class MTMV2Strategy extends BaseStrategy {
             secondInstrument = firstInstrument === mainInstrument ? oppInstrument : mainInstrument;
         }
         this.mtmFirstToSell = firstInstrument;
+        this.mtmFirstToSellPrice = firstInstrument.last;
         this.mtmNextToSell = secondInstrument;
-        this.mtmAssistedTarget = this.globalDict.target - (mainChange + oppChange);
+        this.mtmAssistedTarget2 = this.globalDict.target - (mainChange + oppChange);
         this.mtmPriceAt10Sell = secondInstrument.last;
         // this.mtmFirstToSellPrice = firstInstrument.last;
         const tradingEnabled = this.globalDict.enableTrading === true;
@@ -776,7 +779,7 @@ class MTMV2Strategy extends BaseStrategy {
             //     }
             // }
             
-            return changeFrom10 >= this.mtmAssistedTarget;
+            return changeFrom10 >= this.mtmAssistedTarget2;
         }
         return false;
     }
@@ -784,7 +787,9 @@ class MTMV2Strategy extends BaseStrategy {
     sellRemainingAtTargetAfter10(){
         this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 10 point');
         this.mtmNextSellAfter10 = true;
-        this.boughtSold = true;
+        if (!this.universalDict.cycles <= 0){
+            this.boughtSold = true;
+        }
         const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
         
         // Add null check for remaining instrument
@@ -1773,6 +1778,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmFirstToSellPrice = null;
         this.mtmNextToSell = null;
         this.mtmAssistedTarget = 0;
+        this.mtmAssistedTarget2 = 0;
         this.mtmOriginalBuyPrice = null;
         this.mtmSoldAt24Gain = 0;
         this.mtmSoldAt36Loss = 0;
