@@ -253,8 +253,8 @@ class FiftyPercentStrategy extends BaseStrategy {
         this.universalDict.peTokens = peTokens.map(token => token.toString());
 
         // TEMPORARY FIX: For testing
-        // this.universalDict.ceTokens = ["12091138"]
-        // this.universalDict.peTokens = ["12097794"]
+        // this.universalDict.ceTokens = ["18424322"]
+        // this.universalDict.peTokens = ["18425090"]
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -335,12 +335,12 @@ class FiftyPercentStrategy extends BaseStrategy {
             instrument.last = newPrice;
 
             // TEMPORARY FIX: For testing
-            // if (token === "12091138"){
-            //     instrument.firstPrice = 109.25
+            // if (token === "18424322"){
+            //     instrument.firstPrice = 120.7
             // }
 
-            // if (token === "12097794"){
-            //     instrument.firstPrice = 121.45
+            // if (token === "18425090"){
+            //     instrument.firstPrice = 103.7
             // }
             
             // Other updates only for selected instruments.

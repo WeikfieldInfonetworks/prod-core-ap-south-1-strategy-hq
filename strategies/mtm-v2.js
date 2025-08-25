@@ -61,6 +61,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockNextCycle = false;
         
         // Flags
+        this.mtm10tracked = false;
         this.cePlus3 = false;
         this.pePlus3 = false;
         this.interimLowDisabled = false;
@@ -191,6 +192,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.calcRefReached = false;
         this.finalRefFlag = false;
         this.skipBuy = false;
+        this.mtm10tracked = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -491,7 +493,7 @@ class MTMV2Strategy extends BaseStrategy {
             let closestCE = null;
             let closestPE = null;
 
-            if (isSumOver390){
+            if (isSumOver390 || true){
                 // Find closest symbols below 200 for both CE and PE
                 closestCE = this.strategyUtils.findClosestCEBelowPrice(
                     this.universalDict.instrumentMap, 
@@ -571,7 +573,7 @@ class MTMV2Strategy extends BaseStrategy {
     processDiff10Block(ticks) {
         console.log('Processing DIFF10 block');
 
-        if(this.mtmSoldAt10){
+        if(this.mtmSoldAt10 && !this.mtm10tracked){
             let status = this.globalDict.sellFirstAt10.toUpperCase()
             let firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
             let secondInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
@@ -584,9 +586,11 @@ class MTMV2Strategy extends BaseStrategy {
 
             if(firstHitTarget){
                 this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} hit target with ${status == "HIGHER" ? "LOWER" : "HIGHER"}`);
+                this.mtm10tracked = true;
             }
             else if(secondHitTarget){
                 this.strategyUtils.logStrategyInfo(`${secondInstrument.symbol} hit target with ${status}`);
+                this.mtm10tracked = true;
             }
         }
         
@@ -1797,6 +1801,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmSoldAfterFirst36 = false;
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
+        this.mtm10tracked = false;
         
         // Reset tokens
         this.mainToken = null;
