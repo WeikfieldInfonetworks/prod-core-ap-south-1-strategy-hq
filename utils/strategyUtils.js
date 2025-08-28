@@ -381,11 +381,13 @@ class StrategyUtils {
     findClosestSymbolBelowPrice(instrumentMap, targetPrice, instrumentType, maxPrice = 200) {
         if (!instrumentMap || typeof instrumentMap !== 'object') {
             console.warn('Invalid instrument map provided to findClosestSymbolBelowPrice');
+            this.logStrategyDebug(`Invalid instrument map provided to findClosestSymbolBelowPrice`);
             return null;
         }
 
         if (!instrumentType || !['CE', 'PE'].includes(instrumentType.toUpperCase())) {
             console.warn('Invalid instrument type. Must be "CE" or "PE"');
+            this.logStrategyDebug(`Invalid instrument type. Must be "CE" or "PE"`);
             return null;
         }
 
@@ -396,6 +398,7 @@ class StrategyUtils {
         // Iterate through all instruments in the map
         for (const [token, instrument] of Object.entries(instrumentMap)) {
             if (!instrument || !instrument.symbol || instrument.last === undefined) {
+                this.logStrategyDebug(`Instrument not found: ${token}`);
                 continue;
             }
 
@@ -404,11 +407,13 @@ class StrategyUtils {
 
             // Check if this is the correct instrument type
             if (!this.isOptionsInstrument(symbol) || !symbol.includes(instrumentType.toUpperCase())) {
+                this.logStrategyDebug(`Instrument not found: ${token}`);
                 continue;
             }
 
             // Check if price is below the upper limit
             if (price > upperLimit) {
+                this.logStrategyDebug(`Instrument price above upper limit: ${token}`);
                 continue;
             }
 
