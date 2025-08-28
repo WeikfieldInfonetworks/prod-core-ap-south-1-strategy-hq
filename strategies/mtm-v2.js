@@ -77,6 +77,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmSoldAfterFirst36 = false;
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
+        this.mtm10FirstHit = false;
     }
 
     setUserInfo(userName, userId) {
@@ -193,6 +194,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.finalRefFlag = false;
         this.skipBuy = false;
         this.mtm10tracked = false;
+        this.mtm10FirstHit = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -595,7 +597,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
         
         // Check for sell conditions
-        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
+        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10FirstHit)) {
             this.strategyUtils.logStrategyInfo('Selling options due to target/stoploss');
             this.sellOptions();
         }
@@ -610,17 +612,17 @@ class MTMV2Strategy extends BaseStrategy {
             this.sellRemainingAtTargetAfter10();
         }
         
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
+        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10FirstHit)) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
             this.sellAt24();
         } 
         
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
+        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10FirstHit)) {
             this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
             this.sellRemainingAtTarget();
         } 
         
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && (!this.mtmSoldAt10 || this.universalDict.cycles == 0)) {
+        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10FirstHit)) {
             this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
             this.sellBuyBack();
         }
@@ -714,7 +716,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmPriceAt10Sell = secondInstrument.last;
         // this.mtmFirstToSellPrice = firstInstrument.last;
         const tradingEnabled = this.globalDict.enableTrading === true;
-        if (tradingEnabled && this.globalDict.sellAt10Live){
+        if (tradingEnabled && this.mtm10FirstHit){
             // CRITICAL FIX: Ensure TradingUtils is available before proceeding
             if (!this.tradingUtils) {
                 this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
@@ -791,7 +793,7 @@ class MTMV2Strategy extends BaseStrategy {
     sellRemainingAtTargetAfter10(){
         this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 10 point');
         this.mtmNextSellAfter10 = true;
-        if (!this.universalDict.cycles <= 0){
+        if (this.mtm10FirstHit){
             this.boughtSold = true;
         }
         const remainingInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
@@ -802,7 +804,7 @@ class MTMV2Strategy extends BaseStrategy {
             return;
         }
         const tradingEnabled = this.globalDict.enableTrading === true;
-        if (tradingEnabled && this.globalDict.sellAt10Live){
+        if (tradingEnabled && this.mtm10FirstHit){
             // CRITICAL FIX: Ensure TradingUtils is available before proceeding
             if (!this.tradingUtils) {
                 this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place sell orders');
@@ -1762,6 +1764,7 @@ class MTMV2Strategy extends BaseStrategy {
     }
     
     resetForNextCycle() {
+
         this.strategyUtils.logStrategyInfo('Resetting for next cycle');
         
         // Increment cycle count
@@ -1824,6 +1827,11 @@ class MTMV2Strategy extends BaseStrategy {
         this.universalDict.observedTicks = [];
         
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
+
+        if(!this.mtm10FirstHit && this.mtmSoldAt10){
+            this.mtm10FirstHit = true;
+            this.strategyUtils.logStrategyInfo('Going live with 10 point sell from next cycle.');
+        }
     }
 
     // resetCycleForNewInstrument() {
@@ -1905,12 +1913,12 @@ class MTMV2Strategy extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 10,
+                default: 7,
                 description: 'Target profit in points'
             },
             stoploss: {
                 type: 'number',
-                default: 10,
+                default: -100,
                 description: 'Stop loss in points'
             },
             enableTrading: {
@@ -1935,7 +1943,7 @@ class MTMV2Strategy extends BaseStrategy {
             },
             upperLimit: {
                 type: 'number',
-                default: 3,
+                default: 2.5,
                 description: 'Upper limit for interim low'
             },
             lowerLimit: {
@@ -1960,7 +1968,7 @@ class MTMV2Strategy extends BaseStrategy {
             },
             buyBackTrigger: {
                 type: 'number',
-                default: -12,
+                default: -36,
                 description: 'Trigger for buying back the first instrument'
             }
         };
