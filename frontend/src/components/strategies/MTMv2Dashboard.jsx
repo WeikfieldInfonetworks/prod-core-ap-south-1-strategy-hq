@@ -1,0 +1,206 @@
+import React, { useState, useEffect } from 'react';
+import { useSocket } from '../../contexts/SocketContext';
+import ConfigurationBar from './mtm-v2/ConfigurationBar';
+import BlockProgress from './mtm-v2/BlockProgress';
+import InstrumentTiles from './mtm-v2/InstrumentTiles';
+import SumTile from './mtm-v2/SumTile';
+import TradingTable from './mtm-v2/TradingTable';
+import { Activity, AlertCircle } from 'lucide-react';
+
+const MTMv2Dashboard = ({ strategy }) => {
+  const { socket } = useSocket();
+  const [instrumentData, setInstrumentData] = useState(null);
+  const [blockState, setBlockState] = useState({
+    blockInit: true,
+    blockUpdate: false,
+    blockFinalRef: false,
+    blockRef3: false,
+    blockDiff10: false,
+    blockNextCycle: false
+  });
+  const [tradingActions, setTradingActions] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    // Listen for strategy status updates
+    socket.on('strategy_status_update', (data) => {
+      if (data.blockTransition) {
+        // Update block states based on transitions
+        const newBlockState = { ...blockState };
+        
+        // Reset all blocks first
+        Object.keys(newBlockState).forEach(key => {
+          newBlockState[key] = false;
+        });
+        
+        // Set current block based on the transition
+        switch (data.toBlock) {
+          case 'INIT':
+            newBlockState.blockInit = true;
+            break;
+          case 'UPDATE':
+            newBlockState.blockUpdate = true;
+            break;
+          case 'FINAL_REF':
+            newBlockState.blockFinalRef = true;
+            break;
+          case 'REF3':
+            newBlockState.blockRef3 = true;
+            break;
+          case 'DIFF10':
+            newBlockState.blockDiff10 = true;
+            break;
+          case 'NEXT_CYCLE':
+            newBlockState.blockNextCycle = true;
+            break;
+        }
+        
+        setBlockState(newBlockState);
+      }
+
+      // Handle instrument data updates
+      if (data.status === 'instrument_data_update') {
+        setInstrumentData(data);
+      }
+
+      // Add to notifications
+      addNotification({
+        type: 'info',
+        title: 'Strategy Update',
+        message: data.status,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // Listen for trade actions
+    socket.on('strategy_trade_action', (data) => {
+      setTradingActions(prev => [data, ...prev.slice(0, 9)]); // Keep last 10 actions
+      
+      addNotification({
+        type: 'success',
+        title: 'Trade Action',
+        message: `${data.action}: ${data.symbol} @ ${data.price}`,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // Listen for parameter updates
+    socket.on('strategy_parameter_updated', (data) => {
+      addNotification({
+        type: 'info',
+        title: 'Parameter Updated',
+        message: `${data.parameter}: ${data.oldValue} → ${data.newValue}`,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    // Listen for errors
+    socket.on('strategy_parameter_error', (data) => {
+      addNotification({
+        type: 'error',
+        title: 'Parameter Error',
+        message: data.error,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    return () => {
+      socket.off('strategy_status_update');
+      socket.off('strategy_trade_action');
+      socket.off('strategy_parameter_updated');
+      socket.off('strategy_parameter_error');
+    };
+  }, [socket]);
+
+  const addNotification = (notification) => {
+    setNotifications(prev => [
+      { ...notification, id: Date.now() },
+      ...prev.slice(0, 4) // Keep last 5 notifications
+    ]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  if (!strategy) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Activity className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600">Loading MTM V2 Strategy Dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Notifications */}
+      {notifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={`p-4 rounded-lg shadow-lg border-l-4 ${
+                notification.type === 'error' 
+                  ? 'bg-red-50 border-red-400 text-red-800'
+                  : notification.type === 'success'
+                  ? 'bg-green-50 border-green-400 text-green-800'
+                  : 'bg-blue-50 border-blue-400 text-blue-800'
+              } fade-in`}
+              onClick={() => removeNotification(notification.id)}
+            >
+              <div className="flex items-start">
+                <AlertCircle className="h-5 w-5 mt-0.5 mr-2" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium">{notification.title}</h4>
+                  <p className="text-xs mt-1">{notification.message}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">MTM V2 Strategy Dashboard</h2>
+            <p className="text-gray-600 mt-1">{strategy.description}</p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm text-gray-500">Current Cycle</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {strategy.universalDict?.cycles || 0}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Configuration Bar */}
+      <ConfigurationBar strategy={strategy} />
+
+      {/* Block Progress */}
+      <BlockProgress blockState={blockState} />
+
+      {/* Instrument Tiles Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <InstrumentTiles instrumentData={instrumentData} />
+        <SumTile instrumentData={instrumentData} />
+      </div>
+
+      {/* Trading Table */}
+      <TradingTable 
+        strategy={strategy} 
+        instrumentData={instrumentData}
+        tradingActions={tradingActions}
+      />
+    </div>
+  );
+};
+
+export default MTMv2Dashboard;

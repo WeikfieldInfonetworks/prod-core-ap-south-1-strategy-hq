@@ -11,6 +11,7 @@ A modern, responsive web application for user selection and session management b
 - **Persistent Sessions**: Remembers selected user across page refreshes
 - **Security**: Sensitive data handling with proper API endpoints
 - **MVC Architecture**: Modular, maintainable code structure
+- **CORS Enabled**: Cross-Origin Resource Sharing configured for frontend-backend communication
 
 ## Prerequisites
 
@@ -181,6 +182,30 @@ After user selection, the stored credentials can be used to:
 - Check the browser console for API errors
 - Verify the server is running and accessible
 - Ensure your MongoDB Atlas database has users
+
+### CORS Issues
+If you encounter CORS errors when the frontend tries to access the backend:
+
+**Error Message**: `Access to fetch at 'http://localhost:3000/api/users' from origin 'http://localhost:5173' has been blocked by CORS policy`
+
+**Solution**:
+1. **CORS is now configured automatically** - The server includes CORS middleware by default
+2. **Restart the backend server** after any changes to CORS configuration
+3. **Check allowed origins** - The following origins are allowed by default:
+   - `http://localhost:5173` (Vite dev server)
+   - `http://localhost:3000` (Production frontend)
+   - `http://127.0.0.1:5173` (Alternative localhost)
+   - `http://127.0.0.1:3000` (Alternative localhost)
+
+**Test CORS Configuration**:
+```bash
+node test-cors.js
+```
+
+**Custom CORS Origins**: Set the `CORS_ORIGINS` environment variable:
+```bash
+CORS_ORIGINS=http://localhost:5173,http://example.com,https://yourdomain.com
+```
 
 ## Contributing
 

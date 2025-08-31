@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { io } = require('socket.io-client');
 const path = require('path');
+const cors = require('cors');
 require('dotenv').config();
 
 // Import database connection
@@ -24,12 +25,29 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
+// Define CORS origins for both Express and Socket.IO
+const corsOrigins = process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim())
+    : [
+        'http://localhost:5173', // Vite dev server
+        'http://localhost:3000', // Frontend production (if served from same port)
+        'http://127.0.0.1:5173', // Alternative localhost
+        'http://127.0.0.1:3000'  // Alternative localhost
+    ];
+
 // Socket.IO server for frontend connections
 const ioServer = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
+        origin: process.env.NODE_ENV === 'production' ? corsOrigins : true,
+        methods: ["GET", "POST"],
+        credentials: true
+    },
+    transports: ['websocket', 'polling'], // Allow both WebSocket and polling fallback
+    allowEIO3: true, // Allow Engine.IO v3 clients
+    pingTimeout: 60000, // How many ms without a pong packet to consider the connection closed
+    pingInterval: 25000, // How many ms before sending a new ping packet
+    upgradeTimeout: 10000, // How many ms before an uncompleted transport upgrade is cancelled
+    maxHttpBufferSize: 1e6 // Maximum size of HTTP buffer in bytes
 });
 
 // Connect to MongoDB
@@ -49,12 +67,30 @@ process.on('uncaughtException', (error) => {
     // process.exit(1);
 });
 
+// CORS configuration for frontend access
+const corsConfig = {
+    origin: process.env.NODE_ENV === 'production' ? corsOrigins : true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-requested-with']
+};
+
+console.log('🔧 CORS Configuration:', {
+    environment: process.env.NODE_ENV || 'development',
+    allowedOrigins: process.env.NODE_ENV === 'production' ? corsOrigins : 'All origins (development mode)'
+});
+
+app.use(cors(corsConfig));
+
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
 
 // Initialize user strategy manager
 const userStrategyManager = new UserStrategyManager();
+
+// Pass Socket.IO reference to UserStrategyManager for real-time communication
+userStrategyManager.setSocketIo(ioServer);
 
 // Initialize tick processor with controlled concurrency
 const tickProcessor = new TickProcessor(10); // Max 10 concurrent processors
@@ -151,7 +187,15 @@ app.use('/api', apiRoutes);
 
 // Handle frontend connections
 ioServer.of("/live").on("connection", socket => {
-    console.log("New client connected");
+    console.log(`✅ New client connected: ${socket.id}`);
+    console.log(`Connection transport: ${socket.conn.transport.name}`);
+    console.log(`Client IP: ${socket.handshake.address}`);
+    console.log(`User Agent: ${socket.handshake.headers['user-agent']}`);
+    
+    // Log transport upgrades
+    socket.conn.on('upgrade', () => {
+        console.log(`⬆️ Client ${socket.id} upgraded to: ${socket.conn.transport.name}`);
+    });
     
     let currentUserId = null;
     let currentUserName = null;
@@ -311,8 +355,14 @@ ioServer.of("/live").on("connection", socket => {
         });
     });
 
-    socket.on("disconnect", () => {
-        console.log(`Client disconnected - User: ${currentUserName} (${currentUserId})`);
+    socket.on("disconnect", (reason) => {
+        console.log(`❌ Client disconnected: ${socket.id}`);
+        console.log(`Disconnect reason: ${reason}`);
+        console.log(`User: ${currentUserName || 'Not authenticated'} (${currentUserId || 'N/A'})`);
+        
+        // Log connection duration
+        const connectionTime = Date.now() - socket.handshake.time;
+        console.log(`Connection duration: ${Math.round(connectionTime / 1000)}s`);
         
         // Optionally cleanup user instance after some time
         // userStrategyManager.removeUserInstance(currentUserId);
@@ -329,7 +379,22 @@ app.use('*', (req, res) => {
 
 // Start server
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Visit http://localhost:${PORT} to access the application`);
-    console.log(`Dashboard available at: http://localhost:${PORT}/dashboard.html`);
+    console.log('\n🚀 Strategy HQ Server Started Successfully!');
+    console.log('='.repeat(50));
+    console.log(`📍 Server URL: http://localhost:${PORT}`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
+    console.log(`🔌 Socket.IO: ws://localhost:${PORT}/live`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    console.log('\n🔧 Socket.IO Configuration:');
+    console.log(`   Transports: websocket, polling`);
+    console.log(`   Ping Timeout: 60s`);
+    console.log(`   Ping Interval: 25s`);
+    console.log(`   CORS Origins: ${process.env.NODE_ENV === 'production' ? corsOrigins.join(', ') : 'All (development mode)'}`);
+    
+    console.log('\n💡 Next Steps:');
+    console.log('   1. Open your frontend at http://localhost:5173');
+    console.log('   2. Check Socket.IO connection in browser console');
+    console.log('   3. Authenticate with a user to start trading');
+    console.log('='.repeat(50));
 });

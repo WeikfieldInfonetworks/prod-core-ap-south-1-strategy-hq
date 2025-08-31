@@ -1,0 +1,32 @@
+1. Configuration Bar
+    - Contains global dict parameters and universal dict parameters
+
+2. Main Dashboard
+    - Block Progress (INIT - FINAL REF - DIFF 10 - NEXT CYCLE). skip update block as its always true.
+    - 2 tiles for selected call and put instrument along with their LTP and diff from BP (red and green, not visible until BP is set). (Real time, value in center big, instrument name last 7 characters bottom center small font. source EMIT NUMBER #1, use boughtTOken and oppBoughtTOken)
+    - 1 tile showing sum of ltp from above (also real time) and diff from sum of BP (red and green, not visible until BP is set).
+    - 1 table with following columns
+        - Buying Price
+        - -10
+        - TARGET OF -10
+        - +24
+        - TARGET OF 24
+        - -36
+        - TARGET OF -36
+        - +7
+
+        ROWS:
+        - PE 
+        - CE 
+        - SUM 
+
+        COLUMN 1: Contains buying price of the call and put , display it iin the row according to the instrument type. mention the sum below it.
+        COLUMN 2: If shouldSellAt10 occurs then the price of the instrument sold at 10 should be displayed here. and for the other instrument the price at that time should be displayed.
+        COLUMN 3: this column is when the -10 instrument achieves target. mention the selling price in relevant column.
+        COLUMN 4: thiss is iff sell at 24 occurs, same as column 2.
+        COLUMN 5: same as column 3.
+        COLUMB 6: this is if sell occurs at -36. show the price of sold one and the price of the other one which is bought back.
+        COLUMN 7. same as column 3 or 5.
+        COLUMN 8: this is if both options are sold together in which case we mention the selling price of both.
+
+        

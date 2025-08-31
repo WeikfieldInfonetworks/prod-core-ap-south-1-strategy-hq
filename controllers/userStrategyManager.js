@@ -6,6 +6,13 @@ class UserStrategyManager {
         this.userInstances = new Map(); // userId -> StrategyManager instance
         this.userTradingUtils = new Map(); // userId -> TradingUtils instance
         this.userLogFiles = new Map(); // userId -> log file path
+        this.socketIo = null; // Socket.IO server instance for real-time communication
+    }
+
+    // Set Socket.IO reference for real-time communication
+    setSocketIo(socketIo) {
+        this.socketIo = socketIo;
+        console.log('✅ Socket.IO reference set in UserStrategyManager');
     }
 
     // Get or create user-specific strategy manager
@@ -91,7 +98,7 @@ class UserStrategyManager {
         try {
             console.log(`🔄 Processing ${ticks.length} ticks for user ${userId}`);
             
-            // CRITICAL FIX: Ensure TradingUtils is always injected before processing
+            // CRITICAL FIX: Ensure TradingUtils and Socket.IO are always injected before processing
             if (strategyManager.currentStrategy) {
                 // Double-check that TradingUtils is available
                 if (!strategyManager.currentStrategy.tradingUtils) {
@@ -99,13 +106,21 @@ class UserStrategyManager {
                     strategyManager.currentStrategy.tradingUtils = tradingUtils;
                 }
                 
-                // Verify TradingUtils is properly injected
+                // Double-check that Socket.IO is available
+                if (!strategyManager.currentStrategy.socketIo && this.socketIo) {
+                    console.log(`Re-injecting Socket.IO for user ${userId} before tick processing`);
+                    const userName = strategyManager.userName || `User_${userId}`;
+                    strategyManager.currentStrategy.setSocketIo(this.socketIo, userId, userName);
+                }
+                
+                // Verify both TradingUtils and Socket.IO are properly injected
                 if (!strategyManager.currentStrategy.tradingUtils) {
                     console.error(`CRITICAL ERROR: TradingUtils still not available for user ${userId} after injection attempt`);
                     return; // Skip processing if TradingUtils is not available
                 }
                 
-                console.log(`✅ TradingUtils verified for user ${userId} before tick processing`);
+                console.log(`✅ TradingUtils and Socket.IO verified for user ${userId} before tick processing`);
+                console.log(`Socket.IO status: ${strategyManager.currentStrategy.socketIo ? 'Available' : 'Not Available'}`);
             } else {
                 console.warn(`No current strategy for user ${userId} - skipping tick processing`);
                 return;
@@ -175,19 +190,30 @@ class UserStrategyManager {
             instrumentMapKeys: result.universalDict?.instrumentMap ? Object.keys(result.universalDict.instrumentMap) : 'none'
         });
         
-        // CRITICAL FIX: Inject TradingUtils immediately after strategy initialization
+        // CRITICAL FIX: Inject TradingUtils and Socket.IO immediately after strategy initialization
         if (strategyManager.currentStrategy && userName && userId) {
             strategyManager.currentStrategy.setUserInfo(userName, userId);
             
             // Inject user's trading utils immediately and verify
             strategyManager.currentStrategy.tradingUtils = tradingUtils;
             
-            // Verify that the strategy has access to credentials and TradingUtils
-            console.log('Strategy credentials verification:', {
+            // Inject Socket.IO reference for real-time communication
+            if (this.socketIo) {
+                strategyManager.currentStrategy.setSocketIo(this.socketIo, userId, userName);
+                console.log(`✅ Socket.IO injected into strategy for user: ${userName} (${userId})`);
+            } else {
+                console.warn(`⚠️ Socket.IO not available for strategy injection for user: ${userName} (${userId})`);
+            }
+            
+            // Verify that the strategy has access to credentials, TradingUtils, and Socket.IO
+            console.log('Strategy integration verification:', {
                 hasApiKey: !!strategyManager.currentStrategy.globalDict?.api_key,
                 hasAccessToken: !!strategyManager.currentStrategy.accessToken,
                 tradingUtilsInitialized: !!strategyManager.currentStrategy.tradingUtils?.kite,
-                tradingUtilsInstance: !!strategyManager.currentStrategy.tradingUtils
+                tradingUtilsInstance: !!strategyManager.currentStrategy.tradingUtils,
+                socketIoInjected: !!strategyManager.currentStrategy.socketIo,
+                userIdSet: strategyManager.currentStrategy.userId === userId,
+                userNameSet: strategyManager.currentStrategy.userName === userName
             });
             
             // Additional safety check - ensure TradingUtils is properly injected

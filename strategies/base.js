@@ -19,6 +19,11 @@ class BaseStrategy {
         this.universalDict = {};
         this.blockDict = {};
         this.accessToken = null;
+        
+        // Socket.IO integration for real-time communication
+        this.socketIo = null;
+        this.userId = null;
+        this.userName = null;
     }
 
     /**
@@ -59,6 +64,78 @@ class BaseStrategy {
         this.accessToken = accessToken;
         
         console.log(`✅ BaseStrategy initialized with ${Object.keys(this.globalDict).length} global, ${Object.keys(this.universalDict).length} universal, and ${Object.keys(this.blockDict).length} block parameters`);
+    }
+
+    /**
+     * Set Socket.IO reference and user information for real-time communication
+     * @param {Object} socketIo - Socket.IO server instance
+     * @param {string} userId - User ID
+     * @param {string} userName - User name
+     */
+    setSocketIo(socketIo, userId, userName) {
+        this.socketIo = socketIo;
+        this.userId = userId;
+        this.userName = userName;
+        console.log(`✅ Socket.IO integration enabled for strategy ${this.name} - User: ${userName} (${userId})`);
+    }
+
+    /**
+     * Emit real-time event to user's Socket.IO room
+     * @param {string} event - Event name
+     * @param {Object} data - Event data
+     */
+    emitToUser(event, data) {
+        if (this.socketIo && this.userId) {
+            this.socketIo.to(`user_${this.userId}`).emit(event, {
+                ...data,
+                strategy: this.name,
+                timestamp: new Date().toISOString(),
+                userId: this.userId
+            });
+        } else {
+            console.warn(`⚠️ Cannot emit ${event} - Socket.IO or user ID not set for strategy ${this.name}`);
+        }
+    }
+
+    /**
+     * Emit parameter update notification
+     * @param {string} parameterType - 'global' or 'universal'
+     * @param {string} parameter - Parameter name
+     * @param {*} oldValue - Previous value
+     * @param {*} newValue - New value
+     */
+    emitParameterUpdate(parameterType, parameter, oldValue, newValue) {
+        this.emitToUser('strategy_parameter_updated', {
+            parameterType,
+            parameter,
+            oldValue,
+            newValue,
+            success: true
+        });
+    }
+
+    /**
+     * Emit strategy status update
+     * @param {string} status - Status message
+     * @param {Object} additionalData - Additional data
+     */
+    emitStatusUpdate(status, additionalData = {}) {
+        this.emitToUser('strategy_status_update', {
+            status,
+            ...additionalData
+        });
+    }
+
+    /**
+     * Emit trade action notification
+     * @param {string} action - Trade action (buy, sell, etc.)
+     * @param {Object} tradeData - Trade details
+     */
+    emitTradeAction(action, tradeData) {
+        this.emitToUser('strategy_trade_action', {
+            action,
+            ...tradeData
+        });
     }
 
     /**
@@ -105,11 +182,32 @@ class BaseStrategy {
      */
     updateGlobalDictParameter(parameter, value) {
         if (this.globalDict.hasOwnProperty(parameter)) {
+            const oldValue = this.globalDict[parameter];
             this.globalDict[parameter] = value;
             console.log(`✅ Updated globalDict.${parameter} = ${value}`);
+            
+            // Emit real-time parameter update notification
+            this.emitParameterUpdate('global', parameter, oldValue, value);
+            
+            // Emit general status update
+            this.emitStatusUpdate(`Global parameter ${parameter} updated to ${value}`, {
+                parameterType: 'global',
+                parameter,
+                value
+            });
+            
             return true;
         } else {
             console.error(`❌ Parameter '${parameter}' not found in globalDict`);
+            
+            // Emit error notification
+            this.emitToUser('strategy_parameter_error', {
+                parameterType: 'global',
+                parameter,
+                error: `Parameter '${parameter}' not found in globalDict`,
+                success: false
+            });
+            
             return false;
         }
     }
@@ -122,11 +220,32 @@ class BaseStrategy {
      */
     updateUniversalDictParameter(parameter, value) {
         if (this.universalDict.hasOwnProperty(parameter)) {
+            const oldValue = this.universalDict[parameter];
             this.universalDict[parameter] = value;
             console.log(`✅ Updated universalDict.${parameter} = ${value}`);
+            
+            // Emit real-time parameter update notification
+            this.emitParameterUpdate('universal', parameter, oldValue, value);
+            
+            // Emit general status update
+            this.emitStatusUpdate(`Universal parameter ${parameter} updated to ${value}`, {
+                parameterType: 'universal',
+                parameter,
+                value
+            });
+            
             return true;
         } else {
             console.error(`❌ Parameter '${parameter}' not found in universalDict`);
+            
+            // Emit error notification
+            this.emitToUser('strategy_parameter_error', {
+                parameterType: 'universal',
+                parameter,
+                error: `Parameter '${parameter}' not found in universalDict`,
+                success: false
+            });
+            
             return false;
         }
     }

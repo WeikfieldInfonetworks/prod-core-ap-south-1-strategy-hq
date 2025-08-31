@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pulse-slow {
+  animation: pulse 3s infinite;
+}
+
+/* Status indicators */
+.status-connected {
+  @apply bg-green-500;
+}
+
+.status-disconnected {
+  @apply bg-red-500;
+}
+
+.status-connecting {
+  @apply bg-yellow-500 animate-pulse;
+}
+
+/* Block progress indicators */
+.block-active {
+  @apply bg-blue-600 text-white shadow-lg;
+}
+
+.block-completed {
+  @apply bg-green-600 text-white;
+}
+
+.block-pending {
+  @apply bg-gray-300 text-gray-600;
+}
+
+/* Instrument tiles */
+.instrument-tile {
+  @apply bg-white rounded-lg shadow-md p-4 border transition-all duration-200;
+}
+
+.instrument-tile:hover {
+  @apply shadow-lg transform scale-105;
+}
+
+/* Profit/Loss colors */
+.profit {
+  @apply text-green-600;
+}
+
+.loss {
+  @apply text-red-600;
+}
+
+.neutral {
+  @apply text-gray-600;
+}
+
+/* Table styles */
+.strategy-table {
+  @apply min-w-full bg-white shadow-md rounded-lg overflow-hidden;
+}
+
+.strategy-table th {
+  @apply bg-gray-50 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.strategy-table td {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+}

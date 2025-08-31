@@ -200,12 +200,31 @@ class MTMV2Strategy extends BaseStrategy {
         console.log('=== Initialization Complete ===');
     }
 
-    // Override parameter update methods to add debugging
+    // Override parameter update methods to add debugging and real-time notifications
     updateGlobalDictParameter(parameter, value) {
         const success = super.updateGlobalDictParameter(parameter, value);
         
-        if (parameter === 'enableTrading') {
-            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
+        if (success) {
+            if (parameter === 'enableTrading') {
+                this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
+                
+                // Emit specific trading toggle notification
+                this.emitStatusUpdate('Trading mode updated', {
+                    enableTrading: value,
+                    message: value ? 'Live trading is now ENABLED' : 'Live trading is now DISABLED',
+                    criticalUpdate: true
+                });
+            }
+            
+            // Emit MTM-specific parameter update notifications
+            if (['target', 'stoploss', 'sellAt24Limit', 'sellAt10Limit', 'buyBackTrigger'].includes(parameter)) {
+                this.emitStatusUpdate(`MTM Strategy parameter updated`, {
+                    parameter,
+                    value,
+                    category: 'trading_rules',
+                    impact: 'immediate'
+                });
+            }
         }
         
         return success;
@@ -214,7 +233,19 @@ class MTMV2Strategy extends BaseStrategy {
     updateUniversalDictParameter(parameter, value) {
         const success = super.updateUniversalDictParameter(parameter, value);
         
-        this.strategyUtils.logStrategyInfo(`🔧 Universal Parameter Updated: ${parameter} = ${value}`);
+        if (success) {
+            this.strategyUtils.logStrategyInfo(`🔧 Universal Parameter Updated: ${parameter} = ${value}`);
+            
+            // Emit MTM-specific universal parameter notifications
+            if (['expiry', 'cycles', 'skipBuy', 'interimLowDisabled'].includes(parameter)) {
+                this.emitStatusUpdate(`MTM Strategy configuration updated`, {
+                    parameter,
+                    value,
+                    category: 'strategy_config',
+                    impact: 'next_cycle'
+                });
+            }
+        }
         
         return success;
     }
@@ -365,6 +396,16 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockUpdate = true;
         
         console.log('Transitioning from INIT to UPDATE block');
+        
+        // Emit real-time block transition notification
+        this.emitStatusUpdate('Block transition: INIT → UPDATE', {
+            fromBlock: 'INIT',
+            toBlock: 'UPDATE',
+            acceptedTokens: acceptedTokens.length,
+            ceTokens: this.universalDict.ceTokens.length,
+            peTokens: this.universalDict.peTokens.length,
+            blockTransition: true
+        });
     }
 
     processUpdateBlock(ticks) {
@@ -476,7 +517,16 @@ class MTMV2Strategy extends BaseStrategy {
         if (this.shouldTransitionToFinalRef()) {
             // this.blockUpdate = false;
             this.blockFinalRef = true;
-            // this.strategyUtils.logStrategyInfo('Transitioning from UPDATE to FINAL REF block');
+            
+            // Emit real-time block transition notification
+            this.emitStatusUpdate('Block transition: UPDATE → FINAL_REF', {
+                fromBlock: 'UPDATE',
+                toBlock: 'FINAL_REF',
+                reason: this.interimLowReached ? 'Interim low reached' : 'Calc ref reached',
+                interimLowReached: this.interimLowReached,
+                calcRefReached: this.calcRefReached,
+                blockTransition: true
+            });
         }
         // Note: UPDATE block continues monitoring until transition conditions are met
         // This is by design - the block monitors for interimLowReached or calcRefReached
@@ -550,6 +600,16 @@ class MTMV2Strategy extends BaseStrategy {
             this.blockFinalRef = false;
             this.blockDiff10 = true;
             this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
+            
+            // Emit real-time notifications
+            this.emitStatusUpdate('Orders placed - transitioning to monitoring', {
+                fromBlock: 'FINAL_REF',
+                toBlock: 'DIFF10',
+                boughtSymbol: this.universalDict.instrumentMap[this.boughtToken]?.symbol,
+                oppSymbol: this.universalDict.instrumentMap[this.oppBoughtToken]?.symbol,
+                blockTransition: true,
+                ordersPlaced: true
+            });
         } else if (this.calcRefReached) {
             this.strategyUtils.logStrategyInfo('Calc ref reached');
             this.blockFinalRef = false;
@@ -576,6 +636,47 @@ class MTMV2Strategy extends BaseStrategy {
     processDiff10Block(ticks) {
         console.log('Processing DIFF10 block');
 
+        //EMIT NUMBER #1 - Real-time instrument data for dashboard tiles
+        if (this.boughtToken && this.oppBoughtToken) {
+            const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
+            const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+            
+            if (boughtInstrument && oppInstrument) {
+                const boughtDiff = boughtInstrument.buyPrice > 0 ? boughtInstrument.last - boughtInstrument.buyPrice : 0;
+                const oppDiff = oppInstrument.buyPrice > 0 ? oppInstrument.last - oppInstrument.buyPrice : 0;
+                const sumLtp = boughtInstrument.last + oppInstrument.last;
+                const sumBp = (boughtInstrument.buyPrice || 0) + (oppInstrument.buyPrice || 0);
+                const sumDiff = sumBp > 0 ? sumLtp - sumBp : 0;
+                
+                this.emitStatusUpdate('instrument_data_update', {
+                    boughtInstrument: {
+                        token: this.boughtToken,
+                        symbol: boughtInstrument.symbol,
+                        displayName: boughtInstrument.symbol.slice(-7), // Last 7 characters
+                        ltp: boughtInstrument.last,
+                        buyPrice: boughtInstrument.buyPrice || 0,
+                        diff: boughtDiff,
+                        type: boughtInstrument.symbol.includes('CE') ? 'CE' : 'PE'
+                    },
+                    oppInstrument: {
+                        token: this.oppBoughtToken,
+                        symbol: oppInstrument.symbol,
+                        displayName: oppInstrument.symbol.slice(-7), // Last 7 characters
+                        ltp: oppInstrument.last,
+                        buyPrice: oppInstrument.buyPrice || 0,
+                        diff: oppDiff,
+                        type: oppInstrument.symbol.includes('CE') ? 'CE' : 'PE'
+                    },
+                    sum: {
+                        ltp: sumLtp,
+                        buyPrice: sumBp,
+                        diff: sumDiff
+                    },
+                    realTimeUpdate: true
+                });
+            }
+        }
+
         if(this.mtmSoldAt10 && !this.mtm10tracked){
             let status = this.globalDict.sellFirstAt10.toUpperCase()
             let firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
@@ -600,6 +701,14 @@ class MTMV2Strategy extends BaseStrategy {
         // Check for sell conditions
         if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
             this.strategyUtils.logStrategyInfo('Selling options due to target/stoploss');
+            
+            // Emit real-time notification
+            this.emitStatusUpdate('Target/Stoploss reached - selling both options', {
+                action: 'sell_both_options',
+                reason: 'target_or_stoploss',
+                criticalAction: true
+            });
+            
             this.sellOptions();
         }
 
@@ -615,6 +724,14 @@ class MTMV2Strategy extends BaseStrategy {
         
         if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
             this.strategyUtils.logStrategyInfo('Selling at 24 points');
+            
+            // Emit real-time notification
+            this.emitStatusUpdate('Selling one option at +24 points', {
+                action: 'sell_at_24',
+                reason: '+24_points_reached',
+                criticalAction: true
+            });
+            
             this.sellAt24();
         } 
         
@@ -644,6 +761,15 @@ class MTMV2Strategy extends BaseStrategy {
             this.blockDiff10 = false;
             this.blockNextCycle = true;
             this.strategyUtils.logStrategyInfo('Transitioning from DIFF10 to NEXT CYCLE block');
+            
+            // Emit real-time cycle completion notification
+            this.emitStatusUpdate('Cycle completed - preparing for next cycle', {
+                fromBlock: 'DIFF10',
+                toBlock: 'NEXT_CYCLE',
+                cycleCompleted: true,
+                currentCycle: this.universalDict.cycles || 0,
+                blockTransition: true
+            });
         }
     }
 
@@ -656,6 +782,16 @@ class MTMV2Strategy extends BaseStrategy {
         this.blockNextCycle = false;
         this.blockInit = true;
         this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
+        
+        // Emit cycle restart notification
+        this.emitStatusUpdate('New cycle started', {
+            fromBlock: 'NEXT_CYCLE',
+            toBlock: 'INIT',
+            cycleNumber: this.universalDict.cycles || 0,
+            cycleReset: true,
+            blockTransition: true,
+            message: `Starting cycle ${this.universalDict.cycles || 0}`
+        });
     }
 
 
@@ -1464,9 +1600,27 @@ class MTMV2Strategy extends BaseStrategy {
                 if (sellResult.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrumentToSell.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrumentToSell.symbol, instrumentToSell.last, this.globalDict.quantity || 75, tokenToSell);
+                    
+                    // Emit real-time trade action notification
+                    this.emitTradeAction('sell_at_24', {
+                        symbol: instrumentToSell.symbol,
+                        price: instrumentToSell.last,
+                        quantity: this.globalDict.quantity || 75,
+                        change: this.changeAt24,
+                        remainingSymbol: remainingInstrument.symbol,
+                        remainingTarget: this.mtmAssistedTarget,
+                        orderType: 'market_sell'
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrumentToSell.symbol}: ${sellResult.error}`);
                     this.strategyUtils.logOrderFailed('sell', instrumentToSell.symbol, instrumentToSell.last, this.globalDict.quantity || 75, tokenToSell, sellResult.error);
+                    
+                    // Emit error notification
+                    this.emitToUser('trade_error', {
+                        action: 'sell_at_24',
+                        symbol: instrumentToSell.symbol,
+                        error: sellResult.error
+                    });
                 }
 
                 sellResult.orderId.then(orderId => {
