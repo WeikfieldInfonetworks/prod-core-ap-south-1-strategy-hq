@@ -501,6 +501,67 @@
                 max-width: none;
             }
         }
+        
+        /* MTM V2 Dashboard Specific Styles */
+        .mtm-dashboard-section {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .mtm-dashboard-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .mtm-status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .mtm-block-flow {
+            overflow-x: auto;
+            padding: 10px 0;
+        }
+        
+        .mtm-block-step {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .mtm-block-step:hover {
+            transform: scale(1.05);
+        }
+        
+        .mtm-block-step.active {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .mtm-value-display {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .mtm-flag-display {
+            font-size: 1.2rem;
+            text-align: center;
+            padding: 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            min-width: 50px;
+        }
     </style>
 </head>
 <body>
@@ -634,6 +695,257 @@
                                     <span id="mtmBlockInfo">Block: INIT</span> | 
                                     <span id="mtmCycleInfo">Cycle: 0</span> | 
                                     <span id="mtmStatus">Status: Waiting...</span>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM Strategy State Tracking -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #00b894, #00cec9); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Strategy State Tracking</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Interim Low</div>
+                                        <div id="mtmInterimLow" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Calc Ref</div>
+                                        <div id="mtmCalcRef" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Ref Capture</div>
+                                        <div id="mtmRefCapture" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">CE +3</div>
+                                        <div id="mtmCePlus3" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">PE +3</div>
+                                        <div id="mtmPePlus3" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">MTM First</div>
+                                        <div id="mtmFirstOption" style="font-size: 1rem;">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM Sell Status Tracking -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #e17055, #d63031); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Sell Status Tracking</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Sold at 24</div>
+                                        <div id="mtmSoldAt24" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold at 36</div>
+                                        <div id="mtmSoldAt36" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold at 10</div>
+                                        <div id="mtmSoldAt10" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Both Sold</div>
+                                        <div id="mtmBothSold" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Buy Back</div>
+                                        <div id="mtmBuyBackAfter24" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">10 First Hit</div>
+                                        <div id="mtm10FirstHit" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM P&L and Target Tracking -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #fdcb6e, #e17055); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">P&L and Target Tracking</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Assisted Target</div>
+                                        <div id="mtmAssistedTarget" style="font-size: 1rem;">0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Assisted Target 2</div>
+                                        <div id="mtmAssistedTarget2" style="font-size: 1rem;">0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold at 24 Gain</div>
+                                        <div id="mtmSoldAt24Gain" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold at 36 Loss</div>
+                                        <div id="mtmSoldAt36Loss" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Total Previous P&L</div>
+                                        <div id="mtmTotalPreviousPnL" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Buy Back Target</div>
+                                        <div id="mtmBuyBackTarget" style="font-size: 1rem;">0.00</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM Price Tracking -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #6c5ce7, #a29bfe); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Price Tracking</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Price at 24 Sell</div>
+                                        <div id="mtmPriceAt24Sell" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Price at 36 Sell</div>
+                                        <div id="mtmPriceAt36Sell" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Price at 10 Sell</div>
+                                        <div id="mtmPriceAt10Sell" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Buy Back Price</div>
+                                        <div id="mtmBuyBackPrice" style="font-size: 1rem;">₹0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Change at 24</div>
+                                        <div id="mtmChangeAt24" style="font-size: 1rem;">0.00</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Change at 36 After 24</div>
+                                        <div id="mtmChangeAt36After24" style="font-size: 1rem;">0.00</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM Token Information -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #fd79a8, #f8c291); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Token Information</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">CE Tokens</div>
+                                        <div id="mtmCeTokensCount" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">PE Tokens</div>
+                                        <div id="mtmPeTokensCount" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Observed Ticks</div>
+                                        <div id="mtmObservedTicksCount" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Instrument Map</div>
+                                        <div id="mtmInstrumentMapCount" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Main Token</div>
+                                        <div id="mtmMainTokenDisplay" style="font-size: 1rem;">-</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Opp Token</div>
+                                        <div id="mtmOppTokenDisplay" style="font-size: 1rem;">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Additional MTM Flags -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #74b9ff, #0984e3); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Additional MTM Flags</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">10 Tracked</div>
+                                        <div id="mtm10Tracked" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Next Sell After 24</div>
+                                        <div id="mtmNextSellAfter24" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Next Sell After 10</div>
+                                        <div id="mtmNextSellAfter10" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold First at 36</div>
+                                        <div id="mtmSoldFirstAt36" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sold After First 36</div>
+                                        <div id="mtmSoldAfterFirst36" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Sell Buy Back After 24</div>
+                                        <div id="mtmSellBuyBackAfter24" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- MTM Strike and Expiry Information -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #a29bfe, #6c5ce7); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Strike and Expiry Information</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0; font-size: 0.9rem;">
+                                    <div>
+                                        <div style="font-weight: bold;">Strike Base</div>
+                                        <div id="mtmStrikeBase" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Strike Diff</div>
+                                        <div id="mtmStrikeDiff" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Strike Lowest</div>
+                                        <div id="mtmStrikeLowest" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Expiry Day</div>
+                                        <div id="mtmExpiryDay" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Cycles</div>
+                                        <div id="mtmCycles" style="font-size: 1rem;">0</div>
+                                    </div>
+                                    <div>
+                                        <div style="font-weight: bold;">Skip Buy</div>
+                                        <div id="mtmSkipBuy" style="font-size: 1rem;">❌</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Block State Visualization -->
+                            <div class="tick-card mtm-dashboard-section" style="background: linear-gradient(135deg, #00cec9, #00b894); color: white; margin-bottom: 20px;">
+                                <div class="tick-symbol" style="color: white;">Block State Flow</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                                    <div class="mtm-block-step" style="text-align: center; flex: 1;">
+                                        <div style="font-weight: bold; font-size: 1.1rem;">INIT</div>
+                                        <div id="mtmBlockInit" class="mtm-block-step" style="font-size: 1.5rem; margin-top: 5px;">🔄</div>
+                                    </div>
+                                    <div style="font-size: 1.5rem; margin: 0 10px;">→</div>
+                                    <div class="mtm-block-step" style="text-align: center; flex: 1;">
+                                        <div style="font-weight: bold; font-size: 1.1rem;">UPDATE</div>
+                                        <div id="mtmBlockUpdate" class="mtm-block-step" style="font-size: 1.5rem; margin-top: 5px;">⏸️</div>
+                                    </div>
+                                    <div style="font-size: 1.5rem; margin: 0 10px;">→</div>
+                                    <div class="mtm-block-step" style="text-align: center; flex: 1;">
+                                        <div style="font-weight: bold; font-size: 1.1rem;">FINAL REF</div>
+                                        <div id="mtmBlockFinalRef" class="mtm-block-step" style="font-size: 1.5rem; margin-top: 5px;">⏸️</div>
+                                    </div>
+                                    <div style="font-size: 1.5rem; margin: 0 10px;">→</div>
+                                    <div class="mtm-block-step" style="text-align: center; flex: 1;">
+                                        <div style="font-weight: bold; font-size: 1.1rem;">DIFF10</div>
+                                        <div id="mtmBlockDiff10" class="mtm-block-step" style="font-size: 1.5rem; margin-top: 5px;">⏸️</div>
+                                    </div>
+                                    <div style="font-size: 1.5rem; margin: 0 10px;">→</div>
+                                    <div class="mtm-block-step" style="text-align: center; flex: 1;">
+                                        <div style="font-weight: bold; font-size: 1.1rem;">NEXT CYCLE</div>
+                                        <div id="mtmBlockNextCycle" class="mtm-block-step" style="font-size: 1.5rem; margin-top: 5px;">⏸️</div>
+                                    </div>
+                                </div>
+                                <div style="text-align: center; font-size: 0.9rem; opacity: 0.9; margin-top: 10px;">
+                                    <span>🔄 Active</span> | <span>⏸️ Inactive</span> | <span>✅ Complete</span>
                                 </div>
                             </div>
                             
@@ -1161,6 +1473,31 @@
         // Update MTM V2 display
         function updateMTMV2Display(strategy) {
             console.log('updateMTMV2Display called with strategy:', strategy);
+            
+            // Safety check for strategy data
+            if (!strategy) {
+                console.error('Strategy data is null or undefined');
+                return;
+            }
+            
+            // Helper function to safely get element values
+            function safeGetElement(id, defaultValue = 'N/A') {
+                const element = document.getElementById(id);
+                if (!element) {
+                    console.warn(`Element with id '${id}' not found`);
+                    return null;
+                }
+                return element;
+            }
+            
+            // Helper function to safely update element text
+            function safeUpdateText(id, value, defaultValue = 'N/A') {
+                const element = safeGetElement(id);
+                if (element) {
+                    element.textContent = value !== null && value !== undefined ? value : defaultValue;
+                }
+            }
+            
             console.log('Strategy data:', {
                 name: strategy.name,
                 mainToken: strategy.mainToken,
@@ -1325,6 +1662,141 @@
             
             mtmStatus.textContent = `Status: ${status}`;
             
+            // Update MTM Strategy State Tracking
+            const mtmInterimLow = document.getElementById('mtmInterimLow');
+            const mtmCalcRef = document.getElementById('mtmCalcRef');
+            const mtmRefCapture = document.getElementById('mtmRefCapture');
+            const mtmCePlus3 = document.getElementById('mtmCePlus3');
+            const mtmPePlus3 = document.getElementById('mtmPePlus3');
+            const mtmFirstOption = document.getElementById('mtmFirstOption');
+
+            mtmInterimLow.textContent = strategy.interimLowReached ? '✅' : '❌';
+            mtmCalcRef.textContent = strategy.calcRefReached ? '✅' : '❌';
+            mtmRefCapture.textContent = strategy.refCapture ? '✅' : '❌';
+            mtmCePlus3.textContent = strategy.cePlus3 ? '✅' : '❌';
+            mtmPePlus3.textContent = strategy.pePlus3 ? '✅' : '❌';
+            mtmFirstOption.textContent = strategy.mtmFirstOption ? '✅' : '-';
+
+            // Update MTM Sell Status Tracking
+            const mtmSoldAt24 = document.getElementById('mtmSoldAt24');
+            const mtmSoldAt36 = document.getElementById('mtmSoldAt36');
+            const mtmSoldAt10 = document.getElementById('mtmSoldAt10');
+            const mtmBothSold = document.getElementById('mtmBothSold');
+            const mtmBuyBackAfter24 = document.getElementById('mtmBuyBackAfter24');
+            const mtm10FirstHit = document.getElementById('mtm10FirstHit');
+
+            mtmSoldAt24.textContent = strategy.mtmSoldAt24 ? '✅' : '❌';
+            mtmSoldAt36.textContent = strategy.mtmSoldAt36 ? '✅' : '❌';
+            mtmSoldAt10.textContent = strategy.mtmSoldAt10 ? '✅' : '❌';
+            mtmBothSold.textContent = strategy.boughtSold ? '✅' : '❌';
+            mtmBuyBackAfter24.textContent = strategy.buyBackAfter24 ? '✅' : '❌';
+            mtm10FirstHit.textContent = strategy.mtm10FirstHit ? '✅' : '❌';
+
+            // Update MTM P&L and Target Tracking
+            const mtmAssistedTarget = document.getElementById('mtmAssistedTarget');
+            const mtmAssistedTarget2 = document.getElementById('mtmAssistedTarget2');
+            const mtmSoldAt24Gain = document.getElementById('mtmSoldAt24Gain');
+            const mtmSoldAt36Loss = document.getElementById('mtmSoldAt36Loss');
+            const mtmTotalPreviousPnL = document.getElementById('mtmTotalPreviousPnL');
+            const mtmBuyBackTarget = document.getElementById('mtmBuyBackTarget');
+
+                         mtmAssistedTarget.textContent = strategy.mtmAssistedTarget ? `${strategy.mtmAssistedTarget.toFixed(2)}` : '0.00';
+             mtmAssistedTarget2.textContent = strategy.mtmAssistedTarget2 ? `${strategy.mtmAssistedTarget2.toFixed(2)}` : '0.00';
+             mtmSoldAt24Gain.textContent = strategy.mtmSoldAt24Gain ? `₹${strategy.mtmSoldAt24Gain.toFixed(2)}` : '₹0.00';
+             mtmSoldAt36Loss.textContent = strategy.mtmSoldAt36Loss ? `₹${strategy.mtmSoldAt36Loss.toFixed(2)}` : '₹0.00';
+             mtmTotalPreviousPnL.textContent = strategy.mtmTotalPreviousPnL ? `₹${strategy.mtmTotalPreviousPnL.toFixed(2)}` : '₹0.00';
+             mtmBuyBackTarget.textContent = strategy.mtmBuyBackTarget ? `${strategy.mtmBuyBackTarget.toFixed(2)}` : '0.00';
+
+            // Update MTM Price Tracking
+            const mtmPriceAt24Sell = document.getElementById('mtmPriceAt24Sell');
+            const mtmPriceAt36Sell = document.getElementById('mtmPriceAt36Sell');
+            const mtmPriceAt10Sell = document.getElementById('mtmPriceAt10Sell');
+            const mtmBuyBackPrice = document.getElementById('mtmBuyBackPrice');
+            const mtmChangeAt24 = document.getElementById('mtmChangeAt24');
+            const mtmChangeAt36After24 = document.getElementById('mtmChangeAt36After24');
+
+                         mtmPriceAt24Sell.textContent = strategy.mtmPriceAt24Sell ? `₹${strategy.mtmPriceAt24Sell.toFixed(2)}` : '₹0.00';
+             mtmPriceAt36Sell.textContent = strategy.mtmPriceAt36Sell ? `₹${strategy.mtmPriceAt36Sell.toFixed(2)}` : '₹0.00';
+             mtmPriceAt10Sell.textContent = strategy.mtmPriceAt10Sell ? `₹${strategy.mtmPriceAt10Sell.toFixed(2)}` : '₹0.00';
+             mtmBuyBackPrice.textContent = strategy.mtmBuyBackPrice ? `₹${strategy.mtmBuyBackPrice.toFixed(2)}` : '₹0.00';
+             mtmChangeAt24.textContent = strategy.changeAt24 ? `${strategy.changeAt24.toFixed(2)}` : '0.00';
+             mtmChangeAt36After24.textContent = strategy.changeAt36After24 ? `${strategy.changeAt36After24.toFixed(2)}` : '0.00';
+
+            // Update MTM Token Information
+            const mtmCeTokensCount = document.getElementById('mtmCeTokensCount');
+            const mtmPeTokensCount = document.getElementById('mtmPeTokensCount');
+            const mtmObservedTicksCount = document.getElementById('mtmObservedTicksCount');
+            const mtmInstrumentMapCount = document.getElementById('mtmInstrumentMapCount');
+            const mtmMainTokenDisplay = document.getElementById('mtmMainTokenDisplay');
+            const mtmOppTokenDisplay = document.getElementById('mtmOppTokenDisplay');
+
+            mtmCeTokensCount.textContent = strategy.universalDict.ceTokens ? strategy.universalDict.ceTokens.length : 0;
+            mtmPeTokensCount.textContent = strategy.universalDict.peTokens ? strategy.universalDict.peTokens.length : 0;
+            mtmObservedTicksCount.textContent = Object.keys(strategy.universalDict.instrumentMap).length;
+            mtmInstrumentMapCount.textContent = Object.keys(strategy.universalDict.instrumentMap).length;
+            mtmMainTokenDisplay.textContent = strategy.mainToken || '-';
+            mtmOppTokenDisplay.textContent = strategy.oppToken || '-';
+
+            // Update Additional MTM Flags
+            const mtm10Tracked = document.getElementById('mtm10Tracked');
+            const mtmNextSellAfter24 = document.getElementById('mtmNextSellAfter24');
+            const mtmNextSellAfter10 = document.getElementById('mtmNextSellAfter10');
+            const mtmSoldFirstAt36 = document.getElementById('mtmSoldFirstAt36');
+            const mtmSoldAfterFirst36 = document.getElementById('mtmSoldAfterFirst36');
+            const mtmSellBuyBackAfter24 = document.getElementById('mtmSellBuyBackAfter24');
+
+            mtm10Tracked.textContent = strategy.mtm10tracked ? '✅' : '❌';
+            mtmNextSellAfter24.textContent = strategy.mtmNextSellAfter24 ? '✅' : '❌';
+            mtmNextSellAfter10.textContent = strategy.mtmNextSellAfter10 ? '✅' : '❌';
+            mtmSoldFirstAt36.textContent = strategy.mtmSoldFirstAt36 ? '✅' : '❌';
+            mtmSoldAfterFirst36.textContent = strategy.mtmSoldAfterFirst36 ? '✅' : '❌';
+            mtmSellBuyBackAfter24.textContent = strategy.sellBuyBackAfter24 ? '✅' : '❌';
+
+            // Update MTM Strike and Expiry Information
+            const mtmStrikeBase = document.getElementById('mtmStrikeBase');
+            const mtmStrikeDiff = document.getElementById('mtmStrikeDiff');
+            const mtmStrikeLowest = document.getElementById('mtmStrikeLowest');
+            const mtmExpiryDay = document.getElementById('mtmExpiryDay');
+            const mtmCycles = document.getElementById('mtmCycles');
+            const mtmSkipBuy = document.getElementById('mtmSkipBuy');
+
+            mtmStrikeBase.textContent = strategy.universalDict.strikeBase || 0;
+            mtmStrikeDiff.textContent = strategy.universalDict.strikeDiff || 0;
+            mtmStrikeLowest.textContent = strategy.universalDict.strikeLowest || 0;
+            mtmExpiryDay.textContent = strategy.universalDict.expiry || 0;
+            mtmCycles.textContent = strategy.universalDict.cycles || 0;
+            mtmSkipBuy.textContent = strategy.universalDict.skipBuy ? '✅' : '❌';
+
+            // Update Block State Visualization
+            const mtmBlockInit = document.getElementById('mtmBlockInit');
+            const mtmBlockUpdate = document.getElementById('mtmBlockUpdate');
+            const mtmBlockFinalRef = document.getElementById('mtmBlockFinalRef');
+            const mtmBlockDiff10 = document.getElementById('mtmBlockDiff10');
+            const mtmBlockNextCycle = document.getElementById('mtmBlockNextCycle');
+
+            // Update block state indicators
+            mtmBlockInit.textContent = strategy.blockInit ? '🔄' : '⏸️';
+            mtmBlockUpdate.textContent = strategy.blockUpdate ? '🔄' : '⏸️';
+            mtmBlockFinalRef.textContent = strategy.blockFinalRef ? '🔄' : '⏸️';
+            mtmBlockDiff10.textContent = strategy.blockDiff10 ? '🔄' : '⏸️';
+            mtmBlockNextCycle.textContent = strategy.blockNextCycle ? '🔄' : '⏸️';
+            
+            // Add active class to current block
+            const blockSteps = document.querySelectorAll('.mtm-block-step');
+            blockSteps.forEach(step => step.classList.remove('active'));
+            
+            if (strategy.blockInit) {
+                document.querySelector('#mtmBlockInit').parentElement.classList.add('active');
+            } else if (strategy.blockUpdate) {
+                document.querySelector('#mtmBlockUpdate').parentElement.classList.add('active');
+            } else if (strategy.blockFinalRef) {
+                document.querySelector('#mtmBlockFinalRef').parentElement.classList.add('active');
+            } else if (strategy.blockDiff10) {
+                document.querySelector('#mtmBlockDiff10').parentElement.classList.add('active');
+            } else if (strategy.blockNextCycle) {
+                document.querySelector('#mtmBlockNextCycle').parentElement.classList.add('active');
+            }
+
             // Update current parameters display
             const mtmParamTarget = document.getElementById('mtmParamTarget');
             const mtmParamStoploss = document.getElementById('mtmParamStoploss');
