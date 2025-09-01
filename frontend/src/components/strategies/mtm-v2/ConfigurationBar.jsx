@@ -36,12 +36,9 @@ const ConfigurationBar = ({ strategy }) => {
         updateUniversalParameter(paramName, localValue);
       }
       
-      // Remove from local values after update
-      setLocalValues(prev => {
-        const newLocalValues = { ...prev };
-        delete newLocalValues[`${type}.${paramName}`];
-        return newLocalValues;
-      });
+      // Keep the value in localValues to maintain persistence in the UI
+      // The value will be updated in the strategy object via the socket update
+      // and will be reflected in getCurrentValue when the strategy updates
     }
   };
 
@@ -69,22 +66,39 @@ const ConfigurationBar = ({ strategy }) => {
   };
 
   const getCurrentValue = (type, paramName) => {
+    // Get from strategy dictionaries first (this will be updated via socket)
+    const strategyValue = type === 'global' 
+      ? strategy.globalDict?.[paramName] 
+      : strategy.universalDict?.[paramName];
+    
+    if (strategyValue !== undefined) {
+      return strategyValue;
+    }
+    
+    // If no strategy value, check for local changes
     const localKey = `${type}.${paramName}`;
     if (localValues[localKey] !== undefined) {
       return localValues[localKey];
     }
-    return type === 'global' 
-      ? strategy.globalDict?.[paramName] 
-      : strategy.universalDict?.[paramName];
+    
+    // Fall back to default values from parameter configuration
+    const paramConfig = type === 'global' 
+      ? globalParams[paramName] 
+      : universalParams[paramName];
+    
+    return paramConfig?.default !== undefined ? paramConfig.default : '';
   };
 
   const renderParameterInput = (type, paramName, paramConfig) => {
     const currentValue = getCurrentValue(type, paramName);
     const localKey = `${type}.${paramName}`;
-    const hasLocalChange = localValues[localKey] !== undefined;
+    const localValue = localValues[localKey];
     const originalValue = type === 'global' 
       ? strategy.globalDict?.[paramName] 
       : strategy.universalDict?.[paramName];
+    
+    // Check if there's a local change by comparing local value with original strategy value
+    const hasLocalChange = localValue !== undefined && localValue !== originalValue;
 
     return (
       <div key={paramName} className="space-y-2">
@@ -104,21 +118,21 @@ const ConfigurationBar = ({ strategy }) => {
             <select
               value={currentValue}
               onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 transition-colors ${
+              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black transition-colors ${
                 hasLocalChange 
                   ? 'border-orange-400 bg-orange-50 ring-orange-200' 
                   : 'border-gray-300 bg-white focus:border-blue-500'
               }`}
             >
-              <option value="true" className="text-gray-900">True</option>
-              <option value="false" className="text-gray-900">False</option>
+              <option value="true" className="text-black">True</option>
+              <option value="false" className="text-black">False</option>
             </select>
           ) : (
             <input
               type={paramConfig.type === 'number' ? 'number' : 'text'}
               value={currentValue || ''}
               onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 transition-colors ${
+              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black transition-colors ${
                 hasLocalChange 
                   ? 'border-orange-400 bg-orange-50 ring-orange-200' 
                   : 'border-gray-300 bg-white focus:border-blue-500'
@@ -162,14 +176,20 @@ const ConfigurationBar = ({ strategy }) => {
             <span className="font-mono">{String(originalValue)}</span>
             <span className="text-gray-400">→</span>
             <span className="font-medium">New:</span>
-            <span className="font-mono text-orange-600">{String(currentValue)}</span>
+            <span className="font-mono text-orange-600">{String(localValue)}</span>
           </div>
         )}
       </div>
     );
   };
 
-  const hasLocalChanges = Object.keys(localValues).length > 0;
+  const hasLocalChanges = Object.keys(localValues).some(key => {
+    const [type, paramName] = key.split('.');
+    const originalValue = type === 'global' 
+      ? strategy.globalDict?.[paramName] 
+      : strategy.universalDict?.[paramName];
+    return localValues[key] !== originalValue;
+  });
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">

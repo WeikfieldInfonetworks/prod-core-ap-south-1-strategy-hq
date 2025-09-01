@@ -67,12 +67,14 @@ const MTMv2Dashboard = ({ strategy }) => {
       }
 
       // Add to notifications
-      addNotification({
-        type: 'info',
-        title: 'Strategy Update',
-        message: data.status,
-        timestamp: new Date().toISOString()
-      });
+      if (data.status != 'instrument_data_update') {
+        addNotification({
+          type: 'info',
+          title: 'Strategy Update',
+          message: data.status,
+          timestamp: new Date().toISOString()
+        });
+      }
     });
 
     // Listen for trade actions
