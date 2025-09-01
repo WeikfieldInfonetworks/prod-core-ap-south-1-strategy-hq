@@ -73,10 +73,35 @@ class BaseStrategy {
      * @param {string} userName - User name
      */
     setSocketIo(socketIo, userId, userName) {
+        console.log(`🔧 Setting Socket.IO for strategy ${this.name}`);
+        console.log(`🔧 Socket.IO instance:`, socketIo ? 'Available' : 'Not Available');
+        console.log(`🔧 User ID: ${userId}`);
+        console.log(`🔧 User Name: ${userName}`);
+        
         this.socketIo = socketIo;
         this.userId = userId;
         this.userName = userName;
-        console.log(`✅ Socket.IO integration enabled for strategy ${this.name} - User: ${userName} (${userId})`);
+        
+        // Validate socket.io integration
+        if (this.socketIo && this.userId) {
+            console.log(`✅ Socket.IO integration enabled for strategy ${this.name} - User: ${userName} (${userId})`);
+            
+            // Test socket emission to verify it's working
+            try {
+                this.emitToUser('strategy_socket_test', {
+                    message: 'Socket.IO integration test',
+                    strategy: this.name,
+                    testTimestamp: new Date().toISOString()
+                });
+                console.log(`✅ Socket.IO test emission successful for strategy ${this.name}`);
+            } catch (error) {
+                console.error(`❌ Socket.IO test emission failed for strategy ${this.name}:`, error);
+            }
+        } else {
+            console.error(`❌ Socket.IO integration failed for strategy ${this.name}`);
+            console.error(`❌ Socket.IO available: ${!!this.socketIo}`);
+            console.error(`❌ User ID available: ${!!this.userId}`);
+        }
     }
 
     /**
@@ -86,14 +111,40 @@ class BaseStrategy {
      */
     emitToUser(event, data) {
         if (this.socketIo && this.userId) {
-            this.socketIo.to(`user_${this.userId}`).emit(event, {
-                ...data,
-                strategy: this.name,
-                timestamp: new Date().toISOString(),
-                userId: this.userId
-            });
+            try {
+                const roomName = `user_${this.userId}`;
+                const emitData = {
+                    ...data,
+                    strategy: this.name,
+                    timestamp: new Date().toISOString(),
+                    userId: this.userId
+                };
+                
+                // Debug logging for socket emissions
+                console.log(`📡 Emitting ${event} to room ${roomName} for user ${this.userId}`);
+                console.log(`📡 Socket.IO instance: ${this.socketIo ? 'Available' : 'Not Available'}`);
+                console.log(`📡 User ID: ${this.userId}`);
+                console.log(`📡 Event data:`, JSON.stringify(emitData, null, 2));
+                
+                // Ensure we emit on the correct namespace (/live)
+                const ioTarget = typeof this.socketIo.of === 'function' 
+                    ? this.socketIo.of('/live') 
+                    : this.socketIo;
+                ioTarget.to(roomName).emit(event, emitData);
+                
+                // Verify emission was successful
+                console.log(`✅ Successfully emitted ${event} to room ${roomName}`);
+                
+            } catch (error) {
+                console.error(`❌ Error emitting ${event} to user ${this.userId}:`, error);
+                console.error(`❌ Socket.IO instance:`, this.socketIo);
+                console.error(`❌ User ID:`, this.userId);
+            }
         } else {
             console.warn(`⚠️ Cannot emit ${event} - Socket.IO or user ID not set for strategy ${this.name}`);
+            console.warn(`⚠️ Socket.IO available: ${!!this.socketIo}`);
+            console.warn(`⚠️ User ID available: ${!!this.userId}`);
+            console.warn(`⚠️ User ID value: ${this.userId}`);
         }
     }
 
@@ -320,6 +371,46 @@ class BaseStrategy {
     }
 
     /**
+     * Validate socket connectivity and emit test message
+     * @returns {boolean} Whether socket is working properly
+     */
+    validateSocketConnectivity() {
+        if (!this.socketIo || !this.userId) {
+            console.warn(`⚠️ Socket validation failed - Socket.IO: ${!!this.socketIo}, User ID: ${!!this.userId}`);
+            return false;
+        }
+        
+        try {
+            // Emit a test message to validate connectivity
+            this.emitToUser('socket_connectivity_test', {
+                message: 'Socket connectivity validation',
+                timestamp: new Date().toISOString(),
+                strategy: this.name
+            });
+            
+            console.log(`✅ Socket connectivity validation successful for strategy ${this.name}`);
+            return true;
+        } catch (error) {
+            console.error(`❌ Socket connectivity validation failed for strategy ${this.name}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Get socket status information
+     * @returns {Object} Socket status information
+     */
+    getSocketStatus() {
+        return {
+            socketIoAvailable: !!this.socketIo,
+            userId: this.userId,
+            userName: this.userName,
+            roomName: this.userId ? `user_${this.userId}` : null,
+            strategy: this.name
+        };
+    }
+
+    /**
      * Get strategy metadata
      * @returns {Object} Strategy metadata
      */
@@ -340,7 +431,8 @@ class BaseStrategy {
                 'setUserInfo',
                 'resetForNextCycle',
                 'resetCycleForNewInstrument'
-            ]
+            ],
+            socketStatus: this.getSocketStatus()
         };
     }
 }

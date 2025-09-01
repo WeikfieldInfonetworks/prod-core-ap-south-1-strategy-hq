@@ -133,7 +133,9 @@ centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" t
             userStrategyManager.processTicksForUser.bind(userStrategyManager),
             (room, event, data) => {
                 try {
-                    ioServer.to(room).emit(event, data);
+                    // Emit on the /live namespace to match frontend connection
+                    const ioTarget = ioServer.of('/live');
+                    ioTarget.to(room).emit(event, data);
                 } catch (emitError) {
                     console.error(`Error emitting to room ${room}:`, emitError);
                     throw emitError; // Re-throw to be caught by tick processor
@@ -337,6 +339,35 @@ ioServer.of("/live").on("connection", socket => {
         }
     });
 
+    // Handle socket debugging requests
+    socket.on("debug_socket_connectivity", () => {
+        try {
+            if (!currentUserId) {
+                socket.emit("debug_error", "User not authenticated");
+                return;
+            }
+            
+            console.log(`🔧 Socket debugging requested by user: ${currentUserId}`);
+            
+            // Debug socket connectivity for the current user
+            const isValid = userStrategyManager.debugSocketConnectivity(currentUserId);
+            
+            // Get comprehensive socket status
+            const socketStatus = userStrategyManager.getAllUsersSocketStatus();
+            
+            socket.emit("socket_debug_result", {
+                userId: currentUserId,
+                connectivityValid: isValid,
+                socketStatus: socketStatus,
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('Error in socket debugging:', error);
+            socket.emit("debug_error", error.message);
+        }
+    });
+
     socket.on("ping_node", () => {
         if (!currentUserId) {
             socket.emit("node_identity", { 
@@ -378,7 +409,7 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log('\n🚀 Strategy HQ Server Started Successfully!');
     console.log('='.repeat(50));
     console.log(`📍 Server URL: http://localhost:${PORT}`);

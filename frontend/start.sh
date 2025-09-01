@@ -5,30 +5,30 @@
 echo "🚀 Setting up Strategy HQ Dashboard..."
 
 # Check if Node.js is installed
-if ! command -v node &> /dev/null; then
-    echo "❌ Node.js is not installed. Please install Node.js 18+ first."
-    exit 1
-fi
+# if ! command node -v &> /dev/null; then
+#     echo "❌ Node.js is not installed. Please install Node.js 18+ first."
+#     exit 1
+# fi
 
-# Check Node.js version
-NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-if [ "$NODE_VERSION" -lt 18 ]; then
-    echo "❌ Node.js version 18+ required. Current version: $(node -v)"
-    exit 1
-fi
+# # Check Node.js version
+# NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+# if [ "$NODE_VERSION" -lt 18 ]; then
+#     echo "❌ Node.js version 18+ required. Current version: $(node -v)"
+#     exit 1
+# fi
 
-echo "✅ Node.js $(node -v) detected"
+# echo "✅ Node.js $(node -v) detected"
 
-# Install dependencies
-echo "📦 Installing dependencies..."
-npm install
+# # Install dependencies
+# echo "📦 Installing dependencies..."
+# npm install
 
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to install dependencies"
-    exit 1
-fi
+# if [ $? -ne 0 ]; then
+#     echo "❌ Failed to install dependencies"
+#     exit 1
+# fi
 
-echo "✅ Dependencies installed successfully"
+# echo "✅ Dependencies installed successfully"
 
 # Create .env file if it doesn't exist
 if [ ! -f .env ]; then
