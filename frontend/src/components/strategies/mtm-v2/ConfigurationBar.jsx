@@ -6,6 +6,7 @@ const ConfigurationBar = ({ strategy }) => {
   const { updateGlobalParameter, updateUniversalParameter } = useSocket();
   const [isExpanded, setIsExpanded] = useState(false);
   const [pendingChanges, setPendingChanges] = useState({});
+  const [localValues, setLocalValues] = useState({});
 
   const globalParams = strategy.globalDictParameters || {};
   const universalParams = strategy.universalDictParameters || {};
@@ -19,18 +20,37 @@ const ConfigurationBar = ({ strategy }) => {
       convertedValue = value === 'true' || value === true;
     }
 
-    // Store pending change
-    setPendingChanges(prev => ({
+    // Store local value change (not pending yet)
+    setLocalValues(prev => ({
       ...prev,
-      [`${type}.${paramName}`]: {
-        type,
-        paramName,
-        value: convertedValue,
-        originalValue: type === 'global' 
-          ? strategy.globalDict?.[paramName] 
-          : strategy.universalDict?.[paramName]
-      }
+      [`${type}.${paramName}`]: convertedValue
     }));
+  };
+
+  const updateParameter = (type, paramName) => {
+    const localValue = localValues[`${type}.${paramName}`];
+    if (localValue !== undefined) {
+      if (type === 'global') {
+        updateGlobalParameter(paramName, localValue);
+      } else {
+        updateUniversalParameter(paramName, localValue);
+      }
+      
+      // Remove from local values after update
+      setLocalValues(prev => {
+        const newLocalValues = { ...prev };
+        delete newLocalValues[`${type}.${paramName}`];
+        return newLocalValues;
+      });
+    }
+  };
+
+  const resetParameter = (type, paramName) => {
+    setLocalValues(prev => {
+      const newLocalValues = { ...prev };
+      delete newLocalValues[`${type}.${paramName}`];
+      return newLocalValues;
+    });
   };
 
   const applyChanges = () => {
@@ -45,13 +65,13 @@ const ConfigurationBar = ({ strategy }) => {
   };
 
   const resetChanges = () => {
-    setPendingChanges({});
+    setLocalValues({});
   };
 
   const getCurrentValue = (type, paramName) => {
-    const pendingKey = `${type}.${paramName}`;
-    if (pendingChanges[pendingKey]) {
-      return pendingChanges[pendingKey].value;
+    const localKey = `${type}.${paramName}`;
+    if (localValues[localKey] !== undefined) {
+      return localValues[localKey];
     }
     return type === 'global' 
       ? strategy.globalDict?.[paramName] 
@@ -60,51 +80,96 @@ const ConfigurationBar = ({ strategy }) => {
 
   const renderParameterInput = (type, paramName, paramConfig) => {
     const currentValue = getCurrentValue(type, paramName);
-    const pendingKey = `${type}.${paramName}`;
-    const hasPendingChange = pendingChanges[pendingKey];
+    const localKey = `${type}.${paramName}`;
+    const hasLocalChange = localValues[localKey] !== undefined;
+    const originalValue = type === 'global' 
+      ? strategy.globalDict?.[paramName] 
+      : strategy.universalDict?.[paramName];
 
     return (
       <div key={paramName} className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
-          {paramName}
-          {hasPendingChange && (
-            <span className="text-orange-600 text-xs ml-1">(modified)</span>
-          )}
+          <div className="flex items-center space-x-2">
+            <span>{paramName}</span>
+            {hasLocalChange && (
+              <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                Modified
+              </span>
+            )}
+          </div>
         </label>
         
-        {paramConfig.type === 'boolean' ? (
-          <select
-            value={currentValue}
-            onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-            className={`block w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              hasPendingChange 
-                ? 'border-orange-300 bg-orange-50' 
-                : 'border-gray-300 bg-white'
+        <div className="flex space-x-3">
+          {paramConfig.type === 'boolean' ? (
+            <select
+              value={currentValue}
+              onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
+              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 transition-colors ${
+                hasLocalChange 
+                  ? 'border-orange-400 bg-orange-50 ring-orange-200' 
+                  : 'border-gray-300 bg-white focus:border-blue-500'
+              }`}
+            >
+              <option value="true" className="text-gray-900">True</option>
+              <option value="false" className="text-gray-900">False</option>
+            </select>
+          ) : (
+            <input
+              type={paramConfig.type === 'number' ? 'number' : 'text'}
+              value={currentValue || ''}
+              onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
+              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 transition-colors ${
+                hasLocalChange 
+                  ? 'border-orange-400 bg-orange-50 ring-orange-200' 
+                  : 'border-gray-300 bg-white focus:border-blue-500'
+              }`}
+              step={paramConfig.type === 'number' ? 'any' : undefined}
+            />
+          )}
+          
+          {/* Update Button */}
+          <button
+            type="button"
+            onClick={() => updateParameter(type, paramName)}
+            disabled={!hasLocalChange}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              hasLocalChange
+                ? 'bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}
           >
-            <option value="true">True</option>
-            <option value="false">False</option>
-          </select>
-        ) : (
-          <input
-            type={paramConfig.type === 'number' ? 'number' : 'text'}
-            value={currentValue || ''}
-            onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-            className={`block w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              hasPendingChange 
-                ? 'border-orange-300 bg-orange-50' 
-                : 'border-gray-300 bg-white'
-            }`}
-            step={paramConfig.type === 'number' ? 'any' : undefined}
-          />
-        )}
+            Update
+          </button>
+          
+          {/* Reset Button */}
+          {hasLocalChange && (
+            <button
+              type="button"
+              onClick={() => resetParameter(type, paramName)}
+              className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+              Reset
+            </button>
+          )}
+        </div>
         
         <p className="text-xs text-gray-500">{paramConfig.description}</p>
+        
+        {/* Show original value if modified */}
+        {hasLocalChange && originalValue !== undefined && (
+          <div className="flex items-center space-x-2 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+            <span className="font-medium">Original:</span>
+            <span className="font-mono">{String(originalValue)}</span>
+            <span className="text-gray-400">→</span>
+            <span className="font-medium">New:</span>
+            <span className="font-mono text-orange-600">{String(currentValue)}</span>
+          </div>
+        )}
       </div>
     );
   };
 
-  const hasPendingChanges = Object.keys(pendingChanges).length > 0;
+  const hasLocalChanges = Object.keys(localValues).length > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
@@ -116,37 +181,25 @@ const ConfigurationBar = ({ strategy }) => {
         <div className="flex items-center space-x-3">
           <Settings className="h-5 w-5 text-gray-600" />
           <h3 className="text-lg font-medium text-gray-900">Configuration Parameters</h3>
-          {hasPendingChanges && (
+          {hasLocalChanges && (
             <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
-              {Object.keys(pendingChanges).length} pending changes
+              {Object.keys(localValues).length} local changes
             </span>
           )}
         </div>
         
         <div className="flex items-center space-x-2">
-          {hasPendingChanges && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  resetChanges();
-                }}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
-              >
-                <RotateCcw className="h-4 w-4" />
-                <span>Reset</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  applyChanges();
-                }}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center space-x-1"
-              >
-                <Save className="h-4 w-4" />
-                <span>Apply</span>
-              </button>
-            </>
+          {hasLocalChanges && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                resetChanges();
+              }}
+              className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 flex items-center space-x-1"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span>Reset All</span>
+            </button>
           )}
           
           {isExpanded ? (

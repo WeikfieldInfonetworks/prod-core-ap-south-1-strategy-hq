@@ -7,9 +7,9 @@
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #111827;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,6 +24,8 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #ffffff;
+  color: #111827;
 }
 
 #root {
@@ -129,4 +131,52 @@ body {
 
 .strategy-table td {
   @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+}
+
+/* Form element text colors - ensure all form fields have black text */
+input, select, textarea, option {
+  color: #111827 !important; /* text-gray-900 */
+}
+
+/* Override dark color scheme for form elements */
+input[type="text"], 
+input[type="number"], 
+input[type="email"], 
+input[type="password"],
+select,
+textarea {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+
+/* Ensure select options are visible */
+select option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+
+/* Override any dark theme for form elements */
+:root {
+  --form-text-color: #111827;
+  --form-bg-color: #ffffff;
+}
+
+input, select, textarea, option {
+  color: var(--form-text-color) !important;
+  background-color: var(--form-bg-color) !important;
+}
+
+/* Global text color override to ensure all text is visible */
+* {
+  color: inherit;
+}
+
+/* Ensure all text elements have proper contrast */
+p, span, div, h1, h2, h3, h4, h5, h6, label, button {
+  color: #111827 !important;
+}
+
+/* Specific override for form labels and text */
+label, .text-gray-700, .text-gray-900 {
+  color: #111827 !important;
 }

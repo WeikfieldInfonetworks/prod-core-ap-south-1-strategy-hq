@@ -57,9 +57,9 @@ const StrategySelector = ({ strategies, currentStrategy, onStrategyChange }) => 
           <select
             value={currentStrategy || ''}
             onChange={(e) => onStrategyChange(e.target.value)}
-            className="block w-full pl-3 pr-10 py-3 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none bg-white"
+            className="block w-full pl-3 pr-10 py-3 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none bg-white text-gray-900"
           >
-            <option value="" disabled>
+            <option value="" disabled className="text-gray-900">
               Select a strategy...
             </option>
             {validStrategies.map((strategy, index) => {
@@ -73,7 +73,7 @@ const StrategySelector = ({ strategies, currentStrategy, onStrategyChange }) => 
               }
               
               return (
-                <option key={strategyName} value={strategyName}>
+                <option key={strategyName} value={strategyName} className="text-gray-900">
                   {strategyName}
                 </option>
               );
