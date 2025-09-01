@@ -20,6 +20,7 @@ const MTMv2Dashboard = ({ strategy }) => {
   });
   const [tradingActions, setTradingActions] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [fadingNotifications, setFadingNotifications] = useState(new Set());
 
   useEffect(() => {
     if (!socket) return;
@@ -115,14 +116,31 @@ const MTMv2Dashboard = ({ strategy }) => {
   }, [socket]);
 
   const addNotification = (notification) => {
+    const notificationWithId = { ...notification, id: Date.now() };
     setNotifications(prev => [
-      { ...notification, id: Date.now() },
+      notificationWithId,
       ...prev.slice(0, 4) // Keep last 5 notifications
     ]);
+    
+    // Auto-dismiss notification after 2 seconds
+    setTimeout(() => {
+      removeNotification(notificationWithId.id);
+    }, 2000);
   };
 
   const removeNotification = (id) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    // Add to fading set to trigger fade-out animation
+    setFadingNotifications(prev => new Set(prev).add(id));
+    
+    // Remove from notifications after animation completes
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      setFadingNotifications(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }, 300); // Match animation duration
   };
 
   if (!strategy) {
@@ -144,13 +162,13 @@ const MTMv2Dashboard = ({ strategy }) => {
           {notifications.map((notification) => (
             <div
               key={notification.id}
-              className={`p-4 rounded-lg shadow-lg border-l-4 ${
+              className={`p-4 rounded-lg shadow-lg border-l-4 cursor-pointer transition-all duration-300 hover:opacity-80 ${
                 notification.type === 'error' 
                   ? 'bg-red-50 border-red-400 text-red-800'
                   : notification.type === 'success'
                   ? 'bg-green-50 border-green-400 text-green-800'
                   : 'bg-blue-50 border-blue-400 text-blue-800'
-              } fade-in`}
+              } ${fadingNotifications.has(notification.id) ? 'animate-slide-out' : 'animate-slide-in'}`}
               onClick={() => removeNotification(notification.id)}
             >
               <div className="flex items-start">
@@ -158,6 +176,22 @@ const MTMv2Dashboard = ({ strategy }) => {
                 <div className="flex-1">
                   <h4 className="text-sm font-medium">{notification.title}</h4>
                   <p className="text-xs mt-1">{notification.message}</p>
+                  {/* Auto-dismiss progress bar */}
+                  <div className="mt-2 w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+                    <div 
+                      className={`h-1 rounded-full ${
+                        notification.type === 'error' 
+                          ? 'bg-red-400' 
+                          : notification.type === 'success'
+                          ? 'bg-green-400'
+                          : 'bg-blue-400'
+                      }`}
+                      style={{
+                        width: '100%',
+                        animation: 'shrink 2s linear forwards'
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
