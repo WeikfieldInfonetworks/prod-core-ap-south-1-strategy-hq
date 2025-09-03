@@ -300,10 +300,11 @@ class MTMV2Strategy extends BaseStrategy {
         // })))}`);
         
         // Skip buy after first cycle
-        // if (this.universalDict.cycles >= 1) {
-        //     // this.universalDict.skipBuy = true;
-        //     this.globalDict.sellAt10Live = true;
-        // }
+        if (this.universalDict.cycles >= 1) {
+            // this.universalDict.skipBuy = true;
+            this.globalDict.sellAt10Live = true;
+            this.globalDict.enableTrading = false;
+        }
 
         // Set strike base and diff based on weekday
         const today = new Date().getDay();
