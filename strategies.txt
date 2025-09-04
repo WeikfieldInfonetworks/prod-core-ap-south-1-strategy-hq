@@ -1,0 +1,83 @@
+MTM V2
+
+    SELECTION CRITERIA : 
+        EXPIRY : 165 - 200 (lowest 150)
+        EXPIRY - 1: 165 - 200 (lowest 150)
+        REGULAR: 170 - 200 (lowest 150)
+
+        NEAREST TO 200.
+
+    PLUS 3: TRUE
+    PEAK AND FALL: TRUE (-2.5)
+    INTERIM LOW: TRUE (3.0)
+
+    BUY AT INTERIM LOW: TRUE (nearest but less than 200) (PAIR)
+
+    SELLING CRITERIAS:
+
+        -10 LOGIC : RECORDING PURPOSE
+
+        +24 LOGIC :
+
+            === SELL INSTRUMENT THAT BREACHED 24 and SUM DIFF is -ve. IF NOT, CANCEL LOGIC FOR REST OF THE CYCLE. ====
+
+            IF SELL:
+
+                NEW TARGET = ORIGINAL TARGET - (24 + (REF LTP OTHER INST. - BP OTHER INST))
+
+                IF OTHER INST HIT NEW TARGET (NEW LTP - REF LTP >= NEW TARGET):
+
+                    SELL OTHER INST. MOVE TO NEXT CYCLE.
+                
+                ELSE IF OTHER INST GOES DOWN BY -36. (NEW LTP - Original BP <= -36):
+
+                    SELL OTHER INST. BUY BACK THE FIRST INST TYPE (NEAREST TO 200)
+
+                    NEW TARGET = ORIGINAL TARGET - (-12 (approx))
+
+                    IF TARGET ACHIEVED:
+
+                        SELL INST. MOVE TO NEXT CYCLE.
+
+                    ELSE:
+
+                        MANUAL INTERVENTION.
+            ELSE:
+                WAIT FOR -36, +24 event crossed.
+
+        -36 LOGIC :
+
+            ==== IF ANY INST HITS -36 FIRST before anything. SELL IT. ===
+
+            IF -36:
+                SELL THE INST. CHECK PRICE OF OTHER.
+
+                IF OTHER INST <= 24.:
+
+                    WAIT FOR 24.
+
+                    IF 24:
+
+                        SELL THE OTHER INST. BUY BACK PREVIOUS ONE. NEW TARGET  = TARGET + approx 12.
+
+                        IF TARGET:
+
+                            SELL. MOVE TO NEXT CYCLE.
+
+                        ELSE:
+
+                            MANUAL INTERVENTION.
+
+                ELSE OTHER INST > 24:
+                
+                    WAIT FOR 43.
+
+                    IF 43:
+
+                        SELL. MOVE TO NEXT CYCLE.
+
+
+
+HALFDROP V2
+
+    SELECTION CRITERIA:
