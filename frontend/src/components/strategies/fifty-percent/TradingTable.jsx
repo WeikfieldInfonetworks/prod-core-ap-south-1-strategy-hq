@@ -1,0 +1,293 @@
+import React from 'react';
+import { Activity, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+
+const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
+  if (!strategy) return null;
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return 'N/A';
+    try {
+      return new Date(timestamp).toLocaleTimeString();
+    } catch {
+      return 'Invalid Time';
+    }
+  };
+
+  const formatPrice = (price) => {
+    if (price === undefined || price === null || price === -1) return 'N/A';
+    return price.toFixed(2);
+  };
+
+  const getActionIcon = (action) => {
+    switch (action?.toUpperCase()) {
+      case 'BUY':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'SELL':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  const getActionColor = (action) => {
+    switch (action?.toUpperCase()) {
+      case 'BUY':
+        return 'text-green-600 bg-green-50';
+      case 'SELL':
+        return 'text-red-600 bg-red-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  // Create trading history from strategy state
+  const createTradingHistory = () => {
+    const history = [];
+    const instrumentMap = strategy.universalDict?.instrumentMap || {};
+    const quantity = strategy.globalDict?.quantity || 75;
+
+    // Add buy orders
+    if (strategy.buyToken && strategy.halfdrop_bought) {
+      const instrument = instrumentMap[strategy.buyToken];
+      if (instrument && instrument.buyPrice !== -1) {
+        history.push({
+          id: `buy-${strategy.buyToken}`,
+          action: 'BUY',
+          symbol: instrument.symbol,
+          price: instrument.buyPrice,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'CE Token'
+        });
+      }
+    }
+
+    if (strategy.oppBuyToken && strategy.halfdrop_bought) {
+      const instrument = instrumentMap[strategy.oppBuyToken];
+      if (instrument && instrument.buyPrice !== -1) {
+        history.push({
+          id: `buy-${strategy.oppBuyToken}`,
+          action: 'BUY',
+          symbol: instrument.symbol,
+          price: instrument.buyPrice,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'PE Token'
+        });
+      }
+    }
+
+    // Add sell at -10
+    if (strategy.soldAt10 && strategy.instrumentAt10Sell) {
+      const instrument = strategy.instrumentAt10;
+      if (instrument) {
+        history.push({
+          id: `sell-at-10-${instrument.token}`,
+          action: 'SELL',
+          symbol: instrument.symbol,
+          price: strategy.instrumentAt10Sell,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'Sold at -10'
+        });
+      }
+    }
+
+    // Add remaining sell
+    if (strategy.remainingSellAtTarget && strategy.instrumentAtStoploss) {
+      const instrument = strategy.instrumentAtStoploss;
+      if (instrument) {
+        history.push({
+          id: `sell-remaining-${instrument.token}`,
+          action: 'SELL',
+          symbol: instrument.symbol,
+          price: strategy.instrumentAtStoplossSell,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'Remaining Sell'
+        });
+      }
+    }
+
+    // Add buy back buy
+    if (strategy.buyBackToken && strategy.buyBackPrice) {
+      const instrument = instrumentMap[strategy.buyBackToken];
+      if (instrument) {
+        history.push({
+          id: `buy-back-${strategy.buyBackToken}`,
+          action: 'BUY',
+          symbol: instrument.symbol,
+          price: strategy.buyBackPrice,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'Buy Back'
+        });
+      }
+    }
+
+    // Add buy back sell
+    if (strategy.soldBuyBackAfterStoploss && strategy.buyBackToken) {
+      const instrument = instrumentMap[strategy.buyBackToken];
+      if (instrument) {
+        history.push({
+          id: `sell-buy-back-${strategy.buyBackToken}`,
+          action: 'SELL',
+          symbol: instrument.symbol,
+          price: instrument.last,
+          quantity: quantity,
+          timestamp: new Date().toISOString(),
+          status: 'executed',
+          type: 'Buy Back Sell'
+        });
+      }
+    }
+
+    return history.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  };
+
+  const tradingHistory = createTradingHistory();
+  const allActions = [...tradingHistory, ...(tradingActions || [])].sort((a, b) => 
+    new Date(b.timestamp || b.time || 0) - new Date(a.timestamp || a.time || 0)
+  );
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Trading History</h3>
+        <p className="text-sm text-gray-600 mt-1">Recent trading actions and strategy execution</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Action
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Symbol
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Price
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Time
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {allActions.length > 0 ? (
+              allActions.slice(0, 10).map((action, index) => (
+                <tr key={action.id || index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      {getActionIcon(action.action)}
+                      <span className={`ml-2 text-sm font-medium ${getActionColor(action.action)} px-2 py-1 rounded-full`}>
+                        {action.action}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                    {action.symbol || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {action.type || 'Trade'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                    {formatPrice(action.price)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {action.quantity || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatTime(action.timestamp || action.time)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      action.status === 'executed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : action.status === 'failed'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {action.status === 'executed' ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Executed
+                        </>
+                      ) : action.status === 'failed' ? (
+                        <>
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Failed
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                  <Clock className="h-8 w-8 mx-auto mb-2" />
+                  <p className="text-sm">No trading actions yet</p>
+                  <p className="text-xs mt-1">Trading history will appear here once the strategy begins executing</p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Strategy Status Summary */}
+      <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <div className="text-sm text-gray-600">Half Drop</div>
+            <div className={`text-lg font-semibold ${strategy.halfdrop_flag ? 'text-orange-600' : 'text-gray-400'}`}>
+              {strategy.halfdrop_flag ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-600">Bought</div>
+            <div className={`text-lg font-semibold ${strategy.halfdrop_bought ? 'text-green-600' : 'text-gray-400'}`}>
+              {strategy.halfdrop_bought ? 'Yes' : 'No'}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-600">Sold at -10</div>
+            <div className={`text-lg font-semibold ${strategy.soldAt10 ? 'text-red-600' : 'text-gray-400'}`}>
+              {strategy.soldAt10 ? 'Yes' : 'No'}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-sm text-gray-600">Buy Back</div>
+            <div className={`text-lg font-semibold ${strategy.buyBackAfterStoploss ? 'text-blue-600' : 'text-gray-400'}`}>
+              {strategy.buyBackAfterStoploss ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TradingTable;

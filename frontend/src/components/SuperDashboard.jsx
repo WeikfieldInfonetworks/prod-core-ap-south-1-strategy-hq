@@ -4,6 +4,7 @@ import AuthenticationForm from './AuthenticationForm';
 import StrategySelector from './StrategySelector';
 import ConnectionStatus from './ConnectionStatus';
 import MTMv2Dashboard from './strategies/MTMv2Dashboard';
+import FiftyPercentDashboard from './strategies/FiftyPercentDashboard';
 import { Settings, Activity, TrendingUp } from 'lucide-react';
 
 const SuperDashboard = ({ connectionStatus }) => {
@@ -45,6 +46,8 @@ const SuperDashboard = ({ connectionStatus }) => {
     switch (currentStrategy.name) {
       case 'MTM V2 Strategy':
         return <MTMv2Dashboard strategy={currentStrategy} />;
+      case 'Fifty Percent Strategy New':
+        return <FiftyPercentDashboard strategy={currentStrategy} />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center">

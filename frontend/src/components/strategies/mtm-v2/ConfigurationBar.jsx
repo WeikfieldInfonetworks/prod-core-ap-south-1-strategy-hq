@@ -12,28 +12,37 @@ const ConfigurationBar = ({ strategy }) => {
   const universalParams = strategy.universalDictParameters || {};
 
   const handleParameterChange = (type, paramName, value, paramType) => {
-    // Convert value based on parameter type
-    let convertedValue = value;
-    if (paramType === 'number') {
-      convertedValue = parseFloat(value) || 0;
-    } else if (paramType === 'boolean') {
-      convertedValue = value === 'true' || value === true;
-    }
-
-    // Store local value change (not pending yet)
+    // Store the raw value during editing - don't convert until update
     setLocalValues(prev => ({
       ...prev,
-      [`${type}.${paramName}`]: convertedValue
+      [`${type}.${paramName}`]: value
     }));
   };
 
   const updateParameter = (type, paramName) => {
     const localValue = localValues[`${type}.${paramName}`];
     if (localValue !== undefined) {
+      // Get parameter config to determine type
+      const paramConfig = type === 'global' 
+        ? globalParams[paramName] 
+        : universalParams[paramName];
+      
+      // Convert value based on parameter type
+      let convertedValue = localValue;
+      if (paramConfig?.type === 'number') {
+        convertedValue = parseFloat(localValue);
+        if (isNaN(convertedValue)) {
+          // If conversion fails, don't update
+          return;
+        }
+      } else if (paramConfig?.type === 'boolean') {
+        convertedValue = localValue === 'true' || localValue === true;
+      }
+      
       if (type === 'global') {
-        updateGlobalParameter(paramName, localValue);
+        updateGlobalParameter(paramName, convertedValue);
       } else {
-        updateUniversalParameter(paramName, localValue);
+        updateUniversalParameter(paramName, convertedValue);
       }
       
       // Keep the value in localValues to maintain persistence in the UI
@@ -66,19 +75,19 @@ const ConfigurationBar = ({ strategy }) => {
   };
 
   const getCurrentValue = (type, paramName) => {
-    // Get from strategy dictionaries first (this will be updated via socket)
+    // Check for local changes first (during editing)
+    const localKey = `${type}.${paramName}`;
+    if (localValues[localKey] !== undefined) {
+      return localValues[localKey];
+    }
+    
+    // Get from strategy dictionaries (this will be updated via socket)
     const strategyValue = type === 'global' 
       ? strategy.globalDict?.[paramName] 
       : strategy.universalDict?.[paramName];
     
     if (strategyValue !== undefined) {
       return strategyValue;
-    }
-    
-    // If no strategy value, check for local changes
-    const localKey = `${type}.${paramName}`;
-    if (localValues[localKey] !== undefined) {
-      return localValues[localKey];
     }
     
     // Fall back to default values from parameter configuration
@@ -98,7 +107,7 @@ const ConfigurationBar = ({ strategy }) => {
       : strategy.universalDict?.[paramName];
     
     // Check if there's a local change by comparing local value with original strategy value
-    const hasLocalChange = localValue !== undefined && localValue !== originalValue;
+    const hasLocalChange = localValue !== undefined && String(localValue) !== String(originalValue);
 
     return (
       <div key={paramName} className="space-y-2">
@@ -188,7 +197,7 @@ const ConfigurationBar = ({ strategy }) => {
     const originalValue = type === 'global' 
       ? strategy.globalDict?.[paramName] 
       : strategy.universalDict?.[paramName];
-    return localValues[key] !== originalValue;
+    return String(localValues[key]) !== String(originalValue);
   });
 
   return (

@@ -2,7 +2,7 @@ const BaseStrategy = require('./base');
 const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
 
-class FifityPercentStrategyNew extends BaseStrategy {
+class FiftyPercentStrategyNew extends BaseStrategy {
 
     constructor() {
         super();
@@ -152,12 +152,31 @@ class FifityPercentStrategyNew extends BaseStrategy {
         console.log('=== Initialization Complete ===');
     }
 
-    // Override parameter update methods to add debugging
+    // Override parameter update methods to add debugging and real-time notifications
     updateGlobalDictParameter(parameter, value) {
         const success = super.updateGlobalDictParameter(parameter, value);
         
-        if (parameter === 'enableTrading') {
-            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
+        if (success) {
+            if (parameter === 'enableTrading') {
+                this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
+                
+                // Emit specific trading toggle notification
+                this.emitStatusUpdate('Trading mode updated', {
+                    enableTrading: value,
+                    message: value ? 'Live trading is now ENABLED' : 'Live trading is now DISABLED',
+                    criticalUpdate: true
+                });
+            }
+            
+            // Emit Fifty Percent specific parameter update notifications
+            if (['target', 'stoploss', 'quantity'].includes(parameter)) {
+                this.emitStatusUpdate(`Fifty Percent Strategy parameter updated`, {
+                    parameter,
+                    value,
+                    category: 'trading_rules',
+                    impact: 'immediate'
+                });
+            }
         }
 
         return success;
@@ -166,8 +185,28 @@ class FifityPercentStrategyNew extends BaseStrategy {
     updateUniversalDictParameter(parameter, value) {
         const success = super.updateUniversalDictParameter(parameter, value);
         
-        if (parameter === 'cycles') {
-            this.strategyUtils.logStrategyInfo(`🔧 Cycles Updated: ${value}`);
+        if (success) {
+            if (parameter === 'cycles') {
+                this.strategyUtils.logStrategyInfo(`🔧 Cycles Updated: ${value}`);
+                
+                // Emit cycle update notification
+                this.emitStatusUpdate(`Cycle count updated`, {
+                    parameter,
+                    value,
+                    category: 'strategy_state',
+                    impact: 'informational'
+                });
+            }
+            
+            // Emit Fifty Percent specific universal parameter update notifications
+            if (['expiry'].includes(parameter)) {
+                this.emitStatusUpdate(`Fifty Percent Strategy configuration updated`, {
+                    parameter,
+                    value,
+                    category: 'strategy_config',
+                    impact: 'immediate'
+                });
+            }
         }
         
         return success;
@@ -329,6 +368,17 @@ class FifityPercentStrategyNew extends BaseStrategy {
         this.blockUpdate = true;
         
         console.log('Transitioning from INIT to UPDATE block');
+        
+        // Emit block transition notification
+        this.emitStatusUpdate('Block transition: INIT → UPDATE', {
+            blockTransition: true,
+            fromBlock: 'INIT',
+            toBlock: 'UPDATE',
+            message: 'Token selection complete - starting price monitoring',
+            acceptedTokens: acceptedTokens.length,
+            ceTokens: this.universalDict.ceTokens.length,
+            peTokens: this.universalDict.peTokens.length
+        });
     }    
 
     processUpdateBlock(ticks) {
@@ -336,6 +386,18 @@ class FifityPercentStrategyNew extends BaseStrategy {
         
         const currentTime = new Date().toISOString();
         this.globalDict.timestamp = currentTime;
+        
+        // Emit instrument data update for real-time dashboard updates
+        this.emitStatusUpdate('instrument_data_update', {
+            instrumentMap: this.universalDict.instrumentMap,
+            ceTokens: this.universalDict.ceTokens,
+            peTokens: this.universalDict.peTokens,
+            halfdrop_flag: this.halfdrop_flag,
+            halfdrop_instrument: this.halfdrop_instrument,
+            buyToken: this.buyToken,
+            oppBuyToken: this.oppBuyToken,
+            timestamp: currentTime
+        });
 
         // Initialize or update instrument data for all observed tokens
         for (const tick of ticks) {
@@ -411,6 +473,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                     this.halfdrop_instrument = instrument;
                     this.mainToken = instrument.token
                     this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
+                    
+                    // Emit half drop detection notification
+                    this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
+                        halfDropDetected: true,
+                        instrument: instrument.symbol,
+                        lowAtRef: instrument.lowAtRef,
+                        firstPrice: instrument.firstPrice,
+                        dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
+                        message: `50% drop detected in ${instrument.symbol} - preparing for trading`
+                    });
                 }
 
                 if (instrument.buyPrice > -1) {
@@ -422,6 +494,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
         if (this.halfdrop_flag) {
             this.blockDiff10 = true;
             console.log('Transitioning from UPDATE to DIFF10 block');
+            
+            // Emit block transition notification
+            this.emitStatusUpdate('Block transition: UPDATE → DIFF10', {
+                blockTransition: true,
+                fromBlock: 'UPDATE',
+                toBlock: 'DIFF10',
+                message: 'Half drop detected - starting trading execution',
+                halfDropInstrument: this.halfdrop_instrument?.symbol,
+                halfDropPrice: this.halfdrop_instrument?.lowAtRef
+            });
         }
     }
 
@@ -467,6 +549,15 @@ class FifityPercentStrategyNew extends BaseStrategy {
             this.blockDiff10 = false;
             this.blockNextCycle = true;
             this.strategyUtils.logStrategyInfo('Transitioning from DIFF10 to NEXT CYCLE block');
+            
+            // Emit cycle completion notification
+            this.emitStatusUpdate('Cycle completed - preparing for next cycle', {
+                blockTransition: true,
+                fromBlock: 'DIFF10',
+                toBlock: 'NEXT_CYCLE',
+                cycleCompleted: true,
+                message: 'All trading actions completed - cycle finished'
+            });
         }
 
         
@@ -492,6 +583,17 @@ class FifityPercentStrategyNew extends BaseStrategy {
         this.strategyUtils.logStrategyInfo('Placing order for fifty percent strategy token');
         this.strategyUtils.logStrategyInfo(`Token: ${instrument.symbol} @ ${instrument.last}`);
         this.strategyUtils.logStrategyInfo(`Other Token: ${other_instrument.symbol} @ ${other_instrument.last}`);
+        
+        // Emit trading start notification
+        this.emitStatusUpdate('Starting Fifty Percent Strategy trading', {
+            tradingStarted: true,
+            ceToken: instrument.symbol,
+            peToken: other_instrument.symbol,
+            cePrice: instrument.last,
+            pePrice: other_instrument.last,
+            quantity: this.globalDict.quantity || 75,
+            message: 'Placing buy orders for CE and PE tokens'
+        });
 
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true;
@@ -519,6 +621,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                 if (buyOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                    
+                    // Emit trade action notification
+                    this.emitTradeAction('buy', {
+                        symbol: instrument.symbol,
+                        price: instrument.last,
+                        quantity: this.globalDict.quantity || 75,
+                        token: instrument.token,
+                        orderType: 'CE Token',
+                        success: true
+                    });
                     
                     // Get executed price from order history
                     buyOrderResult.orderId.then(orderId => {
@@ -550,6 +662,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                 if (buyOrderResultOther.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${other_instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', other_instrument.symbol, other_instrument.last, this.globalDict.quantity || 75, other_instrument.token);
+                    
+                    // Emit trade action notification
+                    this.emitTradeAction('buy', {
+                        symbol: other_instrument.symbol,
+                        price: other_instrument.last,
+                        quantity: this.globalDict.quantity || 75,
+                        token: other_instrument.token,
+                        orderType: 'PE Token',
+                        success: true
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${other_instrument.symbol}: ${buyOrderResultOther.error}`);
                     this.strategyUtils.logOrderFailed('buy', other_instrument.symbol, other_instrument.last, this.globalDict.quantity || 75, other_instrument.token, buyOrderResultOther.error);
@@ -625,6 +747,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                     this.strategyUtils.logOrderPlaced('SELL', instrument.symbol, instrument.last, this.globalDict.quantity || 75, this.instrumentAt10.token);
                     this.strategyUtils.logStrategyInfo(`Market sell order placed successfully for ${instrument.symbol}`);
                     this.strategyUtils.logStrategyInfo(`Order ID: ${sellOrderResult.orderId}`);
+                    
+                    // Emit trade action notification
+                    this.emitTradeAction('sell', {
+                        symbol: instrument.symbol,
+                        price: instrument.last,
+                        quantity: this.globalDict.quantity || 75,
+                        token: this.instrumentAt10.token,
+                        orderType: 'Sold at -10',
+                        success: true
+                    });
                     
                     // Get order history to find executed price using MTM pattern
                     let sellPrice = instrument.last;
@@ -936,6 +1068,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Buy back order placed for ${closestOpposite.symbol}`);
                 this.strategyUtils.logOrderPlaced('BUY', closestOpposite.symbol, closestOpposite.price, this.globalDict.quantity || 75, this.buyBackToken);
                 
+                // Emit trade action notification
+                this.emitTradeAction('buy', {
+                    symbol: closestOpposite.symbol,
+                    price: closestOpposite.price,
+                    quantity: this.globalDict.quantity || 75,
+                    token: this.buyBackToken,
+                    orderType: 'Buy Back',
+                    success: true
+                });
+                
                 // Get order history to find executed price
                 let buyBackExecutedPrice = closestOpposite.price;
                 buyBackOrderResult.orderId.then(orderId => {
@@ -1052,6 +1194,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
                     this.strategyUtils.logOrderPlaced('SELL', buyBackInstrument.symbol, buyBackInstrument.last, this.globalDict.quantity || 75, this.buyBackToken);
                     this.strategyUtils.logStrategyInfo(`Market sell order placed successfully for ${buyBackInstrument.symbol}`);
                     this.strategyUtils.logStrategyInfo(`Order ID: ${sellOrderResult.orderId}`);
+                    
+                    // Emit trade action notification
+                    this.emitTradeAction('sell', {
+                        symbol: buyBackInstrument.symbol,
+                        price: buyBackInstrument.last,
+                        quantity: this.globalDict.quantity || 75,
+                        token: this.buyBackToken,
+                        orderType: 'Buy Back Sell',
+                        success: true
+                    });
                     
                     // Get order history to find executed price using MTM pattern
                     let sellPrice = buyBackInstrument.last;
@@ -1173,6 +1325,16 @@ class FifityPercentStrategyNew extends BaseStrategy {
         this.universalDict.observedTicks = [];
         
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
+        
+        // Emit new cycle notification
+        this.emitStatusUpdate('New cycle started', {
+            newCycle: true,
+            cycleNumber: this.universalDict.cycles,
+            blockTransition: true,
+            fromBlock: 'NEXT_CYCLE',
+            toBlock: 'INIT',
+            message: `Starting cycle ${this.universalDict.cycles} - resetting for new trading session`
+        });
     }
 
     getConfig() {
@@ -1238,3 +1400,5 @@ class FifityPercentStrategyNew extends BaseStrategy {
         };
     }
 }
+
+module.exports = FiftyPercentStrategyNew;
