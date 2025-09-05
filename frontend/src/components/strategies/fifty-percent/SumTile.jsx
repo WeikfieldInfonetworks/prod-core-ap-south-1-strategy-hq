@@ -26,6 +26,10 @@ const SumTile = ({ strategy, instrumentData }) => {
   const buyToken = instrumentData?.buyToken || strategy.buyToken;
   const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
   const buyBackToken = instrumentData?.buyBackToken || strategy.buyBackToken;
+  const halfdropFlag = instrumentData?.halfdrop_flag !== undefined ? instrumentData.halfdrop_flag : strategy.halfdrop_flag;
+  const halfdropBought = instrumentData?.halfdrop_bought !== undefined ? instrumentData.halfdrop_bought : strategy.halfdrop_bought;
+  const soldAt10 = instrumentData?.soldAt10 !== undefined ? instrumentData.soldAt10 : strategy.soldAt10;
+  const buyBackAfterStoploss = instrumentData?.buyBackAfterStoploss !== undefined ? instrumentData.buyBackAfterStoploss : strategy.buyBackAfterStoploss;
   
   const buyTokenInstrument = getInstrumentData(buyToken);
   const oppBuyTokenInstrument = getInstrumentData(oppBuyToken);
@@ -91,6 +95,21 @@ const SumTile = ({ strategy, instrumentData }) => {
         <h3 className="text-lg font-semibold text-gray-900">Portfolio Summary</h3>
         <DollarSign className="h-5 w-5 text-gray-400" />
       </div>
+
+      {/* Half Drop Alert */}
+      {halfdropFlag && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-red-600 mr-2 animate-pulse" />
+            <div>
+              <h4 className="text-sm font-bold text-red-800">Half Drop Detected!</h4>
+              <p className="text-xs text-red-600 mt-1">
+                Strategy is now preparing for trading execution
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Total P&L */}
       <div className="mb-6">
@@ -171,20 +190,25 @@ const SumTile = ({ strategy, instrumentData }) => {
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Half Drop Flag</span>
-            <span className={`text-sm font-medium ${strategy.halfdrop_flag ? 'text-orange-600' : 'text-gray-500'}`}>
-              {strategy.halfdrop_flag ? 'Active' : 'Inactive'}
-            </span>
+            <div className="flex items-center space-x-2">
+              <span className={`text-sm font-medium ${halfdropFlag ? 'text-red-600' : 'text-gray-500'}`}>
+                {halfdropFlag ? 'DETECTED!' : 'Inactive'}
+              </span>
+              {halfdropFlag && (
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+              )}
+            </div>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Sold at -10</span>
-            <span className={`text-sm font-medium ${strategy.soldAt10 ? 'text-green-600' : 'text-gray-500'}`}>
-              {strategy.soldAt10 ? 'Yes' : 'No'}
+            <span className={`text-sm font-medium ${soldAt10 ? 'text-green-600' : 'text-gray-500'}`}>
+              {soldAt10 ? 'Yes' : 'No'}
             </span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Buy Back Active</span>
-            <span className={`text-sm font-medium ${strategy.buyBackAfterStoploss ? 'text-blue-600' : 'text-gray-500'}`}>
-              {strategy.buyBackAfterStoploss ? 'Yes' : 'No'}
+            <span className={`text-sm font-medium ${buyBackAfterStoploss ? 'text-blue-600' : 'text-gray-500'}`}>
+              {buyBackAfterStoploss ? 'Yes' : 'No'}
             </span>
           </div>
         </div>

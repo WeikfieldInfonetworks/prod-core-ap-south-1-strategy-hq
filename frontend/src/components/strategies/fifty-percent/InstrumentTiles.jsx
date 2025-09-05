@@ -13,6 +13,7 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
   const buyToken = instrumentData?.buyToken || strategy.buyToken;
   const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
   const halfdropInstrument = instrumentData?.halfdrop_instrument || strategy.halfdrop_instrument;
+  const halfdropFlag = instrumentData?.halfdrop_flag !== undefined ? instrumentData.halfdrop_flag : strategy.halfdrop_flag;
   
   // Get instrument data for display
   const getInstrumentData = (token) => {
@@ -56,10 +57,23 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
     <div className="space-y-4">
       {/* Half Drop Instrument */}
       {halfdropInstrument && (
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-400">
+        <div className={`bg-white rounded-lg shadow-sm p-4 border-l-4 ${
+          halfdropFlag ? 'border-red-500 bg-red-50' : 'border-orange-400'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-gray-900">Half Drop Instrument</h4>
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <h4 className={`text-sm font-medium ${
+              halfdropFlag ? 'text-red-900' : 'text-gray-900'
+            }`}>
+              Half Drop Instrument
+              {halfdropFlag && (
+                <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-200 text-red-800 rounded-full animate-pulse">
+                  DETECTED!
+                </span>
+              )}
+            </h4>
+            <AlertTriangle className={`h-4 w-4 ${
+              halfdropFlag ? 'text-red-600 animate-pulse' : 'text-orange-500'
+            }`} />
           </div>
           <div className="space-y-2">
             <div className="flex justify-between items-center">
@@ -89,6 +103,14 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
               <span className="text-xs text-gray-500">Peak:</span>
               <span className="text-sm font-mono">{formatPrice(halfdropInstrument.peak)}</span>
             </div>
+            {halfdropFlag && halfdropInstrument.firstPrice && halfdropInstrument.lowAtRef && (
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-gray-500">Drop %:</span>
+                <span className="text-sm font-mono font-bold text-red-600">
+                  {((halfdropInstrument.lowAtRef / halfdropInstrument.firstPrice) * 100).toFixed(2)}%
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -58,8 +58,24 @@ const FiftyPercentDashboard = ({ strategy }) => {
         setInstrumentData(data);
       }
 
+      // Handle half drop detection specifically
+      if (data.halfDropDetected) {
+        addNotification({
+          type: 'warning',
+          title: 'Half Drop Detected!',
+          message: data.message || `50% drop detected in ${data.instrument}`,
+          timestamp: new Date().toISOString(),
+          data: {
+            instrument: data.instrument,
+            lowAtRef: data.lowAtRef,
+            firstPrice: data.firstPrice,
+            dropPercentage: data.dropPercentage
+          }
+        });
+      }
+
       // Add to notifications
-      if (data.status != 'instrument_data_update') {
+      if (data.status != 'instrument_data_update' && !data.halfDropDetected) {
         addNotification({
           type: 'info',
           title: 'Strategy Update',
@@ -161,6 +177,8 @@ const FiftyPercentDashboard = ({ strategy }) => {
                   ? 'bg-red-50 border-red-400 text-red-800'
                   : notification.type === 'success'
                   ? 'bg-green-50 border-green-400 text-green-800'
+                  : notification.type === 'warning'
+                  ? 'bg-orange-50 border-orange-400 text-orange-800'
                   : 'bg-blue-50 border-blue-400 text-blue-800'
               } ${fadingNotifications.has(notification.id) ? 'animate-slide-out' : 'animate-slide-in'}`}
               onClick={() => removeNotification(notification.id)}
@@ -178,6 +196,8 @@ const FiftyPercentDashboard = ({ strategy }) => {
                           ? 'bg-red-400' 
                           : notification.type === 'success'
                           ? 'bg-green-400'
+                          : notification.type === 'warning'
+                          ? 'bg-orange-400'
                           : 'bg-blue-400'
                       }`}
                       style={{

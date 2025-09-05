@@ -8,8 +8,9 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   const buyToken = instrumentData?.buyToken || strategy.buyToken;
   const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
   const halfdropInstrument = instrumentData?.halfdrop_instrument || strategy.halfdrop_instrument;
-  const halfdropBought = instrumentData?.halfdrop_bought || strategy.halfdrop_bought;
-  const soldAt10 = instrumentData?.soldAt10 || strategy.soldAt10;
+  const halfdropBought = instrumentData?.halfdrop_bought !== undefined ? instrumentData.halfdrop_bought : strategy.halfdrop_bought;
+  const halfdropFlag = instrumentData?.halfdrop_flag !== undefined ? instrumentData.halfdrop_flag : strategy.halfdrop_flag;
+  const soldAt10 = instrumentData?.soldAt10 !== undefined ? instrumentData.soldAt10 : strategy.soldAt10;
   const instrumentAt10Sell = instrumentData?.instrumentAt10Sell || strategy.instrumentAt10Sell;
   const instrumentAt10 = instrumentData?.instrumentAt10 || strategy.instrumentAt10;
   const remainingSellAtTarget = instrumentData?.remainingSellAtTarget || strategy.remainingSellAtTarget;
@@ -17,7 +18,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   const instrumentAtStoplossSell = instrumentData?.instrumentAtStoplossSell || strategy.instrumentAtStoplossSell;
   const buyBackToken = instrumentData?.buyBackToken || strategy.buyBackToken;
   const buyBackPrice = instrumentData?.buyBackPrice || strategy.buyBackPrice;
-  const soldBuyBackAfterStoploss = instrumentData?.soldBuyBackAfterStoploss || strategy.soldBuyBackAfterStoploss;
+  const soldBuyBackAfterStoploss = instrumentData?.soldBuyBackAfterStoploss !== undefined ? instrumentData.soldBuyBackAfterStoploss : strategy.soldBuyBackAfterStoploss;
+  const buyBackAfterStoploss = instrumentData?.buyBackAfterStoploss !== undefined ? instrumentData.buyBackAfterStoploss : strategy.buyBackAfterStoploss;
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'N/A';
@@ -39,6 +41,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
         return <CheckCircle className="h-4 w-4 text-green-500" />;
       case 'SELL':
         return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'HALF DROP':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
       default:
         return <Activity className="h-4 w-4 text-gray-500" />;
     }
@@ -50,6 +54,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
         return 'text-green-600 bg-green-50';
       case 'SELL':
         return 'text-red-600 bg-red-50';
+      case 'HALF DROP':
+        return 'text-orange-600 bg-orange-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -61,6 +67,24 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
     // Use instrumentData if available, otherwise fall back to strategy
     const instrumentMap = instrumentData?.instrumentMap || strategy.universalDict?.instrumentMap || {};
     const quantity = strategy.globalDict?.quantity || 75;
+
+    // Add half drop detection event
+    if (halfdropFlag && halfdropInstrument) {
+      const dropPercentage = halfdropInstrument.firstPrice && halfdropInstrument.lowAtRef 
+        ? ((halfdropInstrument.lowAtRef / halfdropInstrument.firstPrice) * 100).toFixed(2)
+        : 'N/A';
+      
+      history.push({
+        id: `half-drop-${halfdropInstrument.symbol}`,
+        action: 'HALF DROP',
+        symbol: halfdropInstrument.symbol,
+        price: halfdropInstrument.lowAtRef,
+        quantity: 'N/A',
+        timestamp: new Date().toISOString(),
+        status: 'detected',
+        type: `Drop: ${dropPercentage}%`
+      });
+    }
 
     // Add buy orders
     if (buyToken && halfdropBought) {
@@ -240,6 +264,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
                         ? 'bg-green-100 text-green-800' 
                         : action.status === 'failed'
                         ? 'bg-red-100 text-red-800'
+                        : action.status === 'detected'
+                        ? 'bg-orange-100 text-orange-800'
                         : 'bg-yellow-100 text-yellow-800'
                     }`}>
                       {action.status === 'executed' ? (
@@ -251,6 +277,11 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
                         <>
                           <XCircle className="h-3 w-3 mr-1" />
                           Failed
+                        </>
+                      ) : action.status === 'detected' ? (
+                        <>
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Detected
                         </>
                       ) : (
                         <>
@@ -280,14 +311,14 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
             <div className="text-sm text-gray-600">Half Drop</div>
-            <div className={`text-lg font-semibold ${strategy.halfdrop_flag ? 'text-orange-600' : 'text-gray-400'}`}>
-              {strategy.halfdrop_flag ? 'Active' : 'Inactive'}
+            <div className={`text-lg font-semibold ${halfdropFlag ? 'text-orange-600' : 'text-gray-400'}`}>
+              {halfdropFlag ? 'Active' : 'Inactive'}
             </div>
           </div>
           <div className="text-center">
             <div className="text-sm text-gray-600">Bought</div>
-            <div className={`text-lg font-semibold ${strategy.halfdrop_bought ? 'text-green-600' : 'text-gray-400'}`}>
-              {strategy.halfdrop_bought ? 'Yes' : 'No'}
+            <div className={`text-lg font-semibold ${halfdropBought ? 'text-green-600' : 'text-gray-400'}`}>
+              {halfdropBought ? 'Yes' : 'No'}
             </div>
           </div>
           <div className="text-center">
@@ -298,8 +329,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
           </div>
           <div className="text-center">
             <div className="text-sm text-gray-600">Buy Back</div>
-            <div className={`text-lg font-semibold ${(instrumentData?.buyBackAfterStoploss || strategy.buyBackAfterStoploss) ? 'text-blue-600' : 'text-gray-400'}`}>
-              {(instrumentData?.buyBackAfterStoploss || strategy.buyBackAfterStoploss) ? 'Active' : 'Inactive'}
+            <div className={`text-lg font-semibold ${buyBackAfterStoploss ? 'text-blue-600' : 'text-gray-400'}`}>
+              {buyBackAfterStoploss ? 'Active' : 'Inactive'}
             </div>
           </div>
         </div>

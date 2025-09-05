@@ -394,6 +394,18 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             peTokens: this.universalDict.peTokens,
             halfdrop_flag: this.halfdrop_flag,
             halfdrop_instrument: this.halfdrop_instrument,
+            halfdrop_bought: this.halfdrop_bought,
+            soldAt10: this.soldAt10,
+            instrumentAt10: this.instrumentAt10,
+            instrumentAt10Sell: this.instrumentAt10Sell,
+            remainingSellAtTarget: this.remainingSellAtTarget,
+            instrumentAtStoploss: this.instrumentAtStoploss,
+            instrumentAtStoplossSell: this.instrumentAtStoplossSell,
+            buyBackAfterStoploss: this.buyBackAfterStoploss,
+            buyBackToken: this.buyBackToken,
+            buyBackPrice: this.buyBackPrice,
+            buyBackTarget: this.buyBackTarget,
+            soldBuyBackAfterStoploss: this.soldBuyBackAfterStoploss,
             buyToken: this.buyToken,
             oppBuyToken: this.oppBuyToken,
             timestamp: currentTime
@@ -491,7 +503,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             }
         }
 
-        if (this.halfdrop_flag) {
+        if (this.halfdrop_flag && !this.blockDiff10) {
             this.blockDiff10 = true;
             console.log('Transitioning from UPDATE to DIFF10 block');
             
@@ -561,6 +573,23 @@ class FiftyPercentStrategyNew extends BaseStrategy {
         }
 
         
+    }
+
+    processNextCycleBlock() {
+        this.resetForNextCycle();
+        this.blockNextCycle = false;
+        this.blockInit = true;
+        this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
+        
+        // Emit cycle restart notification
+        this.emitStatusUpdate('New cycle started', {
+            fromBlock: 'NEXT_CYCLE',
+            toBlock: 'INIT',
+            cycleNumber: this.universalDict.cycles || 0,
+            cycleReset: true,
+            blockTransition: true,
+            message: `Starting cycle ${this.universalDict.cycles || 0}`
+        });
     }
 
     placeOrdersForTokens() {
@@ -1136,10 +1165,11 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             const changeFromBuy = currentPrice - this.buyBackPrice;
             const targetPrice = this.buyBackPrice + this.buyBackTarget;
             
-            this.strategyUtils.logStrategyInfo(`Buy back instrument: ${buyBackInstrument.symbol} @ ${currentPrice}, Target: ${targetPrice.toFixed(2)}, Change: ${changeFromBuy.toFixed(2)}`);
+            // this.strategyUtils.logStrategyInfo(`Buy back instrument: ${buyBackInstrument.symbol} @ ${currentPrice}, Target: ${targetPrice.toFixed(2)}, Change: ${changeFromBuy.toFixed(2)}`);
             
             const shouldSell = currentPrice >= targetPrice;
-            this.strategyUtils.logStrategyInfo(`Should sell buy back: ${shouldSell} (target: ${currentPrice >= targetPrice}, stoploss: ${changeFromBuy <= this.globalDict.stoploss})`);
+            console.log(`SYMBOL ${buyBackInstrument.symbol} CURRENT PRICE: ${currentPrice} TARGET PRICE: ${targetPrice} CHANGE FROM BUY: ${changeFromBuy.toFixed(2)}`);
+            // this.strategyUtils.logStrategyInfo(`Should sell buy back: ${shouldSell} (target: ${currentPrice >= targetPrice}, stoploss: ${changeFromBuy <= this.globalDict.stoploss})`);
             
             return shouldSell;
         }
@@ -1258,8 +1288,13 @@ class FiftyPercentStrategyNew extends BaseStrategy {
     }
 
     shouldSellAt10() {
+        if (this.soldAt10) {
+            return false;
+        }
         let ce_instrument = this.universalDict.instrumentMap[this.buyToken];
         let pe_instrument = this.universalDict.instrumentMap[this.oppBuyToken];
+        console.log(`${ce_instrument.symbol} LAST: ${ce_instrument.last} CHANGE: ${ce_instrument.last - ce_instrument.buyPrice}`);
+        console.log(`${pe_instrument.symbol} LAST: ${pe_instrument.last} CHANGE: ${pe_instrument.last - pe_instrument.buyPrice}`);
         return ce_instrument.last - ce_instrument.buyPrice <= this.globalDict.limitAt10 || pe_instrument.last - pe_instrument.buyPrice <= this.globalDict.limitAt10;
     }
 
@@ -1274,6 +1309,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
         let ce_instrument = this.universalDict.instrumentMap[this.buyToken];
         let pe_instrument = this.universalDict.instrumentMap[this.oppBuyToken];
         let other_instrument = this.instrumentAt10 === ce_instrument ? pe_instrument : ce_instrument;
+        console.log(`${other_instrument.symbol} LAST: ${other_instrument.last} CHANGE: ${other_instrument.last - other_instrument.buyPrice}`);
         return other_instrument.last - other_instrument.buyPrice <= this.globalDict.stoploss;
     }
 
