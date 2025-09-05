@@ -340,8 +340,8 @@ class FiftyPercentStrategyNew extends BaseStrategy {
         })[0]];
 
         // TEMPORARY FIX: For testing
-        this.universalDict.ceTokens = ["10387714"]
-        this.universalDict.peTokens = ["10394370"]
+        // this.universalDict.ceTokens = ["10387714"]
+        // this.universalDict.peTokens = ["10394370"]
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -445,13 +445,13 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             instrument.last = newPrice;
 
             // TEMPORARY FIX: For testing
-            if (token === "10394370"){
-                instrument.firstPrice = 275.8
-            }
+            // if (token === "10394370"){
+            //     instrument.firstPrice = 275.8
+            // }
 
-            if (token === "10387714"){
-                instrument.firstPrice = 246.55
-            }
+            // if (token === "10387714"){
+            //     instrument.firstPrice = 246.55
+            // }
             
             // Other updates only for selected instruments.
             if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {
@@ -468,7 +468,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`NEW LOW AT REF: ${instrument.symbol}: ${instrument.lowAtRef}`);
                 }
 
-                if (instrument.lowAtRef <= instrument.firstPrice*0.99 && !this.halfdrop_flag) {
+                if (instrument.lowAtRef <= instrument.firstPrice*0.5 && !this.halfdrop_flag) {
                     this.halfdrop_flag = true;
                     this.halfdrop_instrument = instrument;
                     this.mainToken = instrument.token
