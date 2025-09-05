@@ -124,7 +124,7 @@ class BaseStrategy {
                 console.log(`📡 Emitting ${event} to room ${roomName} for user ${this.userId}`);
                 console.log(`📡 Socket.IO instance: ${this.socketIo ? 'Available' : 'Not Available'}`);
                 console.log(`📡 User ID: ${this.userId}`);
-                console.log(`📡 Event data:`, JSON.stringify(emitData, null, 2));
+                // console.log(`📡 Event data:`, JSON.stringify(emitData, null, 2));
                 
                 // Ensure we emit on the correct namespace (/live)
                 const ioTarget = typeof this.socketIo.of === 'function' 

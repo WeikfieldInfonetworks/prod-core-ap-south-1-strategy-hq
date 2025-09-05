@@ -4,6 +4,21 @@ import { Activity, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-rea
 const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   if (!strategy) return null;
 
+  // Get chosen instruments and status from instrumentData (real-time updates) or fall back to strategy
+  const buyToken = instrumentData?.buyToken || strategy.buyToken;
+  const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
+  const halfdropInstrument = instrumentData?.halfdrop_instrument || strategy.halfdrop_instrument;
+  const halfdropBought = instrumentData?.halfdrop_bought || strategy.halfdrop_bought;
+  const soldAt10 = instrumentData?.soldAt10 || strategy.soldAt10;
+  const instrumentAt10Sell = instrumentData?.instrumentAt10Sell || strategy.instrumentAt10Sell;
+  const instrumentAt10 = instrumentData?.instrumentAt10 || strategy.instrumentAt10;
+  const remainingSellAtTarget = instrumentData?.remainingSellAtTarget || strategy.remainingSellAtTarget;
+  const instrumentAtStoploss = instrumentData?.instrumentAtStoploss || strategy.instrumentAtStoploss;
+  const instrumentAtStoplossSell = instrumentData?.instrumentAtStoplossSell || strategy.instrumentAtStoplossSell;
+  const buyBackToken = instrumentData?.buyBackToken || strategy.buyBackToken;
+  const buyBackPrice = instrumentData?.buyBackPrice || strategy.buyBackPrice;
+  const soldBuyBackAfterStoploss = instrumentData?.soldBuyBackAfterStoploss || strategy.soldBuyBackAfterStoploss;
+
   const formatTime = (timestamp) => {
     if (!timestamp) return 'N/A';
     try {
@@ -43,15 +58,16 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   // Create trading history from strategy state
   const createTradingHistory = () => {
     const history = [];
-    const instrumentMap = strategy.universalDict?.instrumentMap || {};
+    // Use instrumentData if available, otherwise fall back to strategy
+    const instrumentMap = instrumentData?.instrumentMap || strategy.universalDict?.instrumentMap || {};
     const quantity = strategy.globalDict?.quantity || 75;
 
     // Add buy orders
-    if (strategy.buyToken && strategy.halfdrop_bought) {
-      const instrument = instrumentMap[strategy.buyToken];
+    if (buyToken && halfdropBought) {
+      const instrument = instrumentMap[buyToken];
       if (instrument && instrument.buyPrice !== -1) {
         history.push({
-          id: `buy-${strategy.buyToken}`,
+          id: `buy-${buyToken}`,
           action: 'BUY',
           symbol: instrument.symbol,
           price: instrument.buyPrice,
@@ -63,11 +79,11 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
       }
     }
 
-    if (strategy.oppBuyToken && strategy.halfdrop_bought) {
-      const instrument = instrumentMap[strategy.oppBuyToken];
+    if (oppBuyToken && halfdropBought) {
+      const instrument = instrumentMap[oppBuyToken];
       if (instrument && instrument.buyPrice !== -1) {
         history.push({
-          id: `buy-${strategy.oppBuyToken}`,
+          id: `buy-${oppBuyToken}`,
           action: 'BUY',
           symbol: instrument.symbol,
           price: instrument.buyPrice,
@@ -79,15 +95,16 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
       }
     }
 
+
     // Add sell at -10
-    if (strategy.soldAt10 && strategy.instrumentAt10Sell) {
-      const instrument = strategy.instrumentAt10;
+    if (soldAt10 && instrumentAt10Sell) {
+      const instrument = instrumentAt10;
       if (instrument) {
         history.push({
           id: `sell-at-10-${instrument.token}`,
           action: 'SELL',
           symbol: instrument.symbol,
-          price: strategy.instrumentAt10Sell,
+          price: instrumentAt10Sell,
           quantity: quantity,
           timestamp: new Date().toISOString(),
           status: 'executed',
@@ -97,14 +114,14 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
     }
 
     // Add remaining sell
-    if (strategy.remainingSellAtTarget && strategy.instrumentAtStoploss) {
-      const instrument = strategy.instrumentAtStoploss;
+    if (remainingSellAtTarget && instrumentAtStoploss) {
+      const instrument = instrumentAtStoploss;
       if (instrument) {
         history.push({
           id: `sell-remaining-${instrument.token}`,
           action: 'SELL',
           symbol: instrument.symbol,
-          price: strategy.instrumentAtStoplossSell,
+          price: instrumentAtStoplossSell,
           quantity: quantity,
           timestamp: new Date().toISOString(),
           status: 'executed',
@@ -113,15 +130,16 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
       }
     }
 
+
     // Add buy back buy
-    if (strategy.buyBackToken && strategy.buyBackPrice) {
-      const instrument = instrumentMap[strategy.buyBackToken];
+    if (buyBackToken && buyBackPrice) {
+      const instrument = instrumentMap[buyBackToken];
       if (instrument) {
         history.push({
-          id: `buy-back-${strategy.buyBackToken}`,
+          id: `buy-back-${buyBackToken}`,
           action: 'BUY',
           symbol: instrument.symbol,
-          price: strategy.buyBackPrice,
+          price: buyBackPrice,
           quantity: quantity,
           timestamp: new Date().toISOString(),
           status: 'executed',
@@ -131,11 +149,11 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
     }
 
     // Add buy back sell
-    if (strategy.soldBuyBackAfterStoploss && strategy.buyBackToken) {
-      const instrument = instrumentMap[strategy.buyBackToken];
+    if (soldBuyBackAfterStoploss && buyBackToken) {
+      const instrument = instrumentMap[buyBackToken];
       if (instrument) {
         history.push({
-          id: `sell-buy-back-${strategy.buyBackToken}`,
+          id: `sell-buy-back-${buyBackToken}`,
           action: 'SELL',
           symbol: instrument.symbol,
           price: instrument.last,
@@ -274,14 +292,14 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
           </div>
           <div className="text-center">
             <div className="text-sm text-gray-600">Sold at -10</div>
-            <div className={`text-lg font-semibold ${strategy.soldAt10 ? 'text-red-600' : 'text-gray-400'}`}>
-              {strategy.soldAt10 ? 'Yes' : 'No'}
+            <div className={`text-lg font-semibold ${soldAt10 ? 'text-red-600' : 'text-gray-400'}`}>
+              {soldAt10 ? 'Yes' : 'No'}
             </div>
           </div>
           <div className="text-center">
             <div className="text-sm text-gray-600">Buy Back</div>
-            <div className={`text-lg font-semibold ${strategy.buyBackAfterStoploss ? 'text-blue-600' : 'text-gray-400'}`}>
-              {strategy.buyBackAfterStoploss ? 'Active' : 'Inactive'}
+            <div className={`text-lg font-semibold ${(instrumentData?.buyBackAfterStoploss || strategy.buyBackAfterStoploss) ? 'text-blue-600' : 'text-gray-400'}`}>
+              {(instrumentData?.buyBackAfterStoploss || strategy.buyBackAfterStoploss) ? 'Active' : 'Inactive'}
             </div>
           </div>
         </div>

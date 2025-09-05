@@ -4,14 +4,15 @@ import { TrendingUp, TrendingDown, Target, AlertTriangle, Clock } from 'lucide-r
 const InstrumentTiles = ({ strategy, instrumentData }) => {
   if (!strategy) return null;
 
-  const instrumentMap = strategy.universalDict?.instrumentMap || {};
-  const ceTokens = strategy.universalDict?.ceTokens || [];
-  const peTokens = strategy.universalDict?.peTokens || [];
+  // Use instrumentData if available, otherwise fall back to strategy
+  const instrumentMap = instrumentData?.instrumentMap || strategy.universalDict?.instrumentMap || {};
+  const ceTokens = instrumentData?.ceTokens || strategy.universalDict?.ceTokens || [];
+  const peTokens = instrumentData?.peTokens || strategy.universalDict?.peTokens || [];
   
-  // Get the main instruments being traded
-  const buyToken = strategy.buyToken;
-  const oppBuyToken = strategy.oppBuyToken;
-  const halfdropInstrument = strategy.halfdrop_instrument;
+  // Get the main instruments being traded from instrumentData (real-time updates)
+  const buyToken = instrumentData?.buyToken || strategy.buyToken;
+  const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
+  const halfdropInstrument = instrumentData?.halfdrop_instrument || strategy.halfdrop_instrument;
   
   // Get instrument data for display
   const getInstrumentData = (token) => {
@@ -200,10 +201,13 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
             <Clock className="h-4 w-4 text-green-500" />
           </div>
           {(() => {
-            const instrument = getInstrumentData(strategy.buyBackToken);
+            const buyBackToken = instrumentData?.buyBackToken || strategy.buyBackToken;
+            const instrument = getInstrumentData(buyBackToken);
             if (!instrument) return <div className="text-sm text-gray-500">Loading...</div>;
             
             const pnl = calculatePnL(instrument);
+            const buyBackPrice = instrumentData?.buyBackPrice || strategy.buyBackPrice;
+            const buyBackTarget = instrumentData?.buyBackTarget || strategy.buyBackTarget;
             
             return (
               <div className="space-y-2">
@@ -217,11 +221,11 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Buy Price:</span>
-                  <span className="text-sm font-mono">{formatPrice(strategy.buyBackPrice)}</span>
+                  <span className="text-sm font-mono">{formatPrice(buyBackPrice)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Target:</span>
-                  <span className="text-sm font-mono">{formatPrice(strategy.buyBackTarget)}</span>
+                  <span className="text-sm font-mono">{formatPrice(buyBackTarget)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">P&L:</span>

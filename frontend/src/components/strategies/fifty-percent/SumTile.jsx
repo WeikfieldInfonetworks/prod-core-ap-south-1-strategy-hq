@@ -4,7 +4,8 @@ import { DollarSign, TrendingUp, TrendingDown, Target, AlertTriangle, Clock } fr
 const SumTile = ({ strategy, instrumentData }) => {
   if (!strategy) return null;
 
-  const instrumentMap = strategy.universalDict?.instrumentMap || {};
+  // Use instrumentData if available, otherwise fall back to strategy
+  const instrumentMap = instrumentData?.instrumentMap || strategy.universalDict?.instrumentMap || {};
   const quantity = strategy.globalDict?.quantity || 75;
   const target = strategy.globalDict?.target || 7;
   const stoploss = strategy.globalDict?.stoploss || -100;
@@ -21,9 +22,14 @@ const SumTile = ({ strategy, instrumentData }) => {
     return instrumentMap[token];
   };
 
-  const buyTokenInstrument = getInstrumentData(strategy.buyToken);
-  const oppBuyTokenInstrument = getInstrumentData(strategy.oppBuyToken);
-  const buyBackInstrument = getInstrumentData(strategy.buyBackToken);
+  // Get chosen instruments from instrumentData (real-time updates) or fall back to strategy
+  const buyToken = instrumentData?.buyToken || strategy.buyToken;
+  const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
+  const buyBackToken = instrumentData?.buyBackToken || strategy.buyBackToken;
+  
+  const buyTokenInstrument = getInstrumentData(buyToken);
+  const oppBuyTokenInstrument = getInstrumentData(oppBuyToken);
+  const buyBackInstrument = getInstrumentData(buyBackToken);
 
   // Calculate individual P&Ls
   const buyTokenPnL = calculatePnL(buyTokenInstrument);
@@ -44,8 +50,9 @@ const SumTile = ({ strategy, instrumentData }) => {
   if (oppBuyTokenInstrument && oppBuyTokenInstrument.buyPrice !== -1) {
     totalInvestment += oppBuyTokenInstrument.buyPrice * quantity;
   }
-  if (buyBackInstrument && strategy.buyBackPrice) {
-    totalInvestment += strategy.buyBackPrice * quantity;
+  const buyBackPrice = instrumentData?.buyBackPrice || strategy.buyBackPrice;
+  if (buyBackInstrument && buyBackPrice) {
+    totalInvestment += buyBackPrice * quantity;
   }
 
   // Calculate current value
