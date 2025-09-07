@@ -34,6 +34,10 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmSoldAt24 = false;
         this.mtmSoldAt36 = false;
         this.boughtSold = false;
+        this.cancelled_24 = false;
+        this.entry_24 = false;
+        this.entry_36 = false;
+        this.entry_7 = false;
         this.mtmFirstToSell = null;
         this.mtmFirstToSellPrice = null;
         this.mtmNextToSell = null;
@@ -48,6 +52,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmPriceAt36Sell = null; // Store price of remaining instrument at -36 sell time
         this.mtmPriceAt10Sell = null; // Store price of remaining instrument at -10 sell time
         this.mtmSoldAt24Symbol = null; // Store symbol of instrument sold at +24 for buy back
+        this.mtmBuyBackInstrument = null;
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
@@ -172,13 +177,17 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmPriceAt36Sell = null; // Store price of remaining instrument at -36 sell time
         this.mtmPriceAt10Sell = null; // Store price of remaining instrument at -10 sell time
         this.mtmSoldAt24Symbol = null; // Store symbol of instrument sold at +24 for buy back
+        this.mtmBuyBackInstrument = null;
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
         this.mtm10firstHit = false;
-
+        this.cancelled_24 = false;
+        this.entry_24 = false;
+        this.entry_36 = false;
+        this.entry_7 = false;
         // Reset block states
         this.blockInit = true;
         this.blockUpdate = false;
@@ -291,6 +300,13 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processInitBlock(ticks) {
+        // this.strategyUtils.logStrategyInfo('Processing INIT block');
+        // this.strategyUtils.logStrategyInfo(`Received ticks: ${ticks.length}`);
+        // this.strategyUtils.logStrategyDebug(`Sample tick data: ${JSON.stringify(ticks.slice(0, 3).map(t => ({
+        //     token: t.instrument_token,
+        //     symbol: t.symbol,
+        //     price: t.last_price
+        // })))}`);
         
         // Skip buy after first cycle
         if (this.universalDict.cycles >= 1) {
@@ -299,35 +315,71 @@ class MTMV2Strategy extends BaseStrategy {
             this.globalDict.enableTrading = false;
         }
 
+        // Set strike base and diff based on weekday
+        const today = new Date().getDay();
+        const expiryDay = parseInt(this.universalDict.expiry || 3);
+        
+        if (today === expiryDay) {
+            this.universalDict.strikeBase = 165;
+            this.universalDict.strikeDiff = 35;
+            this.universalDict.strikeLowest = 150;
+        } else if (today === expiryDay - 1) {
+            this.universalDict.strikeBase = 165;
+            this.universalDict.strikeDiff = 35;
+            this.universalDict.strikeLowest = 150;
+        } else {
+            this.universalDict.strikeBase = 170;
+            this.universalDict.strikeDiff = 30;
+            this.universalDict.strikeLowest = 150;
+        }
+
+        this.strategyUtils.logStrategyInfo(`Range: ${this.universalDict.strikeBase} - ${this.universalDict.strikeBase + this.universalDict.strikeDiff}`);
+
+        // Sort ticks by least deviation from target price (200 on normal days, 100 on expiry day)
+        // const targetPrice = today === expiryDay ? 100 : 200;
         const targetPrice = 200;
         const sortedTicks = ticks.sort((a, b) => {
             const deviationA = Math.abs(a.last_price - targetPrice);
             const deviationB = Math.abs(b.last_price - targetPrice);
             return deviationA - deviationB;
         });
-
-        const closestCE = sortedTicks
-        .filter(tick => tick.instrument_type === 'CE' && tick.last_price <= targetPrice)
-        .reduce((closest, current) => {
-          if (!closest) return current; // first valid CE
-          const devClosest = Math.abs(closest.last_price - targetPrice);
-          const devCurrent = Math.abs(current.last_price - targetPrice);
-          return devCurrent < devClosest ? current : closest;
-        }, null);
-
-        const closestPE = sortedTicks
-        .filter(tick => tick.instrument_type === 'PE' && tick.last_price <= targetPrice)
-        .reduce((closest, current) => {
-          if (!closest) return current; // first valid CE
-          const devClosest = Math.abs(closest.last_price - targetPrice);
-          const devCurrent = Math.abs(current.last_price - targetPrice);
-          return devCurrent < devClosest ? current : closest;
-        }, null);
         
-        this.universalDict.ceTokens = [closestCE];
-        this.universalDict.peTokens = [closestPE];
+        // Find accepted tokens within range with dynamic adjustment
+        const rangeResult = this.strategyUtils.findTokensInDynamicRange(
+            sortedTicks,
+            this.universalDict.strikeBase,
+            this.universalDict.strikeDiff,
+            this.universalDict.strikeLowest,
+            5 // adjustment step
+        );
+        
+        const acceptedTokens = rangeResult.acceptedTokens;
+        const rejectedTokens = rangeResult.rejectedTokens;
 
-        let acceptedTokens = [closestCE.instrument_token, closestPE.instrument_token];
+        this.strategyUtils.logStrategyInfo(`Accepted tokens: ${acceptedTokens.length}`);
+        this.strategyUtils.logStrategyInfo(`Rejected tokens: ${rejectedTokens.length}`);
+        this.strategyUtils.logStrategyDebug(`Accepted token prices: ${acceptedTokens.slice(0, 5).map(token => {
+            const tick = ticks.find(t => t.instrument_token === token);
+            return tick ? tick.last_price : 'unknown';
+        })}`);
+
+        // Check if we have any accepted tokens
+        if (acceptedTokens.length === 0) {
+            this.strategyUtils.logStrategyInfo('No accepted tokens found - waiting for next tick batch');
+            return; // Stay in INIT block and wait for more ticks
+        }
+
+        // Separate CE and PE tokens using utility functions
+        const { ceTokens, peTokens } = this.strategyUtils.separateCETokensAndPETokens(
+            acceptedTokens, 
+            (token) => {
+                const tick = ticks.find(t => t.instrument_token === token);
+                return tick ? tick.symbol : null;
+            }
+        );
+        
+        this.universalDict.ceTokens = ceTokens;
+        this.universalDict.peTokens = peTokens;
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -592,128 +644,149 @@ class MTMV2Strategy extends BaseStrategy {
     }
 
     processDiff10Block(ticks) {
-        console.log('Processing DIFF10 block');
 
-        //EMIT NUMBER #1 - Real-time instrument data for dashboard tiles
-        if (this.boughtToken && this.oppBoughtToken) {
-            const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
-            const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
-            
-            if (boughtInstrument && oppInstrument) {
-                const boughtDiff = boughtInstrument.buyPrice > 0 ? boughtInstrument.last - boughtInstrument.buyPrice : 0;
-                const oppDiff = oppInstrument.buyPrice > 0 ? oppInstrument.last - oppInstrument.buyPrice : 0;
-                const sumLtp = boughtInstrument.last + oppInstrument.last;
-                const sumBp = (boughtInstrument.buyPrice || 0) + (oppInstrument.buyPrice || 0);
-                const sumDiff = sumBp > 0 ? sumLtp - sumBp : 0;
-                
-                this.emitStatusUpdate('instrument_data_update', {
-                    boughtInstrument: {
-                        token: this.boughtToken,
-                        symbol: boughtInstrument.symbol,
-                        displayName: boughtInstrument.symbol.slice(-7), // Last 7 characters
-                        ltp: boughtInstrument.last,
-                        buyPrice: boughtInstrument.buyPrice || 0,
-                        diff: boughtDiff,
-                        type: boughtInstrument.symbol.includes('CE') ? 'CE' : 'PE'
-                    },
-                    oppInstrument: {
-                        token: this.oppBoughtToken,
-                        symbol: oppInstrument.symbol,
-                        displayName: oppInstrument.symbol.slice(-7), // Last 7 characters
-                        ltp: oppInstrument.last,
-                        buyPrice: oppInstrument.buyPrice || 0,
-                        diff: oppDiff,
-                        type: oppInstrument.symbol.includes('CE') ? 'CE' : 'PE'
-                    },
-                    sum: {
-                        ltp: sumLtp,
-                        buyPrice: sumBp,
-                        diff: sumDiff
-                    },
-                    realTimeUpdate: true
-                });
+        const instrument_1 = this.universalDict.instrumentMap[this.boughtToken];
+        const instrument_2 = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+        if (!instrument_1 || !instrument_2) {
+            this.strategyUtils.logStrategyError('Cannot process DIFF10 block - instrument data not found');
+            return;
+        }
+
+        const instrument_1_original_change = instrument_1.last - instrument_1.buyPrice;
+        const instrument_2_original_change = instrument_2.last - instrument_2.buyPrice;
+        const mtm = instrument_1_original_change + instrument_2_original_change;
+
+        const hit_24 = instrument_1_original_change >= this.globalDict.sellAt24Limit || instrument_2_original_change >= this.globalDict.sellAt24Limit;
+        let who_hit_24 = null;
+        if(!this.cancelled_24){
+            this.cancelled_24 = hit_24 && mtm >= 0;
+        }
+
+        if(!this.entry_24){
+            this.entry_24 = hit_24 && mtm < 0 && !this.cancelled_24 && !this.entry_36 && !this.entry_7;
+            who_hit_24 = instrument_1_original_change >= this.globalDict.sellAt24Limit ? instrument_1 : instrument_2;
+        }
+
+        const hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit || instrument_2_original_change <= this.globalDict.sellAt36Limit;
+        let who_hit_36 = null;
+        const less_than_24 = (instrument) => instrument.token == instrument_1.token ? instrument_1_original_change < this.globalDict.sellAt24Limit : instrument_2_original_change < this.globalDict.sellAt24Limit;
+
+        if(!this.entry_36){
+            this.entry_36 = hit_36 && !this.entry_24 && !this.entry_7;
+            who_hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit ? instrument_1 : instrument_2;
+        }
+
+        const hit_7 = mtm >= this.globalDict.target;
+        const reached_stoploss = mtm <= this.globalDict.stoploss;
+        if(!this.entry_7){
+            this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36;
+        }
+
+        if(this.entry_7){
+            this.boughtSold = true;
+            // SELL LOGIC.
+        }
+
+        if(this.entry_24){
+            let first_instrument = who_hit_24;
+            let second_instrument = who_hit_24 === instrument_1 ? instrument_2 : instrument_1;
+            let second_instrument_change = second_instrument === instrument_1 ? instrument_1_original_change : instrument_2_original_change;
+
+            if(!this.entry_24_first_stage){
+                this.entry_24_first_stage = true;
+                // SELL LOGIC FOR FIRST INSTRUMENT.
+            }
+
+            if(!this.entry_24_second_stage && this.entry_24_first_stage){
+                let target = mtm - this.mtmPriceAt24Sell;
+                if (second_instrument_change >= target){
+                    this.boughtSold = true;
+                    this.entry_24_second_stage = true;
+                    // SELL LOGIC FOR SECOND INSTRUMENT.
+                }
+                else if (second_instrument_change <= this.globalDict.sellAt36Limit){
+                    this.mtmBuyBackInstrument = second_instrument.symbol.includes('CE') ? this.strategyUtils.findClosestPEBelowPrice(
+                        this.universalDict.instrumentMap, 
+                        200, 
+                        200
+                    ) : this.strategyUtils.findClosestCEBelowPrice(
+                        this.universalDict.instrumentMap, 
+                        200, 200);
+                    
+                    // SELL SECOND INSTRUMENT LOGIC.
+
+                    //BUY BACK BUYING LOGIC
+
+                    this.buyBackTarget = mtm - this.mtmPriceAt24Sell - this.priceAt36Sell;
+
+                    this.entry_24_second_stage = true;
+                }
+            }
+
+            if(!this.entry_24_third_stage && this.entry_24_second_stage && !this.boughtSold){
+                let change = this.buyBackInstrument.last - this.buyBackInstrument.buyPrice;
+                if(change >= this.buyBackTarget){
+                    this.boughtSold = true;
+                    this.entry_24_third_stage = true;
+                    // SELL LOGIC FOR BUY BACK INSTRUMENT.
+                }
+                // else if(change <= this.globalDict.sellAt36Limit){
+                //     this.boughtSold = true;
+                //     this.entry_24_third_stage = true;
+                //     // SELL LOGIC FOR BUY BACK INSTRUMENT.
+                // }
             }
         }
 
-        if(this.mtmSoldAt10 && !this.mtm10tracked){
-            let status = this.globalDict.sellFirstAt10.toUpperCase()
-            let firstInstrument = this.universalDict.instrumentMap[this.mtmFirstToSell.token];
-            let secondInstrument = this.universalDict.instrumentMap[this.mtmNextToSell.token];
-
-            let firstChange = firstInstrument.last - this.mtmFirstToSellPrice;
-            let secondChange = secondInstrument.last - this.mtmPriceAt10Sell;
-
-            let firstHitTarget = firstChange >= this.mtmAssistedTarget2;
-            let secondHitTarget = secondChange >= this.mtmAssistedTarget2;
-
-            if(firstHitTarget){
-                this.strategyUtils.logStrategyInfo(`${firstInstrument.symbol} hit target with ${status == "HIGHER" ? "LOWER" : "HIGHER"}`);
-                this.mtm10tracked = true;
+        if(this.entry_36){
+            let first_instrument = who_hit_36;
+            let second_instrument = who_hit_36 === instrument_1 ? instrument_2 : instrument_1;
+            let second_instrument_change = second_instrument === instrument_1 ? instrument_1_original_change : instrument_2_original_change;
+            if(!this.less_than_24){
+                this.less_than_24 = less_than_24(second_instrument);
             }
-            else if(secondHitTarget){
-                this.strategyUtils.logStrategyInfo(`${secondInstrument.symbol} hit target with ${status}`);
-                this.mtm10tracked = true;
+
+            if(!this.entry_36_first_stage){
+                this.entry_36_first_stage = true;
+                // SELL LOGIC FOR FIRST INSTRUMENT.
+            }
+
+            if(!this.entry_36_second_stage && this.entry_36_first_stage){
+                let target = this.less_than_24 ? this.globalDict.sellAt24Limit : mtm - this.mtmPriceAt36Sell;
+                if(second_instrument_change >= target){
+                    this.entry_36_second_stage = true;
+                    // SELL LOGIC FOR SECOND INSTRUMENT.
+
+                    if(!this.less_than_24){
+                        this.boughtSold = true;
+                    }
+                }
+            }
+
+            if(!this.entry_36_third_stage && this.entry_36_second_stage && !this.boughtSold){
+                this.buyBackInstrument = second_instrument.symbol.includes('CE') ? this.strategyUtils.findClosestPEBelowPrice(
+                    this.universalDict.instrumentMap, 
+                    200, 
+                    200
+                ) : this.strategyUtils.findClosestCEBelowPrice(
+                    this.universalDict.instrumentMap, 
+                    200, 200);
+
+                this.buyBackTarget = mtm - this.mtmPriceAt36Sell - this.mtmPriceAt24Sell;
+                this.entry_36_third_stage = true;
+                //BUYING LOGIC FOR NEW INSTRUMENT.
+            }
+
+            if(!this.entry_36_fourth_stage && this.entry_36_third_stage && !this.boughtSold){
+                let change = this.buyBackInstrument.last - this.buyBackInstrument.buyPrice;
+                if(change >= this.buyBackTarget){
+                    this.boughtSold = true;
+                    this.entry_36_fourth_stage = true;
+                    // SELL LOGIC FOR BUY BACK INSTRUMENT.
+                }
             }
         }
-        
-        // Check for sell conditions
-        if (this.shouldSellOptions() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
-            this.strategyUtils.logStrategyInfo('Selling options due to target/stoploss');
-            
-            // Emit real-time notification
-            this.emitStatusUpdate('Target/Stoploss reached - selling both options', {
-                action: 'sell_both_options',
-                reason: 'target_or_stoploss',
-                criticalAction: true
-            });
-            
-            this.sellOptions();
-        }
-
-        if (this.shouldSellAt10() && !this.mtmBothSold && !this.mtmSoldAt10 && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
-            this.strategyUtils.logStrategyInfo('Selling at -10 points');
-            this.sellAt10();
-        }
-
-        if (this.shouldSellRemainingAtTargetAfter10() && !this.mtmBothSold && this.mtmSoldAt10 && !this.mtmNextSellAfter10 && !this.mtmSoldAt24 && !this.mtmSoldAt36) {
-            this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 10 point. Buying if stoploss is reached');
-            this.sellRemainingAtTargetAfter10();
-        }
-        
-        if (this.shouldSellAt24() && !this.mtmBothSold && !this.mtmSoldAt24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
-            this.strategyUtils.logStrategyInfo('Selling at 24 points');
-            
-            // Emit real-time notification
-            this.emitStatusUpdate('Selling one option at +24 points', {
-                action: 'sell_at_24',
-                reason: '+24_points_reached',
-                criticalAction: true
-            });
-            
-            this.sellAt24();
-        } 
-        
-        if (this.shouldSellRemainingAtTarget() && !this.mtmBothSold && this.mtmSoldAt24 && !this.mtmNextSellAfter24 && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
-            this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 24 point. Buying if stoploss is reached');
-            this.sellRemainingAtTarget();
-        } 
-        
-        if (this.shouldSellBuyBack() && !this.mtmBothSold && this.buyBackAfter24 && !this.sellBuyBackAfter24 && !this.boughtSold && !this.mtmSoldAt36 && !(this.mtmSoldAt10 && this.mtm10firstHit)) {
-            this.strategyUtils.logStrategyInfo('Selling buy-back instrument after 24 point.');
-            this.sellBuyBack();
-        }
-
-        if (this.shouldSellAt36() && !this.mtmBothSold && !this.mtmSoldAt10 && !this.mtmSoldAt24 && !this.mtmSoldAt36 && false) {
-            this.strategyUtils.logStrategyInfo('Selling at -36 points.');
-            this.sellAt36();
-        } 
-
-        if (this.shouldSellRemainingAtTargetAfter36() && !this.mtmBothSold && !this.mtmSoldAt10 && this.mtmSoldAt36 && !this.mtmSoldAt24 && !this.boughtSold && false) {
-            this.strategyUtils.logStrategyInfo('Selling remaining instrument at target after 36 point. Buying if stoploss is reached');
-            this.sellRemainingAtTargetAfter36();
-        }
-        
-        
         // Check if cycle is complete
         if (this.boughtSold) {
             this.blockDiff10 = false;
@@ -1894,6 +1967,10 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmSoldAt24 = false;
         this.mtmSoldAt36 = false;
         this.boughtSold = false;
+        this.cancelled_24 = false;
+        this.entry_24 = false;
+        this.entry_36 = false;
+        this.entry_7 = false;
         this.mtmFirstToSell = null;
         this.mtmFirstToSellPrice = null;
         this.mtmNextToSell = null;
@@ -1906,6 +1983,7 @@ class MTMV2Strategy extends BaseStrategy {
         this.mtmPriceAt36Sell = null; // Store price of remaining instrument at -36 sell time
         this.mtmPriceAt10Sell = null; // Store price of remaining instrument at -10 sell time
         this.mtmSoldAt24Symbol = null; // Store symbol of instrument sold at +24 for buy back
+        this.mtmBuyBackInstrument = null;
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
