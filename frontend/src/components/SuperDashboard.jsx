@@ -48,6 +48,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <MTMv2Dashboard strategy={currentStrategy} />;
       case 'Fifty Percent Strategy New':
         return <FiftyPercentDashboard strategy={currentStrategy} />;
+      case 'MTM V3 Strategy':
+        return <MTMv2Dashboard strategy={currentStrategy} />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center">

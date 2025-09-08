@@ -2,11 +2,11 @@ const BaseStrategy = require('./base');
 const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
 
-class MTMV2Strategy extends BaseStrategy {
+class MTMV3Strategy extends BaseStrategy {
     constructor() {
         super();
-        this.name = 'MTM V2 Strategy';
-        this.description = 'Mark to Market strategy with interim low detection and dual option trading';
+        this.name = 'MTM V3 Strategy';
+        this.description = 'Mark to Market strategy with interim low detection and dual option trading - New';
         this.strategyUtils = new StrategyUtils();
         
         // Strategy state variables
@@ -95,18 +95,20 @@ class MTMV2Strategy extends BaseStrategy {
         this.less_than_24 = false;
         this.buyBackInstrument = null;
         this.buyBackTarget = 0;
+        this.who_hit_24 = null;
+        this.who_hit_36 = null;
     }
 
     setUserInfo(userName, userId) {
         this.strategyUtils.setUserInfo(userName, userId);
-        this.strategyUtils.logStrategyInfo(`MTM V2 Strategy initialized for user: ${userName} (ID: ${userId})`);
+        this.strategyUtils.logStrategyInfo(`MTM V3 Strategy initialized for user: ${userName} (ID: ${userId})`);
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
         // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
-        console.log('=== MTM V2 Strategy Initialization ===');
+        console.log('=== MTM V3 Strategy Initialization ===');
         console.log(`Strategy Name: ${this.name}`);
         console.log(`Strategy Description: ${this.description}`);
         console.log(`Access Token Available: ${!!this.accessToken}`);
@@ -212,6 +214,8 @@ class MTMV2Strategy extends BaseStrategy {
         this.less_than_24 = false;
         this.buyBackInstrument = null;
         this.buyBackTarget = 0;
+        this.who_hit_24 = null;
+        this.who_hit_36 = null;
         
         // Reset block states
         this.blockInit = true;
@@ -480,7 +484,8 @@ class MTMV2Strategy extends BaseStrategy {
                     flagPlus3: false,
                     flagPeakAndFall: false,
                     flagCalcRef: false,
-                    flagInterim: false
+                    flagInterim: false,
+                    flagCancel24: false,
                 };
             }
 
@@ -676,27 +681,36 @@ class MTMV2Strategy extends BaseStrategy {
         const instrument_2_original_change = instrument_2.last - instrument_2.buyPrice;
         const mtm = instrument_1_original_change + instrument_2_original_change;
 
+        console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
+
         const hit_24 = instrument_1_original_change >= this.globalDict.sellAt24Limit || instrument_2_original_change >= this.globalDict.sellAt24Limit;
-        let who_hit_24 = null;
-        if(!this.cancelled_24){
-            this.cancelled_24 = hit_24 && mtm >= 0;
-            if (this.cancelled_24){
-                this.strategyUtils.logStrategyInfo(`24 points cancelled for this cycle due to mtm >= 0`);
-            }
+        let who_hit_24_temp = null;
+
+        if(hit_24){
+            who_hit_24_temp = instrument_1_original_change >= this.globalDict.sellAt24Limit ? instrument_1 : instrument_2;
         }
 
+        if(who_hit_24_temp){
+            if(!who_hit_24_temp.flagCancel24){
+                who_hit_24_temp.flagCancel24 = hit_24 && mtm >= 0;
+                if (who_hit_24_temp.flagCancel24){
+                    this.strategyUtils.logStrategyInfo(`24 points cancelled for ${who_hit_24_temp.symbol} due to mtm >= 0`);
+                }
+            }
+        }
+        
+
         if(!this.entry_24){
-            this.entry_24 = hit_24 && mtm < 0 && !this.cancelled_24 && !this.entry_36 && !this.entry_7;
-            who_hit_24 = instrument_1_original_change >= this.globalDict.sellAt24Limit ? instrument_1 : instrument_2;
+            this.entry_24 = hit_24 && mtm < 0 && !who_hit_24_temp.flagCancel24 && !this.entry_36 && !this.entry_7;
+            this.who_hit_24 = who_hit_24_temp;
         }
 
         const hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit || instrument_2_original_change <= this.globalDict.sellAt36Limit;
-        let who_hit_36 = null;
         const checkLessThan24 = (instrument) => instrument.token == instrument_1.token ? instrument_1_original_change < this.globalDict.sellAt24Limit : instrument_2_original_change < this.globalDict.sellAt24Limit;
 
         if(!this.entry_36){
             this.entry_36 = hit_36 && !this.entry_24 && !this.entry_7;
-            who_hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit ? instrument_1 : instrument_2;
+            this.who_hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit ? instrument_1 : instrument_2;
         }
 
         const hit_7 = mtm >= this.globalDict.target;
@@ -721,8 +735,8 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         if(this.entry_24){
-            let first_instrument = who_hit_24;
-            let second_instrument = who_hit_24 === instrument_1 ? instrument_2 : instrument_1;
+            let first_instrument = this.who_hit_24;
+            let second_instrument = this.who_hit_24 === instrument_1 ? instrument_2 : instrument_1;
             let second_instrument_change = second_instrument === instrument_1 ? instrument_1_original_change : instrument_2_original_change;
 
             if(!this.entry_24_first_stage){
@@ -744,7 +758,8 @@ class MTMV2Strategy extends BaseStrategy {
             }
 
             if(!this.entry_24_second_stage && this.entry_24_first_stage){
-                let target = mtm - (this.mtmPriceAt24Sell - first_instrument.buyPrice);
+                let target = this.globalDict.target - (this.mtmPriceAt24Sell - first_instrument.buyPrice);
+                // this.strategyUtils.logStrategyInfo(`Target: ${target}`);
                 if (second_instrument_change >= target){
                     this.boughtSold = true;
                     this.entry_24_second_stage = true;
@@ -790,7 +805,23 @@ class MTMV2Strategy extends BaseStrategy {
                         this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
                     }
 
-                    this.buyBackTarget = mtm - (this.mtmPriceAt24Sell - first_instrument.buyPrice) - (this.mtmPriceAt36Sell - second_instrument.buyPrice);
+                    this.buyBackTarget = this.globalDict.target - (this.mtmPriceAt24Sell - first_instrument.buyPrice) - (this.mtmPriceAt36Sell - second_instrument.buyPrice);
+                    this.strategyUtils.logStrategyInfo(`Symbol: ${this.buyBackInstrument.symbol} Buy back target: ${this.buyBackTarget}`);
+
+                    // BUYING LOGIC FOR BUY BACK INSTRUMENT - Buy the opposite instrument
+                    try {
+                        const buyResult = await this.buyInstrument(this.buyBackInstrument);
+                        if (buyResult && buyResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Buy back instrument bought - Executed price: ${buyResult.executedPrice}`);
+                            this.buyBackInstrument.buyPrice = buyResult.executedPrice || this.buyBackInstrument.last;
+                        } else {
+                            this.strategyUtils.logStrategyError('Failed to buy back instrument');
+                            this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
+                        }
+                    } catch (error) {
+                        this.strategyUtils.logStrategyError(`Error buying back instrument: ${error.message}`);
+                        this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
+                    }
 
                     this.entry_24_second_stage = true;
                 }
@@ -824,8 +855,8 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         if(this.entry_36){
-            let first_instrument = who_hit_36;
-            let second_instrument = who_hit_36 === instrument_1 ? instrument_2 : instrument_1;
+            let first_instrument = this.who_hit_36;
+            let second_instrument = this.who_hit_36 === instrument_1 ? instrument_2 : instrument_1;
             let second_instrument_change = second_instrument === instrument_1 ? instrument_1_original_change : instrument_2_original_change;
             if(!this.less_than_24){
                 this.less_than_24 = checkLessThan24(second_instrument);
@@ -850,7 +881,7 @@ class MTMV2Strategy extends BaseStrategy {
             }
 
             if(!this.entry_36_second_stage && this.entry_36_first_stage){
-                let target = this.less_than_24 ? this.globalDict.sellAt24Limit : mtm - (this.mtmPriceAt36Sell - first_instrument.buyPrice);
+                let target = this.less_than_24 ? this.globalDict.sellAt24Limit : this.globalDict.target - (this.mtmPriceAt36Sell - first_instrument.buyPrice);
                 if(second_instrument_change >= target){
                     this.entry_36_second_stage = true;
                     // SELL LOGIC FOR SECOND INSTRUMENT - Sell remaining instrument at target
@@ -882,7 +913,7 @@ class MTMV2Strategy extends BaseStrategy {
                     200, 200);
 
                 if (this.buyBackInstrument) {
-                    this.buyBackTarget = mtm - (this.mtmPriceAt36Sell - first_instrument.buyPrice) - (this.mtmPriceAt24Sell - second_instrument.buyPrice);
+                    this.buyBackTarget = this.globalDict.target - (this.mtmPriceAt36Sell - first_instrument.buyPrice) - (this.mtmPriceAt24Sell - second_instrument.buyPrice);
                     this.entry_36_third_stage = true;
                     //BUYING LOGIC FOR NEW INSTRUMENT - Buy the opposite instrument
                     this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
@@ -890,11 +921,14 @@ class MTMV2Strategy extends BaseStrategy {
                         const buyResult = await this.buyInstrument(this.buyBackInstrument);
                         if (buyResult && buyResult.success) {
                             this.strategyUtils.logStrategyInfo(`Buy back instrument bought - Executed price: ${buyResult.executedPrice}`);
+                            this.buyBackInstrument.buyPrice = buyResult.executedPrice || this.buyBackInstrument.last;
                         } else {
                             this.strategyUtils.logStrategyError('Failed to buy back instrument');
+                            this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error buying back instrument: ${error.message}`);
+                        this.buyBackInstrument.buyPrice = this.buyBackInstrument.last;
                     }
                 }
             }
@@ -2193,7 +2227,8 @@ class MTMV2Strategy extends BaseStrategy {
         this.less_than_24 = false;
         this.buyBackInstrument = null;
         this.buyBackTarget = 0;
-        
+        this.who_hit_24 = null;
+        this.who_hit_36 = null;
         // Reset tokens
         this.mainToken = null;
         this.oppToken = null;
@@ -2405,7 +2440,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         const tradingUtils = this.tradingUtils;
-        const executedPrices = { instrument1: null, instrument2: null };
+        const executedPrices = { instrument1: instrument1.last, instrument2: instrument2.last };
 
         try {
             if (tradingEnabled) {
@@ -2519,7 +2554,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         const tradingUtils = this.tradingUtils;
-        let executedPrice = null;
+        let executedPrice = instrument.last;
 
         try {
             if (tradingEnabled) {
@@ -2593,7 +2628,7 @@ class MTMV2Strategy extends BaseStrategy {
         }
 
         const tradingUtils = this.tradingUtils;
-        let executedPrice = null;
+        let executedPrice = instrument.last;
 
         try {
             if (tradingEnabled) {
@@ -2752,4 +2787,4 @@ class MTMV2Strategy extends BaseStrategy {
     }
 }
 
-module.exports = MTMV2Strategy;
+module.exports = MTMV3Strategy;
