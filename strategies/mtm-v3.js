@@ -317,6 +317,9 @@ class MTMV2Strategy extends BaseStrategy {
                 await this.processNextCycleBlock(ticks);
             }
             
+            // Emit instrument data update for dashboard
+            this.emitInstrumentDataUpdate();
+            
             console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
         } catch (error) {
             console.error(`Error in processTicks for tick batch #${this.tickCount}:`, error);
@@ -433,13 +436,10 @@ class MTMV2Strategy extends BaseStrategy {
         console.log('Transitioning from INIT to UPDATE block');
         
         // Emit real-time block transition notification
-        this.emitStatusUpdate('Block transition: INIT → UPDATE', {
-            fromBlock: 'INIT',
-            toBlock: 'UPDATE',
+        this.emitBlockTransition('INIT', 'UPDATE', {
             acceptedTokens: acceptedTokens.length,
             ceTokens: this.universalDict.ceTokens.length,
-            peTokens: this.universalDict.peTokens.length,
-            blockTransition: true
+            peTokens: this.universalDict.peTokens.length
         });
     }
 
@@ -554,13 +554,10 @@ class MTMV2Strategy extends BaseStrategy {
             this.blockFinalRef = true;
             
             // Emit real-time block transition notification
-            this.emitStatusUpdate('Block transition: UPDATE → FINAL_REF', {
-                fromBlock: 'UPDATE',
-                toBlock: 'FINAL_REF',
+            this.emitBlockTransition('UPDATE', 'FINAL_REF', {
                 reason: this.interimLowReached ? 'Interim low reached' : 'Calc ref reached',
                 interimLowReached: this.interimLowReached,
-                calcRefReached: this.calcRefReached,
-                blockTransition: true
+                calcRefReached: this.calcRefReached
             });
         }
         // Note: UPDATE block continues monitoring until transition conditions are met
@@ -637,12 +634,9 @@ class MTMV2Strategy extends BaseStrategy {
             this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
             
             // Emit real-time notifications
-            this.emitStatusUpdate('Orders placed - transitioning to monitoring', {
-                fromBlock: 'FINAL_REF',
-                toBlock: 'DIFF10',
+            this.emitBlockTransition('FINAL_REF', 'DIFF10', {
                 boughtSymbol: this.universalDict.instrumentMap[this.boughtToken]?.symbol,
                 oppSymbol: this.universalDict.instrumentMap[this.oppBoughtToken]?.symbol,
-                blockTransition: true,
                 ordersPlaced: true
             });
         } else if (this.calcRefReached) {
@@ -933,12 +927,9 @@ class MTMV2Strategy extends BaseStrategy {
             this.strategyUtils.logStrategyInfo('Transitioning from DIFF10 to NEXT CYCLE block');
             
             // Emit real-time cycle completion notification
-            this.emitStatusUpdate('Cycle completed - preparing for next cycle', {
-                fromBlock: 'DIFF10',
-                toBlock: 'NEXT_CYCLE',
+            this.emitBlockTransition('DIFF10', 'NEXT_CYCLE', {
                 cycleCompleted: true,
-                currentCycle: this.universalDict.cycles || 0,
-                blockTransition: true
+                currentCycle: this.universalDict.cycles || 0
             });
         }
     }
@@ -954,12 +945,9 @@ class MTMV2Strategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
         
         // Emit cycle restart notification
-        this.emitStatusUpdate('New cycle started', {
-            fromBlock: 'NEXT_CYCLE',
-            toBlock: 'INIT',
+        this.emitBlockTransition('NEXT_CYCLE', 'INIT', {
             cycleNumber: this.universalDict.cycles || 0,
             cycleReset: true,
-            blockTransition: true,
             message: `Starting cycle ${this.universalDict.cycles || 0}`
         });
     }
@@ -1195,6 +1183,13 @@ class MTMV2Strategy extends BaseStrategy {
                 if (boughtOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${boughtInstrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken);
+                    
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('buy', {
+                        symbol: boughtInstrument.symbol,
+                        price: boughtInstrument.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${boughtInstrument.symbol}: ${boughtOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken, boughtOrderResult.error);
@@ -1229,6 +1224,13 @@ class MTMV2Strategy extends BaseStrategy {
                 if (oppOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${oppInstrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
+                    
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('buy', {
+                        symbol: oppInstrument.symbol,
+                        price: oppInstrument.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppOrderResult.error);
@@ -1470,6 +1472,14 @@ class MTMV2Strategy extends BaseStrategy {
                 debugMode: this.debugMode
             }, this.name);
 
+            // Emit trade action for dashboard
+            this.emitTradeAction('sell_remaining_at_target', {
+                symbol: remainingInstrument.symbol,
+                price: remainingInstrument.last,
+                remainingPnL: remainingPnL,
+                totalPnL: totalPnL
+            });
+
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling remaining instrument: ${error.message}`);
         }
@@ -1502,6 +1512,13 @@ class MTMV2Strategy extends BaseStrategy {
                     if (buyBackResult.success) {
                         this.strategyUtils.logStrategyInfo(`Buy back order placed for ${this.mtmNextToSell.symbol}`);
                         this.strategyUtils.logOrderPlaced('buy', this.mtmNextToSell.symbol, this.mtmNextToSell.last, this.globalDict.quantity || 75, this.mtmNextToSell.token);
+                        
+                        // Emit trade action for dashboard
+                        this.emitTradeAction('buy_back', {
+                            symbol: this.mtmNextToSell.symbol,
+                            price: this.mtmNextToSell.last,
+                            quantity: this.globalDict.quantity || 75
+                        });
                         
                         // Update buy price for the buy back instrument
                         this.mtmNextToSell.buyPrice = this.mtmNextToSell.last;
@@ -1678,6 +1695,13 @@ class MTMV2Strategy extends BaseStrategy {
                 debugMode: this.debugMode
             }, this.name);
 
+            // Emit trade action for dashboard
+            this.emitTradeAction('sell_both_options', {
+                symbol: `${mainInstrument.symbol}, ${oppInstrument.symbol}`,
+                price: `${mainInstrument.last}, ${oppInstrument.last}`,
+                totalPnL: totalPnL
+            });
+
         } catch (error) {
             this.strategyUtils.logStrategyInfo(`Exception while selling options: ${error.message}`);
         }
@@ -1820,6 +1844,14 @@ class MTMV2Strategy extends BaseStrategy {
                 remainingTarget: this.mtmAssistedTarget,
                 debugMode: this.debugMode
             }, this.name);
+
+            // Emit trade action for dashboard
+            this.emitTradeAction('sell_at_24', {
+                symbol: instrumentToSell.symbol,
+                price: instrumentToSell.last,
+                soldPnL: soldPnL,
+                remainingTarget: this.mtmAssistedTarget
+            });
 
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling at 24: ${error.message}`);
@@ -1991,6 +2023,13 @@ class MTMV2Strategy extends BaseStrategy {
                 debugMode: this.debugMode
             }, this.name);
 
+            // Emit trade action for dashboard
+            this.emitTradeAction('sell_buyback', {
+                symbol: buyBackInstrument.symbol,
+                price: buyBackInstrument.last,
+                buyBackPnL: buyBackPnL
+            });
+
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling buy-back: ${error.message}`);
         }
@@ -2082,6 +2121,13 @@ class MTMV2Strategy extends BaseStrategy {
                 remainingPnL: remainingPnL,
                 debugMode: this.debugMode
             }, this.name);
+
+            // Emit trade action for dashboard
+            this.emitTradeAction('sell_remaining_after_36', {
+                symbol: remainingInstrument.symbol,
+                price: remainingInstrument.last,
+                remainingPnL: remainingPnL
+            });
 
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling remaining instrument after 36: ${error.message}`);
@@ -2380,6 +2426,13 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument1.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                     
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('sell', {
+                        symbol: instrument1.symbol,
+                        price: instrument1.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
+                    
                     // Get order history for executed price
                     try {
                         const orderId1 = await sellResult1.orderId;
@@ -2399,6 +2452,13 @@ class MTMV2Strategy extends BaseStrategy {
                 if (sellResult2.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument2.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
+                    
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('sell', {
+                        symbol: instrument2.symbol,
+                        price: instrument2.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
                     
                     // Get order history for executed price
                     try {
@@ -2421,6 +2481,19 @@ class MTMV2Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument2.symbol} @ ${instrument2.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                 this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
+                
+                // Emit trade actions for dashboard (paper trading)
+                this.emitTradeAction('sell', {
+                    symbol: instrument1.symbol,
+                    price: instrument1.last,
+                    quantity: this.globalDict.quantity || 75
+                });
+                this.emitTradeAction('sell', {
+                    symbol: instrument2.symbol,
+                    price: instrument2.last,
+                    quantity: this.globalDict.quantity || 75
+                });
+                
                 executedPrices.instrument1 = instrument1.last;
                 executedPrices.instrument2 = instrument2.last;
             }
@@ -2461,6 +2534,13 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('sell', {
+                        symbol: instrument.symbol,
+                        price: instrument.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
+                    
                     // Get order history for executed price
                     try {
                         const orderId = await sellResult.orderId;
@@ -2481,6 +2561,14 @@ class MTMV2Strategy extends BaseStrategy {
                 // Paper trading
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
+                
+                // Emit trade action for dashboard (paper trading)
+                this.emitTradeAction('sell', {
+                    symbol: instrument.symbol,
+                    price: instrument.last,
+                    quantity: this.globalDict.quantity || 75
+                });
+                
                 executedPrice = instrument.last;
             }
             
@@ -2520,6 +2608,13 @@ class MTMV2Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
+                    // Emit trade action for dashboard
+                    this.emitTradeAction('buy', {
+                        symbol: instrument.symbol,
+                        price: instrument.last,
+                        quantity: this.globalDict.quantity || 75
+                    });
+                    
                     // Get order history for executed price and update buy price
                     try {
                         const orderId = await buyResult.orderId;
@@ -2546,6 +2641,13 @@ class MTMV2Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 
+                // Emit trade action for dashboard (paper trading)
+                this.emitTradeAction('buy', {
+                    symbol: instrument.symbol,
+                    price: instrument.last,
+                    quantity: this.globalDict.quantity || 75
+                });
+                
                 // Update buy price for paper trading
                 executedPrice = instrument.last;
                 instrument.buyPrice = instrument.last;
@@ -2556,6 +2658,97 @@ class MTMV2Strategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Exception while buying instrument: ${error.message}`);
             return { success: false, executedPrice: null };
         }
+    }
+
+    // Dashboard-specific emit methods for real-time updates
+    emitInstrumentDataUpdate() {
+        if (!this.boughtToken || !this.oppBoughtToken) {
+            return; // No instruments selected yet
+        }
+
+        const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
+        const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+        if (!boughtInstrument || !oppInstrument) {
+            return; // Instrument data not available
+        }
+
+        // Calculate differences from buy prices
+        const boughtDiff = boughtInstrument.buyPrice > 0 ? boughtInstrument.last - boughtInstrument.buyPrice : 0;
+        const oppDiff = oppInstrument.buyPrice > 0 ? oppInstrument.last - oppInstrument.buyPrice : 0;
+        const sumValue = boughtInstrument.last + oppInstrument.last;
+        const sumDiff = boughtDiff + oppDiff;
+
+        // Determine instrument types
+        const boughtType = boughtInstrument.symbol.includes('CE') ? 'CE' : 'PE';
+        const oppType = oppInstrument.symbol.includes('CE') ? 'CE' : 'PE';
+
+        const instrumentData = {
+            status: 'instrument_data_update',
+            boughtInstrument: {
+                symbol: boughtInstrument.symbol,
+                last: boughtInstrument.last,
+                buyPrice: boughtInstrument.buyPrice,
+                diff: boughtDiff,
+                type: boughtType,
+                token: boughtInstrument.token
+            },
+            oppInstrument: {
+                symbol: oppInstrument.symbol,
+                last: oppInstrument.last,
+                buyPrice: oppInstrument.buyPrice,
+                diff: oppDiff,
+                type: oppType,
+                token: oppInstrument.token
+            },
+            sum: {
+                value: sumValue,
+                diff: sumDiff
+            },
+            mtm: sumDiff,
+            timestamp: new Date().toISOString()
+        };
+
+        this.emitStatusUpdate('instrument_data_update', instrumentData);
+    }
+
+    emitTradeAction(action, tradeData) {
+        // Enhanced trade action emission for dashboard
+        const enhancedTradeData = {
+            action,
+            symbol: tradeData.symbol || tradeData.instrument?.symbol,
+            price: tradeData.price || tradeData.instrument?.last,
+            quantity: tradeData.quantity || this.globalDict.quantity || 75,
+            timestamp: new Date().toISOString(),
+            ...tradeData
+        };
+
+        this.emitToUser('strategy_trade_action', enhancedTradeData);
+    }
+
+    emitBlockTransition(fromBlock, toBlock, additionalData = {}) {
+        this.emitStatusUpdate('Block transition', {
+            fromBlock,
+            toBlock,
+            blockTransition: true,
+            ...additionalData
+        });
+    }
+
+    emitCycleUpdate(cycleNumber, message) {
+        this.emitStatusUpdate(message, {
+            cycleNumber,
+            cycleUpdate: true,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    emitTradingStatusUpdate(status, details = {}) {
+        this.emitStatusUpdate(status, {
+            tradingStatus: true,
+            ...details,
+            timestamp: new Date().toISOString()
+        });
     }
 }
 
