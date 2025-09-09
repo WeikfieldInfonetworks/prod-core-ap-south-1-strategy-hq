@@ -712,13 +712,13 @@ class MTMV3Strategy extends BaseStrategy {
             this.entry_36 = hit_36 && !this.entry_24 && !this.entry_7;
             this.who_hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit ? instrument_1 : instrument_2;
         }
-
+        
         const hit_7 = mtm >= this.globalDict.target;
         const reached_stoploss = mtm <= this.globalDict.stoploss;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36;
         }
-
+        
         if(this.entry_7){
             this.boughtSold = true;
             // SELL LOGIC - Sell both instruments at target or stoploss
@@ -733,12 +733,12 @@ class MTMV3Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
             }
         }
-
+        
         if(this.entry_24){
             let first_instrument = this.who_hit_24;
             let second_instrument = this.who_hit_24 === instrument_1 ? instrument_2 : instrument_1;
             let second_instrument_change = second_instrument === instrument_1 ? instrument_1_original_change : instrument_2_original_change;
-
+            
             if(!this.entry_24_first_stage){
                 this.entry_24_first_stage = true;
                 // SELL LOGIC FOR FIRST INSTRUMENT - Sell the instrument that hit +24
@@ -756,7 +756,7 @@ class MTMV3Strategy extends BaseStrategy {
                     this.mtmPriceAt24Sell = first_instrument.last;
                 }
             }
-
+            
             if(!this.entry_24_second_stage && this.entry_24_first_stage){
                 let target = this.globalDict.target - (this.mtmPriceAt24Sell - first_instrument.buyPrice);
                 // this.strategyUtils.logStrategyInfo(`Target: ${target}`);
@@ -807,7 +807,7 @@ class MTMV3Strategy extends BaseStrategy {
 
                     this.buyBackTarget = this.globalDict.target - (this.mtmPriceAt24Sell - first_instrument.buyPrice) - (this.mtmPriceAt36Sell - second_instrument.buyPrice);
                     this.strategyUtils.logStrategyInfo(`Symbol: ${this.buyBackInstrument.symbol} Buy back target: ${this.buyBackTarget}`);
-
+                    
                     // BUYING LOGIC FOR BUY BACK INSTRUMENT - Buy the opposite instrument
                     try {
                         const buyResult = await this.buyInstrument(this.buyBackInstrument);
@@ -847,7 +847,7 @@ class MTMV3Strategy extends BaseStrategy {
                     }
                 }
                 // else if(change <= this.globalDict.sellAt36Limit){
-                //     this.boughtSold = true;
+                    //     this.boughtSold = true;
                 //     this.entry_24_third_stage = true;
                 //     // SELL LOGIC FOR BUY BACK INSTRUMENT.
                 // }
@@ -932,7 +932,7 @@ class MTMV3Strategy extends BaseStrategy {
                     }
                 }
             }
-
+            
             if(!this.entry_36_fourth_stage && this.entry_36_third_stage && !this.boughtSold){
                 if (this.buyBackInstrument) {
                     let change = this.buyBackInstrument.last - this.buyBackInstrument.buyPrice;
@@ -965,6 +965,12 @@ class MTMV3Strategy extends BaseStrategy {
                 cycleCompleted: true,
                 currentCycle: this.universalDict.cycles || 0
             });
+        }
+        
+        if (instrument_1.flagCancel24 && instrument_2.flagCancel24){
+            instrument_1.flagCancel24 = false;
+            instrument_2.flagCancel24 = false;
+            this.strategyUtils.logStrategyInfo(`24 points cancellation reset for both instruments`);
         }
     }
 

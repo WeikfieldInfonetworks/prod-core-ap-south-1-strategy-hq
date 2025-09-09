@@ -480,7 +480,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`NEW LOW AT REF: ${instrument.symbol}: ${instrument.lowAtRef}`);
                 }
 
-                if (instrument.lowAtRef <= instrument.firstPrice*0.99 && !this.halfdrop_flag) {
+                if (instrument.lowAtRef <= instrument.firstPrice*0.5 && !this.halfdrop_flag) {
                     this.halfdrop_flag = true;
                     this.halfdrop_instrument = instrument;
                     this.mainToken = instrument.token
@@ -537,11 +537,9 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             let ce_instrument = this.universalDict.instrumentMap[this.buyToken];
             let pe_instrument = this.universalDict.instrumentMap[this.oppBuyToken];
             this.instrumentAt10 = ce_instrument.last - ce_instrument.buyPrice <= this.globalDict.limitAt10 ? ce_instrument : pe_instrument;
-            let other_instrument = this.instrumentAt10 === ce_instrument ? pe_instrument : ce_instrument;
-            other_instrument.buyPrice = other_instrument.last;
             this.sellOption();
-            this.halfdropAssisstedTarget = this.globalDict.target - ((this.instrumentAt10Sell - this.instrumentAt10.buyPrice) + (other_instrument.last - other_instrument.buyPrice));
-            this.strategyUtils.logStrategyInfo(`Halfdrop Assisted Target: ${this.halfdropAssisstedTarget} Change at 10: ${this.instrumentAt10Sell - this.instrumentAt10.buyPrice} + ${other_instrument.last - other_instrument.buyPrice}`);
+            this.halfdropAssisstedTarget = this.globalDict.target - (this.instrumentAt10Sell - this.instrumentAt10.buyPrice);
+            this.strategyUtils.logStrategyInfo(`Halfdrop Assisted Target: ${this.halfdropAssisstedTarget} Change at 10: ${this.instrumentAt10Sell} - ${this.instrumentAt10.buyPrice}`);
         }
 
         if ((this.shouldSellRemainingAtTargetAfter10() || this.shouldSellRemainingAtStoplossAfter10()) && !this.boughtSold && this.soldAt10 && !this.remainingSellAtTarget) {
@@ -797,7 +795,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
                             this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
                             sellPrice = result.at(-1).average_price;
                             this.strategyUtils.logStrategyInfo(`Executed Sell Price: ${sellPrice}`);
-                            this.instrumentAt10Sell = sellPrice != 0 ? sellPrice : instrument.last;
+                            this.instrumentAt10Sell = sellPrice || instrument.last;
                             this.strategyUtils.logStrategyInfo(`Updated instrumentAt10Sell to: ${this.instrumentAt10Sell}`);
                             
                             // Log the executed order
@@ -1303,7 +1301,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
         let ce_instrument = this.universalDict.instrumentMap[this.buyToken];
         let pe_instrument = this.universalDict.instrumentMap[this.oppBuyToken];
         let other_instrument = this.instrumentAt10 === ce_instrument ? pe_instrument : ce_instrument;
-        return other_instrument.last - other_instrument.buyPrice >= this.halfdropAssisstedTarget;
+        return (other_instrument.last - other_instrument.buyPrice) >= this.halfdropAssisstedTarget;
     }
 
     shouldSellRemainingAtStoplossAfter10(){
@@ -1311,7 +1309,7 @@ class FiftyPercentStrategyNew extends BaseStrategy {
         let pe_instrument = this.universalDict.instrumentMap[this.oppBuyToken];
         let other_instrument = this.instrumentAt10 === ce_instrument ? pe_instrument : ce_instrument;
         console.log(`${other_instrument.symbol} LAST: ${other_instrument.last} CHANGE: ${other_instrument.last - other_instrument.buyPrice}`);
-        return other_instrument.last - other_instrument.buyPrice <= this.globalDict.stoploss;
+        return (other_instrument.last - other_instrument.buyPrice) <= this.globalDict.stoploss;
     }
 
     resetForNextCycle() {
