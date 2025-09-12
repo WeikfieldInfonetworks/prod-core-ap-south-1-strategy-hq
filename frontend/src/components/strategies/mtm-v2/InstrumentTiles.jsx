@@ -104,21 +104,21 @@ const InstrumentTiles = ({ instrumentData }) => {
 
   return (
     <>
-      {/* Call Option Tile */}
-      <div className="relative">
-        {renderInstrumentTile(
-          boughtInstrument?.type === 'CE' ? boughtInstrument : 
-          oppInstrument?.type === 'CE' ? oppInstrument : null,
-          'CALL (CE)'
-        )}
-      </div>
-
       {/* Put Option Tile */}
       <div className="relative">
         {renderInstrumentTile(
           boughtInstrument?.type === 'PE' ? boughtInstrument : 
           oppInstrument?.type === 'PE' ? oppInstrument : null,
           'PUT (PE)'
+        )}
+      </div>
+
+      {/* Call Option Tile */}
+      <div className="relative">
+        {renderInstrumentTile(
+          boughtInstrument?.type === 'CE' ? boughtInstrument : 
+          oppInstrument?.type === 'CE' ? oppInstrument : null,
+          'CALL (CE)'
         )}
       </div>
     </>
