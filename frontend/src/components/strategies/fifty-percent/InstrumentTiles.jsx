@@ -14,6 +14,11 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
   const oppBuyToken = instrumentData?.oppBuyToken || strategy.oppBuyToken;
   const halfdropInstrument = instrumentData?.halfdrop_instrument || strategy.halfdrop_instrument;
   const halfdropFlag = instrumentData?.halfdrop_flag !== undefined ? instrumentData.halfdrop_flag : strategy.halfdrop_flag;
+  const halfdropBought = instrumentData?.halfdrop_bought !== undefined ? instrumentData.halfdrop_bought : strategy.halfdrop_bought;
+  
+  // Get chosen tokens for pre-purchase tracking
+  const chosenCEToken = instrumentData?.chosenCEToken || (ceTokens.length > 0 ? ceTokens[0] : null);
+  const chosenPEToken = instrumentData?.chosenPEToken || (peTokens.length > 0 ? peTokens[0] : null);
   
   // Get instrument data for display
   const getInstrumentData = (token) => {
@@ -115,15 +120,29 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
         </div>
       )}
 
-      {/* Buy Token (CE) */}
-      {buyToken && (
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-400">
+      {/* CE Token - Show chosen token before purchase, bought token after purchase */}
+      {(buyToken || chosenCEToken) && (
+        <div className={`bg-white rounded-lg shadow-sm p-4 border-l-4 ${
+          halfdropBought ? 'border-blue-400' : 'border-blue-200'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-gray-900">CE Token (Buy)</h4>
-            <Target className="h-4 w-4 text-blue-500" />
+            <h4 className={`text-sm font-medium ${
+              halfdropBought ? 'text-gray-900' : 'text-gray-700'
+            }`}>
+              CE Token {halfdropBought ? '(Bought)' : '(Selected)'}
+              {!halfdropBought && (
+                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                  Monitoring
+                </span>
+              )}
+            </h4>
+            <Target className={`h-4 w-4 ${
+              halfdropBought ? 'text-blue-500' : 'text-blue-300'
+            }`} />
           </div>
           {(() => {
-            const instrument = getInstrumentData(buyToken);
+            const tokenToShow = buyToken || chosenCEToken;
+            const instrument = getInstrumentData(tokenToShow);
             if (!instrument) return <div className="text-sm text-gray-500">Loading...</div>;
             
             const pnl = calculatePnL(instrument);
@@ -138,23 +157,42 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                   <span className="text-xs text-gray-500">Current Price:</span>
                   <span className="text-sm font-mono">{formatPrice(instrument.last)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Buy Price:</span>
-                  <span className="text-sm font-mono">{formatPrice(instrument.buyPrice)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Change from Buy:</span>
-                  <div className={`flex items-center space-x-1 ${getChangeColor(instrument.changeFromBuy)}`}>
-                    {getChangeIcon(instrument.changeFromBuy)}
-                    <span className="text-sm font-mono">{formatChange(instrument.changeFromBuy)}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">P&L:</span>
-                  <span className={`text-sm font-mono font-semibold ${getPnLColor(pnl)}`}>
-                    {pnl.toFixed(2)}
-                  </span>
-                </div>
+                {halfdropBought && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Buy Price:</span>
+                      <span className="text-sm font-mono">{formatPrice(instrument.buyPrice)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Change from Buy:</span>
+                      <div className={`flex items-center space-x-1 ${getChangeColor(instrument.changeFromBuy)}`}>
+                        {getChangeIcon(instrument.changeFromBuy)}
+                        <span className="text-sm font-mono">{formatChange(instrument.changeFromBuy)}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">P&L:</span>
+                      <span className={`text-sm font-mono font-semibold ${getPnLColor(pnl)}`}>
+                        {pnl.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {!halfdropBought && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">First Price:</span>
+                      <span className="text-sm font-mono">{formatPrice(instrument.firstPrice)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Change from First:</span>
+                      <div className={`flex items-center space-x-1 ${getChangeColor(instrument.plus3)}`}>
+                        {getChangeIcon(instrument.plus3)}
+                        <span className="text-sm font-mono">{formatChange(instrument.plus3)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Peak:</span>
                   <span className="text-sm font-mono">{formatPrice(instrument.peak)}</span>
@@ -165,15 +203,29 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
         </div>
       )}
 
-      {/* Opposite Buy Token (PE) */}
-      {oppBuyToken && (
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-400">
+      {/* PE Token - Show chosen token before purchase, bought token after purchase */}
+      {(oppBuyToken || chosenPEToken) && (
+        <div className={`bg-white rounded-lg shadow-sm p-4 border-l-4 ${
+          halfdropBought ? 'border-purple-400' : 'border-purple-200'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-gray-900">PE Token (Opposite Buy)</h4>
-            <Target className="h-4 w-4 text-purple-500" />
+            <h4 className={`text-sm font-medium ${
+              halfdropBought ? 'text-gray-900' : 'text-gray-700'
+            }`}>
+              PE Token {halfdropBought ? '(Bought)' : '(Selected)'}
+              {!halfdropBought && (
+                <span className="ml-2 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                  Monitoring
+                </span>
+              )}
+            </h4>
+            <Target className={`h-4 w-4 ${
+              halfdropBought ? 'text-purple-500' : 'text-purple-300'
+            }`} />
           </div>
           {(() => {
-            const instrument = getInstrumentData(oppBuyToken);
+            const tokenToShow = oppBuyToken || chosenPEToken;
+            const instrument = getInstrumentData(tokenToShow);
             if (!instrument) return <div className="text-sm text-gray-500">Loading...</div>;
             
             const pnl = calculatePnL(instrument);
@@ -188,23 +240,42 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                   <span className="text-xs text-gray-500">Current Price:</span>
                   <span className="text-sm font-mono">{formatPrice(instrument.last)}</span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Buy Price:</span>
-                  <span className="text-sm font-mono">{formatPrice(instrument.buyPrice)}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">Change from Buy:</span>
-                  <div className={`flex items-center space-x-1 ${getChangeColor(instrument.changeFromBuy)}`}>
-                    {getChangeIcon(instrument.changeFromBuy)}
-                    <span className="text-sm font-mono">{formatChange(instrument.changeFromBuy)}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">P&L:</span>
-                  <span className={`text-sm font-mono font-semibold ${getPnLColor(pnl)}`}>
-                    {pnl.toFixed(2)}
-                  </span>
-                </div>
+                {halfdropBought && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Buy Price:</span>
+                      <span className="text-sm font-mono">{formatPrice(instrument.buyPrice)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Change from Buy:</span>
+                      <div className={`flex items-center space-x-1 ${getChangeColor(instrument.changeFromBuy)}`}>
+                        {getChangeIcon(instrument.changeFromBuy)}
+                        <span className="text-sm font-mono">{formatChange(instrument.changeFromBuy)}</span>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">P&L:</span>
+                      <span className={`text-sm font-mono font-semibold ${getPnLColor(pnl)}`}>
+                        {pnl.toFixed(2)}
+                      </span>
+                    </div>
+                  </>
+                )}
+                {!halfdropBought && (
+                  <>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">First Price:</span>
+                      <span className="text-sm font-mono">{formatPrice(instrument.firstPrice)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-gray-500">Change from First:</span>
+                      <div className={`flex items-center space-x-1 ${getChangeColor(instrument.plus3)}`}>
+                        {getChangeIcon(instrument.plus3)}
+                        <span className="text-sm font-mono">{formatChange(instrument.plus3)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Peak:</span>
                   <span className="text-sm font-mono">{formatPrice(instrument.peak)}</span>
@@ -262,7 +333,7 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
       )}
 
       {/* No instruments selected */}
-      {!halfdropInstrument && !buyToken && !oppBuyToken && (
+      {!halfdropInstrument && !buyToken && !oppBuyToken && !chosenCEToken && !chosenPEToken && (
         <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-300">
           <div className="text-center text-gray-500">
             <Clock className="h-8 w-8 mx-auto mb-2" />

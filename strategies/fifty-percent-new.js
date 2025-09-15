@@ -408,6 +408,9 @@ class FiftyPercentStrategyNew extends BaseStrategy {
             soldBuyBackAfterStoploss: this.soldBuyBackAfterStoploss,
             buyToken: this.buyToken,
             oppBuyToken: this.oppBuyToken,
+            // Add chosen tokens for pre-purchase tracking
+            chosenCEToken: this.universalDict.ceTokens?.[0] || null,
+            chosenPEToken: this.universalDict.peTokens?.[0] || null,
             timestamp: currentTime
         });
 

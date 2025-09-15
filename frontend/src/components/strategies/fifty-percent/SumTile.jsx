@@ -31,8 +31,14 @@ const SumTile = ({ strategy, instrumentData }) => {
   const soldAt10 = instrumentData?.soldAt10 !== undefined ? instrumentData.soldAt10 : strategy.soldAt10;
   const buyBackAfterStoploss = instrumentData?.buyBackAfterStoploss !== undefined ? instrumentData.buyBackAfterStoploss : strategy.buyBackAfterStoploss;
   
-  const buyTokenInstrument = getInstrumentData(buyToken);
-  const oppBuyTokenInstrument = getInstrumentData(oppBuyToken);
+  // Get chosen tokens for pre-purchase tracking
+  const ceTokens = instrumentData?.ceTokens || strategy.universalDict?.ceTokens || [];
+  const peTokens = instrumentData?.peTokens || strategy.universalDict?.peTokens || [];
+  const chosenCEToken = instrumentData?.chosenCEToken || (ceTokens.length > 0 ? ceTokens[0] : null);
+  const chosenPEToken = instrumentData?.chosenPEToken || (peTokens.length > 0 ? peTokens[0] : null);
+  
+  const buyTokenInstrument = getInstrumentData(buyToken || chosenCEToken);
+  const oppBuyTokenInstrument = getInstrumentData(oppBuyToken || chosenPEToken);
   const buyBackInstrument = getInstrumentData(buyBackToken);
 
   // Calculate individual P&Ls
