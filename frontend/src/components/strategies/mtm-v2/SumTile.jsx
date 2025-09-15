@@ -46,12 +46,30 @@ const SumTile = ({ instrumentData }) => {
     );
   }
 
-  const { sum } = instrumentData;
+  const { sum, tradingState } = instrumentData;
   const DiffIcon = getDiffIcon(sum.diff);
   const diffColor = getDiffColor(sum.diff);
   const showDiff = sum.buyPrice > 0;
   const bgColor = getBackgroundColor(sum.diff);
   const borderColor = getBorderColor(sum.diff);
+
+  // Determine trading state for display
+  const getTradingStateInfo = () => {
+    if (!tradingState) return { text: 'ACTIVE', color: 'text-blue-600' };
+    
+    if (tradingState.bothSold) {
+      return { text: 'COMPLETED', color: 'text-gray-600' };
+    }
+    if (tradingState.hasBuyBack) {
+      return { text: 'BUY BACK ACTIVE', color: 'text-purple-600' };
+    }
+    if (tradingState.entry24Stage || tradingState.entry36Stage || tradingState.entryPlusStage) {
+      return { text: 'PARTIAL EXIT', color: 'text-orange-600' };
+    }
+    return { text: 'ACTIVE', color: 'text-blue-600' };
+  };
+
+  const stateInfo = getTradingStateInfo();
 
   return (
     <div className={`${bgColor} rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 border-l-4 ${borderColor} relative`}>
@@ -60,6 +78,11 @@ const SumTile = ({ instrumentData }) => {
         <div className="flex items-center justify-center space-x-2 mb-3">
           <Calculator className="w-5 h-5 text-blue-600" />
           <span className="text-sm font-medium text-gray-700">TOTAL POSITION</span>
+        </div>
+
+        {/* Trading State Indicator */}
+        <div className={`text-xs font-medium mb-2 ${stateInfo.color}`}>
+          {stateInfo.text}
         </div>
 
         {/* Total LTP */}
@@ -71,6 +94,13 @@ const SumTile = ({ instrumentData }) => {
         {instrumentData.boughtInstrument && instrumentData.oppInstrument && (
           <div className="text-xs text-gray-600 mb-4 font-mono">
             {formatPrice(instrumentData.boughtInstrument.ltp)} + {formatPrice(instrumentData.oppInstrument.ltp)}
+          </div>
+        )}
+
+        {/* Buy Back Indicator */}
+        {tradingState?.hasBuyBack && (
+          <div className="text-xs text-purple-600 mb-2 font-medium">
+            ↻ Includes Buy Back Position
           </div>
         )}
 
@@ -95,6 +125,13 @@ const SumTile = ({ instrumentData }) => {
                 ({((sum.diff / sum.buyPrice) * 100).toFixed(2)}%)
               </div>
             )}
+
+            {/* Additional Info for Complex States */}
+            {(tradingState?.entry24Stage || tradingState?.entry36Stage) && (
+              <div className="text-xs text-gray-500 mt-2">
+                Mixed: Fixed sell prices + Live prices
+              </div>
+            )}
           </div>
         )}
 
@@ -109,8 +146,12 @@ const SumTile = ({ instrumentData }) => {
       {/* Live indicator */}
       <div className="absolute top-3 right-3">
         <div className="flex items-center space-x-1">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-xs text-gray-500">LIVE</span>
+          <div className={`w-2 h-2 rounded-full ${
+            tradingState?.bothSold ? 'bg-gray-400' : 'bg-green-500 animate-pulse'
+          }`}></div>
+          <span className="text-xs text-gray-500">
+            {tradingState?.bothSold ? 'FINAL' : 'LIVE'}
+          </span>
         </div>
       </div>
 

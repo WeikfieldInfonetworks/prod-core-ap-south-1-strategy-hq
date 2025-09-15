@@ -20,12 +20,22 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   const peInstrument = boughtInstrument?.type === 'PE' ? boughtInstrument : oppInstrument;
 
   // Get trading action data for specific scenarios
-  const getActionPrice = (actionType, instrumentType) => {
+  const getActionPrice = (scenario, instrumentType) => {
     const action = tradingActions.find(a => 
-      a.action === actionType && 
-      (a.symbol?.includes('CE') === (instrumentType === 'CE'))
+      a.scenario === scenario && 
+      a.instrumentType === instrumentType
     );
-    return action?.price || '-';
+    return action ? formatPrice(action.price) : '-';
+  };
+
+  // Get the latest price for a scenario (for cases where multiple actions might match)
+  const getLatestActionPrice = (scenarios, instrumentType) => {
+    const actions = tradingActions.filter(a => 
+      scenarios.includes(a.scenario) && 
+      a.instrumentType === instrumentType
+    ).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    return actions.length > 0 ? formatPrice(actions[0].price) : '-';
   };
 
   const columns = [
@@ -36,6 +46,7 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
     { key: 'targetOf24', label: 'TARGET OF 24', icon: Target },
     { key: 'sellAt36', label: '-36', icon: TrendingDown },
     { key: 'targetOf36', label: 'TARGET OF -36', icon: Target },
+    { key: 'buyBackSell', label: 'BUY BACK SELL', icon: Target },
     { key: 'sellBoth', label: '+7', icon: TrendingUp }
   ];
 
@@ -46,26 +57,29 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
       // Buying Price
       formatPrice(instrument.buyPrice),
       
-      // -10 scenario
-      getActionPrice('sell_at_10', instrumentType),
+      // -10 scenario (not implemented in MTM V3)
+      '-',
       
-      // Target of -10
-      getActionPrice('sell_remaining_after_10', instrumentType),
+      // Target of -10 (not implemented in MTM V3)
+      '-',
       
-      // +24 scenario  
-      getActionPrice('sell_at_24', instrumentType),
+      // +24 scenario - check multiple scenarios
+      getLatestActionPrice(['sell_at_24', 'sell_at_24_plus'], instrumentType),
       
-      // Target of 24
-      getActionPrice('sell_remaining_at_target', instrumentType),
+      // Target of 24 - target achievements after +24
+      getLatestActionPrice(['target_after_24', 'target_after_24_plus'], instrumentType),
       
       // -36 scenario
-      getActionPrice('sell_at_36', instrumentType),
+      getLatestActionPrice(['sell_at_36', 'sell_at_36_first'], instrumentType),
       
-      // Target of -36
-      getActionPrice('sell_remaining_after_36', instrumentType),
+      // Target of -36 - target achievements after -36
+      getLatestActionPrice(['target_after_36', 'target_after_36_first'], instrumentType),
       
-      // Both options sold at +7
-      getActionPrice('sell_both_options', instrumentType)
+      // Buy back sell - sell of buyback instruments
+      getLatestActionPrice(['sell_buyback_after_24', 'sell_buyback_after_36'], instrumentType),
+      
+      // Both options sold at +7 (target/stoploss)
+      getActionPrice('sell_both_at_7', instrumentType)
     ];
   };
 
@@ -73,31 +87,51 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
     if (!instrumentData?.sum) return columns.map(() => '-');
     
     const sum = instrumentData.sum;
+    const tradingState = instrumentData?.tradingState;
+    
+    // Calculate scenario totals
+    const getScenarioTotal = (scenarios) => {
+      const cePrice = getLatestActionPrice(scenarios, 'CE');
+      const pePrice = getLatestActionPrice(scenarios, 'PE');
+      if (cePrice !== '-' && pePrice !== '-') {
+        const ceValue = parseFloat(cePrice.replace('₹', ''));
+        const peValue = parseFloat(pePrice.replace('₹', ''));
+        return formatPrice(ceValue + peValue);
+      }
+      return '-';
+    };
     
     return [
       // Total buying price
       formatPrice(sum.buyPrice),
       
-      // Sum at -10 (both instruments price at -10 scenario)
-      '-', // Will be calculated when -10 scenario occurs
-      
-      // Target of -10
+      // Sum at -10 (not implemented in MTM V3)
       '-',
       
-      // Sum at +24 (both instruments price at +24 scenario)
-      '-', // Will be calculated when +24 scenario occurs
+      // Target of -10 (not implemented in MTM V3)
+      '-',
+      
+      // Sum at +24 scenario
+      getScenarioTotal(['sell_at_24', 'sell_at_24_plus']),
       
       // Target of 24
-      '-',
+      getScenarioTotal(['target_after_24', 'target_after_24_plus']),
       
       // Sum at -36
-      '-',
+      getScenarioTotal(['sell_at_36', 'sell_at_36_first']),
       
       // Target of -36
-      '-',
+      getScenarioTotal(['target_after_36', 'target_after_36_first']),
       
-      // Sum when both sold at +7
-      formatPrice(sum.ltp) // Current total value
+      // Buy back sell total
+      getScenarioTotal(['sell_buyback_after_24', 'sell_buyback_after_36']),
+      
+      // Sum when both sold at +7 (current value or final sold value)
+      tradingState?.bothSold ? formatPrice(sum.ltp) : (
+        getScenarioTotal(['sell_both_at_7']) !== '-' ? 
+        getScenarioTotal(['sell_both_at_7']) : 
+        formatPrice(sum.ltp)
+      )
     ];
   };
 

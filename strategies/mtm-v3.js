@@ -734,6 +734,23 @@ class MTMV3Strategy extends BaseStrategy {
                 const sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
                 if (sellResult && sellResult.success) {
                     this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
+                    
+                    // Emit specific trade actions for dashboard table
+                    this.emitTradeAction('sell', {
+                        symbol: instrument_1.symbol,
+                        price: sellResult.executedPrices.instrument1,
+                        quantity: this.globalDict.quantity || 75,
+                        scenario: 'sell_both_at_7',
+                        instrumentType: instrument_1.symbol.includes('CE') ? 'CE' : 'PE'
+                    });
+                    
+                    this.emitTradeAction('sell', {
+                        symbol: instrument_2.symbol,
+                        price: sellResult.executedPrices.instrument2,
+                        quantity: this.globalDict.quantity || 75,
+                        scenario: 'sell_both_at_7',
+                        instrumentType: instrument_2.symbol.includes('CE') ? 'CE' : 'PE'
+                    });
                 } else {
                     this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
                 }
@@ -758,6 +775,15 @@ class MTMV3Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`Lower instrument sold at +24 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt24Sell = sellResult.executedPrice || lower_instrument.last;
+                        
+                        // Emit specific trade action for dashboard table
+                        this.emitTradeAction('sell', {
+                            symbol: lower_instrument.symbol,
+                            price: sellResult.executedPrice || lower_instrument.last,
+                            quantity: this.globalDict.quantity || 75,
+                            scenario: 'sell_at_24_plus',
+                            instrumentType: lower_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell lower instrument at +24');
                         this.mtmPriceAt24Sell = lower_instrument.last;
@@ -778,6 +804,15 @@ class MTMV3Strategy extends BaseStrategy {
                         const sellResult = await this.sellInstrument(higher_instrument);
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at target - Executed price: ${sellResult.executedPrice}`);
+                            
+                            // Emit specific trade action for dashboard table
+                            this.emitTradeAction('sell', {
+                                symbol: higher_instrument.symbol,
+                                price: sellResult.executedPrice || higher_instrument.last,
+                                quantity: this.globalDict.quantity || 75,
+                                scenario: 'target_after_24_plus',
+                                instrumentType: higher_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at target');
                         }
@@ -801,6 +836,15 @@ class MTMV3Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at +24 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt24Sell = sellResult.executedPrice || first_instrument.last; // Store price of remaining instrument with fallback
+                        
+                        // Emit specific trade action for dashboard table
+                        this.emitTradeAction('sell', {
+                            symbol: first_instrument.symbol,
+                            price: sellResult.executedPrice || first_instrument.last,
+                            quantity: this.globalDict.quantity || 75,
+                            scenario: 'sell_at_24',
+                            instrumentType: first_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell first instrument at +24');
                         this.mtmPriceAt24Sell = first_instrument.last;
@@ -822,6 +866,15 @@ class MTMV3Strategy extends BaseStrategy {
                         const sellResult = await this.sellInstrument(second_instrument);
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at target - Executed price: ${sellResult.executedPrice}`);
+                            
+                            // Emit specific trade action for dashboard table
+                            this.emitTradeAction('sell', {
+                                symbol: second_instrument.symbol,
+                                price: sellResult.executedPrice || second_instrument.last,
+                                quantity: this.globalDict.quantity || 75,
+                                scenario: 'target_after_24',
+                                instrumentType: second_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at target');
                         }
@@ -842,6 +895,15 @@ class MTMV3Strategy extends BaseStrategy {
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at -36 - Executed price: ${sellResult.executedPrice}`);
                             this.mtmPriceAt36Sell = sellResult.executedPrice || second_instrument.last; // Store price for buy back calculation with fallback
+                            
+                            // Emit specific trade action for dashboard table
+                            this.emitTradeAction('sell', {
+                                symbol: second_instrument.symbol,
+                                price: sellResult.executedPrice || second_instrument.last,
+                                quantity: this.globalDict.quantity || 75,
+                                scenario: 'sell_at_36',
+                                instrumentType: second_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at -36');
                             this.mtmPriceAt36Sell = second_instrument.last;
@@ -895,6 +957,15 @@ class MTMV3Strategy extends BaseStrategy {
                             const sellResult = await this.sellInstrument(this.buyBackInstrument);
                             if (sellResult && sellResult.success) {
                                 this.strategyUtils.logStrategyInfo(`Buy back instrument sold at target - Executed price: ${sellResult.executedPrice}`);
+                                
+                                // Emit specific trade action for dashboard table
+                                this.emitTradeAction('sell', {
+                                    symbol: this.buyBackInstrument.symbol,
+                                    price: sellResult.executedPrice || this.buyBackInstrument.last,
+                                    quantity: this.globalDict.quantity || 75,
+                                    scenario: 'sell_buyback_after_24',
+                                    instrumentType: this.buyBackInstrument.symbol.includes('CE') ? 'CE' : 'PE'
+                                });
                             } else {
                                 this.strategyUtils.logStrategyError('Failed to sell buy back instrument at target');
                             }
@@ -927,6 +998,15 @@ class MTMV3Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at -36 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt36Sell = sellResult.executedPrice || first_instrument.last; // Store price of remaining instrument with fallback
+                        
+                        // Emit specific trade action for dashboard table
+                        this.emitTradeAction('sell', {
+                            symbol: first_instrument.symbol,
+                            price: sellResult.executedPrice || first_instrument.last,
+                            quantity: this.globalDict.quantity || 75,
+                            scenario: 'sell_at_36_first',
+                            instrumentType: first_instrument.symbol.includes('CE') ? 'CE' : 'PE'
+                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell first instrument at -36');
                         this.mtmPriceAt36Sell = first_instrument.last;
@@ -1008,6 +1088,15 @@ class MTMV3Strategy extends BaseStrategy {
                             const sellResult = await this.sellInstrument(this.buyBackInstrument);
                             if (sellResult && sellResult.success) {
                                 this.strategyUtils.logStrategyInfo(`Buy back instrument sold at target - Executed price: ${sellResult.executedPrice}`);
+                                
+                                // Emit specific trade action for dashboard table
+                                this.emitTradeAction('sell', {
+                                    symbol: this.buyBackInstrument.symbol,
+                                    price: sellResult.executedPrice || this.buyBackInstrument.last,
+                                    quantity: this.globalDict.quantity || 75,
+                                    scenario: 'sell_buyback_after_36',
+                                    instrumentType: this.buyBackInstrument.symbol.includes('CE') ? 'CE' : 'PE'
+                                });
                             } else {
                                 this.strategyUtils.logStrategyError('Failed to sell buy back instrument at target');
                             }
@@ -1746,55 +1835,187 @@ class MTMV3Strategy extends BaseStrategy {
             return; // Instrument data not available
         }
 
-        // Calculate differences from buy prices (use executed prices if available)
-        const boughtExecutedPrice = boughtInstrument.buyPrice > 0 ? boughtInstrument.buyPrice : boughtInstrument.last;
-        const oppExecutedPrice = oppInstrument.buyPrice > 0 ? oppInstrument.buyPrice : oppInstrument.last;
-        const boughtDiff = boughtExecutedPrice > 0 ? boughtInstrument.last - boughtExecutedPrice : 0;
-        const oppDiff = oppExecutedPrice > 0 ? oppInstrument.last - oppExecutedPrice : 0;
-        const sumValue = boughtInstrument.last + oppInstrument.last;
-        const sumDiff = boughtDiff + oppDiff;
+        // Determine which instruments are still active (not sold)
+        const isBoughtSold = this.isInstrumentSold(boughtInstrument);
+        const isOppSold = this.isInstrumentSold(oppInstrument);
+        const bothSold = isBoughtSold && isOppSold;
+        
+        // Get buy back instrument if it exists
+        const buyBackInstrument = this.buyBackInstrument ? this.universalDict.instrumentMap[this.buyBackInstrument.token] : null;
 
-        // Determine instrument types
-        const boughtType = boughtInstrument.symbol.includes('CE') ? 'CE' : 'PE';
-        const oppType = oppInstrument.symbol.includes('CE') ? 'CE' : 'PE';
+        // Calculate prices and differences based on current state
+        let ceInstrument = null, peInstrument = null;
+        let cePrice = 0, pePrice = 0, ceBuyPrice = 0, peBuyPrice = 0, ceDiff = 0, peDiff = 0;
+        let ceDisplayName = '', peDisplayName = '';
+        let ceToken = null, peToken = null;
+        let ceIsSold = false, peIsSold = false;
 
-        // Create display names for better UI
-        const boughtDisplayName = boughtInstrument.symbol || 'Unknown';
-        const oppDisplayName = oppInstrument.symbol || 'Unknown';
+        // Determine CE and PE instruments based on current state
+        if (boughtInstrument.symbol.includes('CE')) {
+            // boughtInstrument is CE
+            ceInstrument = boughtInstrument;
+            ceToken = this.boughtToken;
+            ceIsSold = isBoughtSold;
+            
+            if (buyBackInstrument && isOppSold) {
+                // Original PE was sold, buy back is active
+                peInstrument = buyBackInstrument;
+                peToken = buyBackInstrument.token;
+                peIsSold = false;
+            } else {
+                // Original PE is still active or both sold
+                peInstrument = oppInstrument;
+                peToken = this.oppBoughtToken;
+                peIsSold = isOppSold;
+            }
+        } else {
+            // boughtInstrument is PE
+            peInstrument = boughtInstrument;
+            peToken = this.boughtToken;
+            peIsSold = isBoughtSold;
+            
+            if (buyBackInstrument && isOppSold) {
+                // Original CE was sold, buy back is active
+                ceInstrument = buyBackInstrument;
+                ceToken = buyBackInstrument.token;
+                ceIsSold = false;
+            } else {
+                // Original CE is still active or both sold
+                ceInstrument = oppInstrument;
+                ceToken = this.oppBoughtToken;
+                ceIsSold = isOppSold;
+            }
+        }
+
+        // Calculate prices and differences
+        if (ceInstrument) {
+            cePrice = ceIsSold ? this.getSoldPrice(ceInstrument) : ceInstrument.last;
+            ceBuyPrice = ceInstrument.buyPrice > 0 ? ceInstrument.buyPrice : ceInstrument.last;
+            ceDiff = cePrice - ceBuyPrice;
+            ceDisplayName = ceInstrument.symbol || 'Unknown';
+        }
+
+        if (peInstrument) {
+            pePrice = peIsSold ? this.getSoldPrice(peInstrument) : peInstrument.last;
+            peBuyPrice = peInstrument.buyPrice > 0 ? peInstrument.buyPrice : peInstrument.last;
+            peDiff = pePrice - peBuyPrice;
+            peDisplayName = peInstrument.symbol || 'Unknown';
+        }
+
+        // Calculate sum values
+        const sumValue = cePrice + pePrice;
+        const sumBuyPrice = ceBuyPrice + peBuyPrice;
+        const sumDiff = ceDiff + peDiff;
 
         const instrumentData = {
             status: 'instrument_data_update',
-            boughtInstrument: {
-                symbol: boughtInstrument.symbol,
-                ltp: boughtInstrument.last, // Frontend expects 'ltp' not 'last'
-                last: boughtInstrument.last, // Keep both for compatibility
-                buyPrice: boughtExecutedPrice, // Use executed price
-                diff: boughtDiff,
-                type: boughtType,
-                token: boughtInstrument.token,
-                displayName: boughtDisplayName // Add displayName for frontend
-            },
-            oppInstrument: {
-                symbol: oppInstrument.symbol,
-                ltp: oppInstrument.last, // Frontend expects 'ltp' not 'last'
-                last: oppInstrument.last, // Keep both for compatibility
-                buyPrice: oppExecutedPrice, // Use executed price
-                diff: oppDiff,
-                type: oppType,
-                token: oppInstrument.token,
-                displayName: oppDisplayName // Add displayName for frontend
-            },
+            boughtInstrument: ceInstrument ? {
+                symbol: ceInstrument.symbol,
+                ltp: cePrice,
+                last: cePrice,
+                buyPrice: ceBuyPrice,
+                diff: ceDiff,
+                type: 'CE',
+                token: ceToken,
+                displayName: ceDisplayName,
+                isSold: ceIsSold,
+                isActive: !ceIsSold || bothSold, // Show if not sold or if both are sold (for final state)
+                isBuyBack: buyBackInstrument && ceInstrument.token === buyBackInstrument.token
+            } : null,
+            oppInstrument: peInstrument ? {
+                symbol: peInstrument.symbol,
+                ltp: pePrice,
+                last: pePrice,
+                buyPrice: peBuyPrice,
+                diff: peDiff,
+                type: 'PE',
+                token: peToken,
+                displayName: peDisplayName,
+                isSold: peIsSold,
+                isActive: !peIsSold || bothSold, // Show if not sold or if both are sold (for final state)
+                isBuyBack: buyBackInstrument && peInstrument.token === buyBackInstrument.token
+            } : null,
             sum: {
-                ltp: sumValue, // Frontend expects 'ltp' not 'value'
-                value: sumValue, // Keep both for compatibility
-                buyPrice: boughtExecutedPrice + oppExecutedPrice, // Add buyPrice for sum
+                ltp: sumValue,
+                value: sumValue,
+                buyPrice: sumBuyPrice,
                 diff: sumDiff
             },
             mtm: sumDiff,
+            // Additional state information for frontend
+            tradingState: {
+                bothSold: bothSold,
+                hasBuyBack: !!buyBackInstrument,
+                entry24Stage: this.entry_24_first_stage || this.entry_24_second_stage || this.entry_24_third_stage,
+                entry36Stage: this.entry_36_first_stage || this.entry_36_second_stage || this.entry_36_third_stage,
+                entryPlusStage: this.entry_plus_24_first_stage || this.entry_plus_24_second_stage,
+                entry7Stage: this.entry_7
+            },
             timestamp: new Date().toISOString()
         };
 
         this.emitStatusUpdate('instrument_data_update', instrumentData);
+    }
+
+    // Helper method to determine if an instrument has been sold
+    isInstrumentSold(instrument) {
+        if (!instrument) return false;
+        
+        // Check if this instrument was sold in +24 logic
+        if (this.entry_24_first_stage && this.who_hit_24 && this.who_hit_24.token === instrument.token) {
+            return true;
+        }
+        
+        // Check if this instrument was sold in +24 (plus) logic  
+        if (this.entry_plus_24_first_stage && this.who_hit_24 && this.who_hit_24 !== instrument) {
+            return true; // The lower instrument was sold
+        }
+        
+        // Check if this instrument was sold in -36 logic
+        if (this.entry_36_first_stage && this.who_hit_36 && this.who_hit_36.token === instrument.token) {
+            return true;
+        }
+        
+        // Check if this instrument was sold in second stage of -36 logic
+        if (this.entry_36_second_stage && this.who_hit_36 && this.who_hit_36 !== instrument) {
+            return true; // The second instrument was sold
+        }
+        
+        // Check if both instruments were sold in +7 logic
+        if (this.entry_7) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Helper method to get the sold price of an instrument
+    getSoldPrice(instrument) {
+        if (!instrument) return 0;
+        
+        // Return the stored sell price or fallback to last price
+        if (this.mtmPriceAt24Sell && this.isInstrumentSoldAt24(instrument)) {
+            return this.mtmPriceAt24Sell;
+        }
+        
+        if (this.mtmPriceAt36Sell && this.isInstrumentSoldAt36(instrument)) {
+            return this.mtmPriceAt36Sell;
+        }
+        
+        // For +7 logic or other cases, use last known price
+        return instrument.last;
+    }
+
+    // Helper method to check if instrument was sold at +24
+    isInstrumentSoldAt24(instrument) {
+        return (this.entry_24_first_stage && this.who_hit_24 && this.who_hit_24.token === instrument.token) ||
+               (this.entry_plus_24_first_stage && this.who_hit_24 && this.who_hit_24 !== instrument);
+    }
+
+    // Helper method to check if instrument was sold at -36
+    isInstrumentSoldAt36(instrument) {
+        return (this.entry_36_first_stage && this.who_hit_36 && this.who_hit_36.token === instrument.token) ||
+               (this.entry_36_second_stage && this.who_hit_36 && this.who_hit_36 !== instrument);
     }
 
     emitTradeAction(action, tradeData) {
