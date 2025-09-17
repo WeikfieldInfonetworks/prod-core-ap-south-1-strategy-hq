@@ -57,6 +57,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
+        this.prebuyBuyPriceOnce = 0;
+        this.prebuyBuyPriceTwice = 0;
         
         // Block states
         this.blockInit = true;
@@ -67,6 +69,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.blockNextCycle = false;
         
         // Flags
+        this.buyingCompleted = false;
+        this.finalRefCompleted = false;
         this.mtm10tracked = false;
         this.cePlus3 = false;
         this.pePlus3 = false;
@@ -198,6 +202,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
+        this.prebuyBuyPriceOnce = 0;
+        this.prebuyBuyPriceTwice = 0;
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
         this.mtm10firstHit = false;
@@ -237,6 +243,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.skipBuy = false;
         this.mtm10tracked = false;
         this.mtm10firstHit = false;
+        this.buyingCompleted = false;
+        this.finalRefCompleted = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -557,7 +565,7 @@ class MTMV3Strategy extends BaseStrategy {
         }
 
         // Check if we should transition to final ref
-        if (this.shouldTransitionToFinalRef() && !this.blockFinalRef) {
+        if (this.shouldTransitionToFinalRef() && !this.blockFinalRef && !this.finalRefCompleted) {
             // this.blockUpdate = false;
             this.blockFinalRef = true;
             
@@ -573,72 +581,83 @@ class MTMV3Strategy extends BaseStrategy {
         // If these conditions are never met, the strategy may need to be reviewed
     }
 
-    processFinalRefBlock(ticks) {
+    async processFinalRefBlock(ticks) {
         // this.strategyUtils.logStrategyInfo('Processing FINAL REF block');
-        
-        if (this.interimLowReached && !this.refCapture) {
-            this.refCapture = true;
-            this.strategyUtils.logStrategyInfo('Interim low reached, capturing reference');
+        if(!this.buyingCompleted){
+            if (this.interimLowReached && !this.refCapture) {
+                this.refCapture = true;
+                this.strategyUtils.logStrategyInfo('Interim low reached, capturing reference');
 
-            const mainOption = this.universalDict.instrumentMap[this.mainToken];
-            const oppOption = this.universalDict.instrumentMap[this.oppToken];
-            const isSumOver390 = (mainOption.last + oppOption.last) > 390;
-            let closestCE = null;
-            let closestPE = null;
+                const mainOption = this.universalDict.instrumentMap[this.mainToken];
+                const oppOption = this.universalDict.instrumentMap[this.oppToken];
+                const isSumOver390 = (mainOption.last + oppOption.last) > 390;
+                let closestCE = null;
+                let closestPE = null;
 
-            if (isSumOver390 || true){
-                // Find closest symbols below 200 for both CE and PE
-                closestCE = this.strategyUtils.findClosestCEBelowPrice(
-                    this.universalDict.instrumentMap, 
-                    200, 
-                    200
-                );
-                
-                closestPE = this.strategyUtils.findClosestPEBelowPrice(
-                    this.universalDict.instrumentMap, 
-                    200, 
-                    200
-                );
-                
-                if (!closestCE || !closestPE) {
-                    this.strategyUtils.logStrategyError('Could not find suitable CE or PE symbols below 200');
-                    return;
+                if (isSumOver390 || true){
+                    // Find closest symbols below 200 for both CE and PE
+                    closestCE = this.strategyUtils.findClosestCEBelowPrice(
+                        this.universalDict.instrumentMap, 
+                        200, 
+                        200
+                    );
+                    
+                    closestPE = this.strategyUtils.findClosestPEBelowPrice(
+                        this.universalDict.instrumentMap, 
+                        200, 
+                        200
+                    );
+                    
+                    if (!closestCE || !closestPE) {
+                        this.strategyUtils.logStrategyError('Could not find suitable CE or PE symbols below 200');
+                        return;
+                    }
                 }
-            }
-            else {
-                // If sum is less than 390, use the main token and opp token as the closest CE and PE
-                closestCE = mainOption.symbol.includes('CE') ? mainOption : oppOption;
-                closestPE = mainOption.symbol.includes('PE') ? mainOption : oppOption;
-            }
-            // Assign boughtToken and oppBoughtToken based on mtmFirstOption
-            if (this.mtmFirstOption) {
-                const firstOptionType = this.mtmFirstOption.symbol.includes('CE') ? 'CE' : 'PE';
-                
-                if (firstOptionType === 'CE') {
+                else {
+                    // If sum is less than 390, use the main token and opp token as the closest CE and PE
+                    closestCE = mainOption.symbol.includes('CE') ? mainOption : oppOption;
+                    closestPE = mainOption.symbol.includes('PE') ? mainOption : oppOption;
+                }
+                // Assign boughtToken and oppBoughtToken based on mtmFirstOption
+                if (this.mtmFirstOption) {
+                    const firstOptionType = this.mtmFirstOption.symbol.includes('CE') ? 'CE' : 'PE';
+                    
+                    if (firstOptionType === 'CE') {
+                        this.boughtToken = closestCE.token;
+                        this.oppBoughtToken = closestPE.token;
+                        this.strategyUtils.logStrategyInfo(`MTM First Option is CE ${closestCE.symbol}`);
+                        this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestPE.symbol}`);
+                    } else {
+                        this.boughtToken = closestPE.token;
+                        this.oppBoughtToken = closestCE.token;
+                        this.strategyUtils.logStrategyInfo(`MTM First Option is PE ${closestPE.symbol}`);
+                        this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestCE.symbol}`);
+                    }
+                } else {
+                    // Fallback: use CE as bought token, PE as opposite
                     this.boughtToken = closestCE.token;
                     this.oppBoughtToken = closestPE.token;
-                    this.strategyUtils.logStrategyInfo(`MTM First Option is CE ${closestCE.symbol}`);
+                    this.strategyUtils.logStrategyInfo(`Fallback - Bought Token: ${closestCE.symbol}`);
                     this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestPE.symbol}`);
-                } else {
-                    this.boughtToken = closestPE.token;
-                    this.oppBoughtToken = closestCE.token;
-                    this.strategyUtils.logStrategyInfo(`MTM First Option is PE ${closestPE.symbol}`);
-                    this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestCE.symbol}`);
                 }
-            } else {
-                // Fallback: use CE as bought token, PE as opposite
-                this.boughtToken = closestCE.token;
-                this.oppBoughtToken = closestPE.token;
-                this.strategyUtils.logStrategyInfo(`Fallback - Bought Token: ${closestCE.symbol}`);
-                this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestPE.symbol}`);
+                
+                // Place orders for both tokens
+                this.placeOrdersForTokens();
+                this.buyingCompleted = true;
             }
+            else if (this.calcRefReached) {
+                this.strategyUtils.logStrategyInfo('Calc ref reached');
+                this.blockFinalRef = false;
+                this.blockRef3 = true;
+                this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to REF3 block');
+            }
+        }
             
-            // Place orders for both tokens
-            this.placeOrdersForTokens();
-            
+        if(!this.universalDict.usePrebuy){
             // Transition to diff10 block
             this.blockFinalRef = false;
             this.blockDiff10 = true;
+            this.finalRefCompleted = true;
             this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
             
             // Emit real-time notifications
@@ -647,11 +666,43 @@ class MTMV3Strategy extends BaseStrategy {
                 oppSymbol: this.universalDict.instrumentMap[this.oppBoughtToken]?.symbol,
                 ordersPlaced: true
             });
-        } else if (this.calcRefReached) {
-            this.strategyUtils.logStrategyInfo('Calc ref reached');
-            this.blockFinalRef = false;
-            this.blockRef3 = true;
-            this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to REF3 block');
+        }
+        else {
+            let ce_instrument = this.universalDict.instrumentMap[this.boughtToken];
+            let pe_instrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+            let ce_change = ce_instrument.last - ce_instrument.buyPrice;
+            let pe_change = pe_instrument.last - pe_instrument.buyPrice;
+            console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
+            let real_instrument = null;
+            if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss){
+                real_instrument = ce_change <= this.globalDict.prebuyStoploss ? pe_instrument : ce_instrument;
+                this.prebuyBuyPriceOnce = real_instrument.last;
+                console.log(`REAL INSTRUMENT: ${real_instrument.symbol}`);
+                this.boughtToken = real_instrument.token;
+                // BUY LOGIC - Buy the real instrument
+                try {
+                    const buyResult = await this.buyInstrument(real_instrument);
+                    if (buyResult && buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+                    }
+                    this.prebuyBuyPriceOnce = buyResult.executedPrice;
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
+                }
+
+                this.blockFinalRef = false;
+                this.blockDiff10 = true;
+                this.finalRefCompleted = true;
+                this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
+                
+                // Emit real-time notifications
+                this.emitBlockTransition('FINAL_REF', 'DIFF10', {
+                    boughtSymbol: real_instrument?.symbol,
+                    oppSymbol: real_instrument.symbol.includes('CE') ? "000PE" : "000CE",
+                    ordersPlaced: true
+                });
+            }
         }
     }
 
@@ -673,7 +724,30 @@ class MTMV3Strategy extends BaseStrategy {
     async processDiff10Block(ticks) {
 
         const instrument_1 = this.universalDict.instrumentMap[this.boughtToken];
-        const instrument_2 = this.universalDict.instrumentMap[this.oppBoughtToken];
+        const instrument_2 = !this.universalDict.usePrebuy ? this.universalDict.instrumentMap[this.oppBoughtToken] : {
+            token: "000000",
+            time: "N/A",
+            symbol: instrument_1.symbol.includes('CE') ? "000PE" : "000CE",
+            firstPrice: 0,
+            last: 0,
+            open: 0,
+            peak: 0,
+            prevPeak: 0,
+            lowAtRef: 0,
+            plus3: 0,
+            change: 0,
+            peakAtRef: 0,
+            peakTime: null,
+            buyPrice: 0,
+            changeFromBuy: 0,
+            calcRef: 0,
+            prevCalcRef: 0,
+            flagPlus3: false,
+            flagPeakAndFall: false,
+            flagCalcRef: false,
+            flagInterim: false,
+            flagCancel24: false,
+        };
 
         if (!instrument_1 || !instrument_2) {
             this.strategyUtils.logStrategyError('Cannot process DIFF10 block - instrument data not found');
@@ -686,7 +760,33 @@ class MTMV3Strategy extends BaseStrategy {
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
 
-        const hit_24 = instrument_1_original_change >= this.globalDict.sellAt24Limit || instrument_2_original_change >= this.globalDict.sellAt24Limit;
+        if(!this.universalDict.usePrebuy && !this.entry_7){
+            if((instrument_1_original_change <= this.globalDict.prebuyStoploss) && this.prebuyBuyPriceTwice == 0){
+                //BUY AGAIN
+                this.prebuyBuyPriceTwice = instrument_1.last;
+                try {
+                    const buyResult = await this.buyInstrument(instrument_1);
+                    if (buyResult && buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Instrument 1 bought - Executed price: ${buyResult.executedPrice}`);
+                    }
+                    this.prebuyBuyPriceTwice = buyResult.executedPrice;
+
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                }
+
+                instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                this.globalDict.target = this.globalDict.target / 2;
+                this.globalDict.stoploss = this.globalDict.stoploss / 2;
+                this.globalDict.quantity = this.globalDict.quantity * 2;
+
+                
+            }
+
+        }
+
+        const hit_24 = (instrument_1_original_change >= this.globalDict.sellAt24Limit || instrument_2_original_change >= this.globalDict.sellAt24Limit) && !this.universalDict.usePrebuy;
         let who_hit_24_temp = null;
 
         if(hit_24){
@@ -713,7 +813,7 @@ class MTMV3Strategy extends BaseStrategy {
             this.who_hit_24 = who_hit_24_temp;
         }
 
-        const hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit || instrument_2_original_change <= this.globalDict.sellAt36Limit;
+        const hit_36 = (instrument_1_original_change <= this.globalDict.sellAt36Limit || instrument_2_original_change <= this.globalDict.sellAt36Limit) && !this.universalDict.usePrebuy;
         const checkLessThan24 = (instrument) => instrument.token == instrument_1.token ? instrument_1_original_change < this.globalDict.sellAt24Limit : instrument_2_original_change < this.globalDict.sellAt24Limit;
 
         if(!this.entry_36){
@@ -730,32 +830,47 @@ class MTMV3Strategy extends BaseStrategy {
         if(this.entry_7){
             this.boughtSold = true;
             // SELL LOGIC - Sell both instruments at target or stoploss
-            try {
-                const sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
-                if (sellResult && sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
-                    
-                    // Emit specific trade actions for dashboard table
-                    this.emitTradeAction('sell', {
-                        symbol: instrument_1.symbol,
-                        price: sellResult.executedPrices.instrument1,
-                        quantity: this.globalDict.quantity || 75,
-                        scenario: 'sell_both_at_7',
-                        instrumentType: instrument_1.symbol.includes('CE') ? 'CE' : 'PE'
-                    });
-                    
-                    this.emitTradeAction('sell', {
-                        symbol: instrument_2.symbol,
-                        price: sellResult.executedPrices.instrument2,
-                        quantity: this.globalDict.quantity || 75,
-                        scenario: 'sell_both_at_7',
-                        instrumentType: instrument_2.symbol.includes('CE') ? 'CE' : 'PE'
-                    });
-                } else {
-                    this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
+            if(!this.universalDict.usePrebuy){
+                try {
+                    const sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
+                    if (sellResult && sellResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
+                        
+                        // Emit specific trade actions for dashboard table
+                        this.emitTradeAction('sell', {
+                            symbol: instrument_1.symbol,
+                            price: sellResult.executedPrices.instrument1,
+                            quantity: this.globalDict.quantity || 75,
+                            scenario: 'sell_both_at_7',
+                            instrumentType: instrument_1.symbol.includes('CE') ? 'CE' : 'PE'
+                        });
+                        
+                        this.emitTradeAction('sell', {
+                            symbol: instrument_2.symbol,
+                            price: sellResult.executedPrices.instrument2,
+                            quantity: this.globalDict.quantity || 75,
+                            scenario: 'sell_both_at_7',
+                            instrumentType: instrument_2.symbol.includes('CE') ? 'CE' : 'PE'
+                        });
+                    } else {
+                        this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
+                    }
+                } catch (error) {
+                    this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
                 }
-            } catch (error) {
-                this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
+            }
+            else {
+                try {
+                    const sellResult = await this.sellInstrument(instrument_1);
+                    if (sellResult && sellResult.success) {
+                        this.strategyUtils.logStrategyInfo(`First instrument sold at target/stoploss - Executed price: ${sellResult.executedPrice}`);
+                    } else {
+                        this.strategyUtils.logStrategyError('Failed to sell first instrument at target/stoploss');
+                    }
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                }
             }
         }
 
@@ -1168,7 +1283,7 @@ class MTMV3Strategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Opposite Token: ${oppInstrument.symbol} @ ${oppInstrument.last}`);
 
         // Check if trading is enabled
-        const tradingEnabled = this.globalDict.enableTrading === true;
+        const tradingEnabled = this.globalDict.enableTrading === true && this.universalDict.usePrebuy === false;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
 
         // CRITICAL FIX: Ensure TradingUtils is available before proceeding
@@ -1354,6 +1469,10 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
         this.mtm10tracked = false;
+        this.buyingCompleted = false;
+        this.finalRefCompleted = false;
+        this.prebuyBuyPriceOnce = 0;
+        this.prebuyBuyPriceTwice = 0;
         
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -1398,7 +1517,7 @@ class MTMV3Strategy extends BaseStrategy {
     }
 
     shouldBuyBack() {
-        if((this.sellAt24Limit + this.sellAt36Limit) < this.globalDict.target){
+        if((this.globalDict.sellAt24Limit + this.globalDict.sellAt36Limit) < this.globalDict.target){
             return true;
         }
         return false;
@@ -1520,6 +1639,11 @@ class MTMV3Strategy extends BaseStrategy {
                 default: -36,
                 description: 'Limit for selling at -36 points'
             },
+            prebuyStoploss: {
+                type: 'number',
+                default: -7,
+                description: 'Stoploss for pre-buy'
+            },
             skipAfterCycles: {
                 type: 'number',
                 default: 1,
@@ -1549,6 +1673,11 @@ class MTMV3Strategy extends BaseStrategy {
                 type: 'boolean',
                 default: false,
                 description: 'Disable interim low detection'
+            },
+            usePrebuy: {
+                type: 'boolean',
+                default: false,
+                description: 'Use pre-buy technique.'
             }
         };
     }

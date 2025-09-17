@@ -106,8 +106,13 @@ const ConfigurationBar = ({ strategy }) => {
       ? strategy.globalDict?.[paramName] 
       : strategy.universalDict?.[paramName];
     
-    // Check if there's a local change by comparing local value with original strategy value
-    const hasLocalChange = localValue !== undefined && String(localValue) !== String(originalValue);
+    // Get the effective original value (strategy dict value or default)
+    const effectiveOriginalValue = originalValue !== undefined 
+      ? originalValue 
+      : paramConfig?.default;
+    
+    // Check if there's a local change - any local value means user has modified it
+    const hasLocalChange = localValue !== undefined;
 
     return (
       <div key={paramName} className="space-y-2">
@@ -179,10 +184,10 @@ const ConfigurationBar = ({ strategy }) => {
         <p className="text-xs text-gray-500">{paramConfig.description}</p>
         
         {/* Show original value if modified */}
-        {hasLocalChange && originalValue !== undefined && (
+        {hasLocalChange && effectiveOriginalValue !== undefined && (
           <div className="flex items-center space-x-2 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
             <span className="font-medium">Original:</span>
-            <span className="font-mono">{String(originalValue)}</span>
+            <span className="font-mono">{String(effectiveOriginalValue)}</span>
             <span className="text-gray-400">→</span>
             <span className="font-medium">New:</span>
             <span className="font-mono text-orange-600">{String(localValue)}</span>
@@ -192,13 +197,7 @@ const ConfigurationBar = ({ strategy }) => {
     );
   };
 
-  const hasLocalChanges = Object.keys(localValues).some(key => {
-    const [type, paramName] = key.split('.');
-    const originalValue = type === 'global' 
-      ? strategy.globalDict?.[paramName] 
-      : strategy.universalDict?.[paramName];
-    return String(localValues[key]) !== String(originalValue);
-  });
+  const hasLocalChanges = Object.keys(localValues).length > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
