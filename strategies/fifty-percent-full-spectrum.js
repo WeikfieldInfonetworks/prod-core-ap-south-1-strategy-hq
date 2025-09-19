@@ -534,8 +534,14 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 ? (ce_change <= this.globalDict.prebuyStoploss ? ceInstrument : peInstrument) 
                 : (ce_change <= this.globalDict.prebuyStoploss ? peInstrument : ceInstrument);
                 let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
-                this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
-                this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                if(!this.globalDict.buySame) {
+                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
+                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                }
+                else {
+                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${instrument.symbol} at ${instrument.last}`);
+                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                }
                 this.instrument_bought = instrument;
                 
                 // Set tracking flags for dashboard
