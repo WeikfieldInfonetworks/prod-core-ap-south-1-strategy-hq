@@ -1,21 +1,127 @@
 import React, { useState, useEffect } from 'react';
 import { useSocket } from '../../contexts/SocketContext';
 import BlockProgress from './fifty-percent-full-spectrum/BlockProgress';
-import ConfigurationBar from './mtm-v2/ConfigurationBar';
+import ConfigurationBar from './fifty-percent-full-spectrum/ConfigurationBar';
 import InstrumentTiles from './fifty-percent-full-spectrum/InstrumentTiles';
 import TradingTable from './fifty-percent-full-spectrum/TradingTable';
-import { Activity, TrendingUp, Target, AlertTriangle, Clock } from 'lucide-react';
+import { Activity, TrendingUp, Target, AlertTriangle, Clock, CheckCircle, XCircle, Info } from 'lucide-react';
 
 const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
   const { socket } = useSocket();
   const [instrumentData, setInstrumentData] = useState(null);
   const [tradingActions, setTradingActions] = useState([]);
   const [allInstrumentsData, setAllInstrumentsData] = useState({});
+  const [notifications, setNotifications] = useState([]);
+  const [fadingNotifications, setFadingNotifications] = useState(new Set());
+
+  const addNotification = (notification) => {
+    const notificationWithId = { ...notification, id: Date.now() };
+    setNotifications(prev => [
+      notificationWithId,
+      ...prev.slice(0, 4) // Keep last 5 notifications
+    ]);
+    
+    // Auto-dismiss notification after 3 seconds
+    setTimeout(() => {
+      removeNotification(notificationWithId.id);
+    }, 3000);
+  };
+
+  const removeNotification = (id) => {
+    // Add to fading set to trigger fade-out animation
+    setFadingNotifications(prev => new Set(prev).add(id));
+    
+    // Remove from notifications after animation completes
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+      setFadingNotifications(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(id);
+        return newSet;
+      });
+    }, 300); // Match animation duration
+  };
 
   useEffect(() => {
     if (!socket || !strategy) return;
 
-    // Listen for instrument data updates
+    // Listen for strategy status updates
+    const handleStrategyStatusUpdate = (data) => {
+      if (data.blockTransition) {
+        // Handle block transitions if needed
+        // The block state is already managed by the strategy object
+      }
+
+      // Handle instrument data updates
+      if (data.status === 'instrument_data_update') {
+        setInstrumentData(data);
+        
+        // Update all instruments data for the table
+        if (data.instrumentMap) {
+          setAllInstrumentsData(data.instrumentMap);
+        }
+      }
+
+      // Handle half drop detection specifically
+      if (data.halfDropDetected) {
+        addNotification({
+          type: 'warning',
+          title: 'Half Drop Detected!',
+          message: data.message || `50% drop detected in ${data.instrument}`,
+          timestamp: new Date().toISOString(),
+          data: {
+            instrument: data.instrument,
+            lowAtRef: data.lowAtRef,
+            firstPrice: data.firstPrice,
+            dropPercentage: data.dropPercentage
+          }
+        });
+      }
+
+      // Add to notifications for other status updates
+      if (data.status !== 'instrument_data_update' && !data.halfDropDetected) {
+        addNotification({
+          type: 'info',
+          title: 'Strategy Update',
+          message: data.status,
+          timestamp: new Date().toISOString()
+        });
+      }
+    };
+
+    // Listen for parameter updates
+    const handleParameterUpdated = (data) => {
+      addNotification({
+        type: 'success',
+        title: 'Parameter Updated',
+        message: `${data.parameter}: ${data.oldValue} → ${data.newValue}`,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    // Listen for parameter errors
+    const handleParameterError = (data) => {
+      addNotification({
+        type: 'error',
+        title: 'Parameter Error',
+        message: data.error,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    // Listen for trading actions
+    const handleTradingAction = (data) => {
+      setTradingActions(prev => [data, ...prev].slice(0, 50)); // Keep last 50 actions
+      
+      addNotification({
+        type: 'success',
+        title: 'Trade Action',
+        message: `${data.action}: ${data.symbol} @ ${data.price}`,
+        timestamp: new Date().toISOString()
+      });
+    };
+
+    // Listen for instrument data updates (legacy)
     const handleInstrumentUpdate = (data) => {
       if (data.strategyName === strategy.name) {
         setInstrumentData(data);
@@ -27,17 +133,19 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
       }
     };
 
-    // Listen for trading actions
-    const handleTradingAction = (data) => {
-      if (data.strategyName === strategy.name) {
-        setTradingActions(prev => [data, ...prev].slice(0, 50)); // Keep last 50 actions
-      }
-    };
-
+    // Register all socket listeners
+    socket.on('strategy_status_update', handleStrategyStatusUpdate);
+    socket.on('strategy_parameter_updated', handleParameterUpdated);
+    socket.on('strategy_parameter_error', handleParameterError);
+    socket.on('strategy_trade_action', handleTradingAction);
     socket.on('instrument_data_update', handleInstrumentUpdate);
     socket.on('trading_action', handleTradingAction);
 
     return () => {
+      socket.off('strategy_status_update', handleStrategyStatusUpdate);
+      socket.off('strategy_parameter_updated', handleParameterUpdated);
+      socket.off('strategy_parameter_error', handleParameterError);
+      socket.off('strategy_trade_action', handleTradingAction);
       socket.off('instrument_data_update', handleInstrumentUpdate);
       socket.off('trading_action', handleTradingAction);
     };
@@ -90,8 +198,67 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
 
   const instrumentsInRange = getInstrumentsInRange();
 
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'warning':
+        return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+      default:
+        return <Info className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'success':
+        return 'bg-green-50 border-green-200 text-green-800';
+      case 'error':
+        return 'bg-red-50 border-red-200 text-red-800';
+      case 'warning':
+        return 'bg-orange-50 border-orange-200 text-orange-800';
+      default:
+        return 'bg-blue-50 border-blue-200 text-blue-800';
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Notifications */}
+      {notifications.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {notifications.map((notification) => (
+            <div
+              key={notification.id}
+              className={`max-w-sm p-4 rounded-lg border shadow-lg transition-all duration-300 ${
+                fadingNotifications.has(notification.id)
+                  ? 'opacity-0 transform translate-x-full'
+                  : 'opacity-100 transform translate-x-0'
+              } ${getNotificationColor(notification.type)}`}
+            >
+              <div className="flex items-start space-x-3">
+                {getNotificationIcon(notification.type)}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-medium">{notification.title}</h4>
+                  <p className="text-sm mt-1">{notification.message}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(notification.timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => removeNotification(notification.id)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XCircle className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Strategy Header */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between">

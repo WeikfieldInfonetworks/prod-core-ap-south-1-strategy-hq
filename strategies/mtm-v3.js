@@ -760,7 +760,7 @@ class MTMV3Strategy extends BaseStrategy {
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
 
-        if(!this.universalDict.usePrebuy && !this.entry_7){
+        if(this.universalDict.usePrebuy && !this.entry_7){
             if((instrument_1_original_change <= this.globalDict.prebuyStoploss) && this.prebuyBuyPriceTwice == 0){
                 //BUY AGAIN
                 this.prebuyBuyPriceTwice = instrument_1.last;
@@ -1656,7 +1656,7 @@ class MTMV3Strategy extends BaseStrategy {
         return {
             expiry: {
                 type: 'number',
-                default: 3,
+                default: 1,
                 description: 'Expiry day (0=Monday, 3=Thursday)'
             },
             cycles: {

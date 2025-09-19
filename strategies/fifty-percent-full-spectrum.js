@@ -291,21 +291,21 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         );
         
         // Convert to strings for consistency with instrumentMap keys
-        this.universalDict.ceTokens = [ceTokens.map(token => token.toString()).sort((a, b) => {
+        this.universalDict.ceTokens = ceTokens.map(token => token.toString()).sort((a, b) => {
             const aTick = Math.abs(ticks.find(t => t.instrument_token.toString() === a).last_price);
             const bTick = Math.abs(ticks.find(t => t.instrument_token.toString() === b).last_price);
             return aTick - bTick;
-        })[0]];
+        });
 
-        this.universalDict.peTokens = [peTokens.map(token => token.toString()).sort((a, b) => {
+        this.universalDict.peTokens = peTokens.map(token => token.toString()).sort((a, b) => {
             const aTick = Math.abs(ticks.find(t => t.instrument_token.toString() === a).last_price);
             const bTick = Math.abs(ticks.find(t => t.instrument_token.toString() === b).last_price);
             return aTick - bTick;
-        })[0]];
+        });
 
         // TEMPORARY FIX: For testing
-        // this.universalDict.ceTokens = ["10388226"]
-        // this.universalDict.peTokens = ["10390018"]
+        // this.universalDict.ceTokens = ["12227842", "12229890", "12230914", "12231426"]
+        // this.universalDict.peTokens = ["12226562", "12227074", "12227586", "12228098", "12230146"]
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -415,15 +415,43 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             instrument.change = newPrice - oldPrice;
             instrument.last = newPrice;
 
-            // TEMPORARY FIX: For testing
-            // if (token === "10390018"){
-            //     instrument.firstPrice = 113.35
+            // // TEMPORARY FIX: For testing
+
+            // if (token === "12226562"){
+            //     instrument.firstPrice = 20.9
             // }
 
-            // if (token === "10388226"){
-            //     instrument.firstPrice = 116.85
+            // if (token === "12227074"){
+            //     instrument.firstPrice = 30
             // }
-            
+
+            // if (token === "12227586"){
+            //     instrument.firstPrice = 43.25
+            // }
+
+            // if (token === "12228098"){
+            //     instrument.firstPrice = 61.35
+            // }
+
+            // if (token === "12230146"){
+            //     instrument.firstPrice = 85.1
+            // }
+
+            // if (token === "12227842"){
+            //     instrument.firstPrice = 91.2
+            // }
+
+            // if (token === "12231426"){
+            //     instrument.firstPrice = 29.6
+            // }
+
+            // if (token === "12230914"){
+            //     instrument.firstPrice = 45.55
+            // }
+
+            // if (token === "12229890"){
+            //     instrument.firstPrice = 65.35
+            // }
             // Other updates only for selected instruments.
             if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {
 
@@ -439,7 +467,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`NEW LOW AT REF: ${instrument.symbol}: ${instrument.lowAtRef}`);
                 }
 
-                if (instrument.lowAtRef <= instrument.firstPrice*this.globalDict.dropThreshold && !this.halfdrop_flag) {
+                if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
                     this.halfdrop_flag = true;
                     this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
                     
