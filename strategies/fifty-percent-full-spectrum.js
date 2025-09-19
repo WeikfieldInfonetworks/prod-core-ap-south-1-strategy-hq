@@ -530,7 +530,9 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             }
             
             if(this.stoplossHit && !this.instrument_bought) {
-                let instrument = ce_change <= this.globalDict.prebuyStoploss ? peInstrument : ceInstrument;
+                let instrument = this.globalDict.buySame 
+                ? (ce_change <= this.globalDict.prebuyStoploss ? ceInstrument : peInstrument) 
+                : (ce_change <= this.globalDict.prebuyStoploss ? peInstrument : ceInstrument);
                 let otherInstrument = ce_change <= this.globalDict.prebuyStoploss ? ceInstrument : peInstrument;
                 this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
                 this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
@@ -976,6 +978,11 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 type: 'number',
                 default: -15,
                 description: 'Prebuy stoploss in points'
+            },
+            buySame: {
+                type: 'boolean',
+                default: false,
+                description: 'Buy same instrument again'
             },
             quantity: {
                 type: 'number',
