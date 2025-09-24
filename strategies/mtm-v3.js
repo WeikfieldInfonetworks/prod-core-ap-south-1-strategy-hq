@@ -871,6 +871,13 @@ class MTMV3Strategy extends BaseStrategy {
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
                 }
+
+                if(this.prebuyBuyPriceTwice > 0){
+                    this.globalDict.target = this.globalDict.target * 2;
+                    this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                    this.globalDict.quantity = this.globalDict.quantity / 2;
+                    this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                }
             }
         }
 
