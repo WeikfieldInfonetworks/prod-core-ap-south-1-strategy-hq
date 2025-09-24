@@ -56,9 +56,11 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmBuyBackInstrument = null;
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
+        this.mtmFullData = {};
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
         this.prebuyBuyPriceOnce = 0;
         this.prebuyBuyPriceTwice = 0;
+        this.prebuyFullData = {};
         
         // Block states
         this.blockInit = true;
@@ -202,6 +204,7 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmBuyBackPrice = null; // Store buy back price
         this.mtmBuyBackTarget = null; // Store target for buy back scenario
         this.mtmTotalPreviousPnL = 0; // Store total P&L from previous trades
+        this.mtmFullData = {};
         this.prebuyBuyPriceOnce = 0;
         this.prebuyBuyPriceTwice = 0;
         this.mtmSoldAt10 = false;
@@ -356,6 +359,22 @@ class MTMV3Strategy extends BaseStrategy {
             // this.universalDict.skipBuy = true;
             this.globalDict.sellAt10Live = true;
             this.globalDict.enableTrading = false;
+        }
+
+        if(this.universalDict.usePrebuy){
+        this.prebuyFullData['init'] = {
+            "cycles": this.universalDict.cycles,
+                "enableTrading": this.globalDict.enableTrading,
+                "timestamp": this.formatTime24(new Date())
+            };
+            this.emitPrebuyDataUpdate();
+        }
+        else{
+            this.mtmFullData['init'] = {
+                "cycles": this.universalDict.cycles,
+                "enableTrading": this.globalDict.enableTrading,
+                "timestamp": this.formatTime24(new Date())
+            };
         }
 
         // Set strike base and diff based on weekday
@@ -675,7 +694,9 @@ class MTMV3Strategy extends BaseStrategy {
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
             if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss){
-                real_instrument = ce_change <= this.globalDict.prebuyStoploss ? pe_instrument : ce_instrument;
+                real_instrument = ce_change <= this.globalDict.prebuyStoploss 
+                ? this.globalDict.buySame ? ce_instrument : pe_instrument
+                : this.globalDict.buySame ? pe_instrument : ce_instrument;
                 this.prebuyBuyPriceOnce = real_instrument.last;
                 console.log(`REAL INSTRUMENT: ${real_instrument.symbol}`);
                 this.boughtToken = real_instrument.token;
@@ -690,6 +711,18 @@ class MTMV3Strategy extends BaseStrategy {
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
                 }
+
+                this.prebuyFullData['realBuy'] = {
+                    "stoplossHitBy": real_instrument === ce_instrument ? this.globalDict.buySame ? ce_instrument.symbol : pe_instrument.symbol : this.globalDict.buySame ? pe_instrument.symbol : ce_instrument.symbol,
+                    "stoplossHitByPrice": real_instrument === ce_instrument ? this.globalDict.buySame ? ce_instrument.last : pe_instrument.last : this.globalDict.buySame ? pe_instrument.last : ce_instrument.last,
+                    "firstBuyInstrument": real_instrument,
+                    "firstBuyPrice": this.prebuyBuyPriceOnce,
+                    "firstBuyQuantity": this.globalDict.quantity || 75,
+                    "firstBuyTimestamp": this.formatTime24(new Date()),
+                    "secondBuy": false,
+                    "averageBuyPrice": this.prebuyBuyPriceOnce
+                }
+                this.emitPrebuyDataUpdate();
 
                 this.blockFinalRef = false;
                 this.blockDiff10 = true;
@@ -781,6 +814,17 @@ class MTMV3Strategy extends BaseStrategy {
                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
                 this.globalDict.quantity = this.globalDict.quantity * 2;
 
+                this.prebuyFullData['realBuy'] = {
+                    ...this.prebuyFullData['realBuy'],
+                    "secondBuy": true,
+                    "secondBuyInstrument": instrument_1,
+                    "secondBuyPrice": this.prebuyBuyPriceTwice,
+                    "secondBuyQuantity": this.globalDict.quantity / 2,
+                    "secondBuyTimestamp": this.formatTime24(new Date()),
+                    "averageBuyPrice": (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2
+                }
+                this.emitPrebuyDataUpdate();
+
                 
             }
 
@@ -829,10 +873,11 @@ class MTMV3Strategy extends BaseStrategy {
         
         if(this.entry_7){
             this.boughtSold = true;
+            let sellResult = null;
             // SELL LOGIC - Sell both instruments at target or stoploss
             if(!this.universalDict.usePrebuy){
                 try {
-                    const sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
+                    sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
                         
@@ -858,10 +903,31 @@ class MTMV3Strategy extends BaseStrategy {
                 } catch (error) {
                     this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
                 }
+                this.mtmFullData['realSell'] = {
+                    "call": {
+                        "sellInstrument": instrument_1.symbol.includes('CE') ? instrument_1 : instrument_2,
+                        "sellPrice": instrument_1.symbol.includes('CE') ? sellResult.executedPrices.instrument1 : sellResult.executedPrices.instrument2,
+                        "sellQuantity": this.globalDict.quantity || 75,
+                    },
+                    "put": {
+                        "sellInstrument": instrument_2.symbol.includes('CE') ? instrument_2 : instrument_1,
+                        "sellPrice": instrument_2.symbol.includes('CE') ? sellResult.executedPrices.instrument2 : sellResult.executedPrices.instrument1,
+                        "sellQuantity": this.globalDict.quantity || 75,
+                    },
+                    "sellTimestamp": this.formatTime24(new Date()),
+                    "sellScenario": 'sell_both_at_7'
+                }
+                // this.mtmFullData['summary'] = {
+                //     "pnlInPoints": this.mtm,
+                //     "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['firstBuyPrice'])
+                //                 *(this.prebuyFullData['realBuy']['secondBuy'] 
+                //                 ? this.prebuyFullData['realSell']['sellQuantity'] 
+                //                 : this.prebuyFullData['realBuy']['firstBuyQuantity']),
+                // }
             }
             else {
                 try {
-                    const sellResult = await this.sellInstrument(instrument_1);
+                    sellResult = await this.sellInstrument(instrument_1);
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at target/stoploss - Executed price: ${sellResult.executedPrice}`);
                     } else {
@@ -878,6 +944,23 @@ class MTMV3Strategy extends BaseStrategy {
                     this.globalDict.quantity = this.globalDict.quantity / 2;
                     this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                 }
+
+                this.prebuyFullData['realSell'] = {
+                    "sellInstrument": instrument_1,
+                    "sellPrice": sellResult.executedPrice,
+                    "sellQuantity": this.globalDict.quantity || 75,
+                    "sellTimestamp": this.formatTime24(new Date())
+                }
+
+                this.prebuyFullData['summary'] = {
+                    "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
+                    "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['firstBuyPrice'])
+                                *(this.prebuyFullData['realBuy']['secondBuy'] 
+                                ? this.prebuyFullData['realSell']['sellQuantity'] 
+                                : this.prebuyFullData['realBuy']['firstBuyQuantity']),
+                    
+                }
+                this.emitPrebuyDataUpdate();
             }
         }
 
@@ -1280,29 +1363,30 @@ class MTMV3Strategy extends BaseStrategy {
         const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
         const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
 
+        
         if (!boughtInstrument || !oppInstrument) {
             this.strategyUtils.logStrategyError('Cannot place orders - instrument data not found');
             return;
         }
-
+        
         this.strategyUtils.logStrategyInfo('Placing orders for MTM strategy tokens');
         this.strategyUtils.logStrategyInfo(`Bought Token: ${boughtInstrument.symbol} @ ${boughtInstrument.last}`);
         this.strategyUtils.logStrategyInfo(`Opposite Token: ${oppInstrument.symbol} @ ${oppInstrument.last}`);
-
+        
         // Check if trading is enabled
         const tradingEnabled = this.globalDict.enableTrading === true && this.universalDict.usePrebuy === false;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
-
+        
         // CRITICAL FIX: Ensure TradingUtils is available before proceeding
         if (!this.tradingUtils) {
             this.strategyUtils.logStrategyError('CRITICAL ERROR: TradingUtils not available - cannot place orders');
             this.strategyUtils.logStrategyError('This usually indicates a timing issue with TradingUtils injection');
             return;
         }
-
+        
         // Use the injected TradingUtils instance (with proper credentials) instead of this.tradingUtils
         const tradingUtils = this.tradingUtils;
-
+        
         try {
             if (tradingEnabled) {
                 // Place order for bought token (mtmFirstOption) - synchronous
@@ -1311,7 +1395,7 @@ class MTMV3Strategy extends BaseStrategy {
                     boughtInstrument.last,
                     this.globalDict.quantity || 75
                 );
-
+                
                 if (boughtOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${boughtInstrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken);
@@ -1344,8 +1428,8 @@ class MTMV3Strategy extends BaseStrategy {
                 }).catch(error => {
                     this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
                 });
-
-
+                
+                
                 // Place order for opposite token - synchronous
                 const oppOrderResult = tradingUtils.placeBuyOrder(
                     oppInstrument.symbol,
@@ -1367,7 +1451,7 @@ class MTMV3Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppOrderResult.error);
                 }
-
+                
                 let oppPrice = oppInstrument.last;
                 oppOrderResult.orderId.then(orderId => {
                     tradingUtils.getOrderHistory(orderId.order_id)
@@ -1384,7 +1468,7 @@ class MTMV3Strategy extends BaseStrategy {
                 }).catch(error => {
                     this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
                 });
-
+                
             } else {
                 // Paper trading - log the orders without placing them
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${boughtInstrument.symbol} @ ${boughtInstrument.last}`);
@@ -1392,7 +1476,7 @@ class MTMV3Strategy extends BaseStrategy {
                 
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${oppInstrument.symbol} @ ${oppInstrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
-
+                
                 boughtInstrument.buyPrice = boughtInstrument.last;
                 oppInstrument.buyPrice = oppInstrument.last;
             }
@@ -1406,6 +1490,38 @@ class MTMV3Strategy extends BaseStrategy {
 
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while placing orders: ${error.message}`);
+        }
+
+        if(this.universalDict.usePrebuy){
+            this.prebuyFullData["preBoughtInstruments"] = {
+                    "call": {
+                        "instrument": boughtInstrument.symbol.includes('CE') ? boughtInstrument : oppInstrument,
+                        "price": boughtInstrument.symbol.includes('CE') ? boughtInstrument.last : oppInstrument.last,
+                        "quantity": this.globalDict.quantity || 75
+                    },
+                    "put": {
+                        "instrument": boughtInstrument.symbol.includes('CE') ? oppInstrument : boughtInstrument,
+                        "price": boughtInstrument.symbol.includes('CE') ? oppInstrument.last : boughtInstrument.last,
+                        "quantity": this.globalDict.quantity || 75
+                    },
+                    "timestamp": this.formatTime24(new Date())
+            }
+            this.emitPrebuyDataUpdate();
+        }
+        else{
+            this.mtmFullData["boughtInstruments"] = {
+                "call": {
+                    "instrument": boughtInstrument.symbol.includes('CE') ? boughtInstrument : oppInstrument,
+                    "price": boughtInstrument.symbol.includes('CE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
+                    "quantity": this.globalDict.quantity || 75
+                },
+                "put": {
+                    "instrument": boughtInstrument.symbol.includes('CE') ? oppInstrument : boughtInstrument,
+                    "price": boughtInstrument.symbol.includes('CE') ? oppInstrument.buyPrice : boughtInstrument.buyPrice,
+                    "quantity": this.globalDict.quantity || 75
+                },
+                "timestamp": this.formatTime24(new Date())
+            }
         }
     }
 
@@ -1478,6 +1594,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtm10tracked = false;
         this.buyingCompleted = false;
         this.finalRefCompleted = false;
+        this.mtmFullData = {};
+        this.prebuyFullData = {};
         this.prebuyBuyPriceOnce = 0;
         this.prebuyBuyPriceTwice = 0;
         
@@ -1596,16 +1714,16 @@ class MTMV3Strategy extends BaseStrategy {
                 default: false,
                 description: 'Enable/disable actual trading'
             },
-            sellAt10Live: {
-                type: 'boolean',
-                default: false,
-                description: 'Enable/disable selling at 10 points live'
-            },
-            sellFirstAt10: {
-                type: 'string',
-                default: 'HIGHER',
-                description: 'Sell first instrument at 10 points higher or lower. Default is HIGHER'
-            },
+            // sellAt10Live: {
+            //     type: 'boolean',
+            //     default: false,
+            //     description: 'Enable/disable selling at 10 points live'
+            // },
+            // sellFirstAt10: {
+            //     type: 'string',
+            //     default: 'HIGHER',
+            //     description: 'Sell first instrument at 10 points higher or lower. Default is HIGHER'
+            // },
             peakDef: {
                 type: 'number',
                 default: 3,
@@ -1631,11 +1749,11 @@ class MTMV3Strategy extends BaseStrategy {
                 default: 24,
                 description: 'Limit for selling at 24 points'
             },
-            sellAt10Limit: {
-                type: 'number',
-                default: -10,
-                description: 'Limit for selling at -10 points'
-            },
+            // sellAt10Limit: {
+            //     type: 'number',
+            //     default: -10,
+            //     description: 'Limit for selling at -10 points'
+            // },
             buyBackTarget: {
                 type: 'number',
                 default: 10,
@@ -1650,6 +1768,11 @@ class MTMV3Strategy extends BaseStrategy {
                 type: 'number',
                 default: -7,
                 description: 'Stoploss for pre-buy'
+            },
+            buySame : {
+                type: 'boolean',
+                default: false,
+                description: 'Buy the same instrument again'
             },
             skipAfterCycles: {
                 type: 'number',
@@ -2192,6 +2315,25 @@ class MTMV3Strategy extends BaseStrategy {
             timestamp: new Date().toISOString()
         });
     }
+
+    emitPrebuyDataUpdate() {
+        if (this.universalDict.usePrebuy && Object.keys(this.prebuyFullData).length > 0) {
+            this.emitToUser('strategy_prebuy_data', this.prebuyFullData);
+        }
+    }
+
+    formatTime24(date) {
+        let hours = date.getHours();     // 0–23
+        let minutes = date.getMinutes(); // 0–59
+        let seconds = date.getSeconds(); // 0–59
+      
+        // add leading zeros if needed
+        hours = hours < 10 ? "0" + hours : hours;
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+      
+        return `${hours}:${minutes}:${seconds}`;
+      }
 }
 
 module.exports = MTMV3Strategy;

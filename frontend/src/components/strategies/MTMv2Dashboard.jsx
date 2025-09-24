@@ -5,6 +5,7 @@ import BlockProgress from './mtm-v2/BlockProgress';
 import InstrumentTiles from './mtm-v2/InstrumentTiles';
 import SumTile from './mtm-v2/SumTile';
 import TradingTable from './mtm-v2/TradingTable';
+import PrebuyHistoryTable from './mtm-v2/PrebuyHistoryTable';
 import { Activity, AlertCircle } from 'lucide-react';
 
 const MTMv2Dashboard = ({ strategy }) => {
@@ -21,6 +22,7 @@ const MTMv2Dashboard = ({ strategy }) => {
   const [tradingActions, setTradingActions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [fadingNotifications, setFadingNotifications] = useState(new Set());
+  const [prebuyData, setPrebuyData] = useState(null);
 
   useEffect(() => {
     if (!socket) return;
@@ -109,11 +111,17 @@ const MTMv2Dashboard = ({ strategy }) => {
       });
     });
 
+    // Listen for prebuy data updates
+    socket.on('strategy_prebuy_data', (data) => {
+      setPrebuyData(data);
+    });
+
     return () => {
       socket.off('strategy_status_update');
       socket.off('strategy_trade_action');
       socket.off('strategy_parameter_updated');
       socket.off('strategy_parameter_error');
+      socket.off('strategy_prebuy_data');
     };
   }, [socket]);
 
@@ -213,6 +221,11 @@ const MTMv2Dashboard = ({ strategy }) => {
             <div className="text-2xl font-bold text-blue-600">
               {strategy.universalDict?.cycles || 0}
             </div>
+            {strategy.universalDict?.usePrebuy && (
+              <div className="text-xs text-purple-600 mt-1">
+                Prebuy Mode
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -229,12 +242,19 @@ const MTMv2Dashboard = ({ strategy }) => {
         <SumTile instrumentData={instrumentData} />
       </div>
 
-      {/* Trading Table */}
-      <TradingTable 
-        strategy={strategy} 
-        instrumentData={instrumentData}
-        tradingActions={tradingActions}
-      />
+      {/* Trading Table or Prebuy History */}
+      {strategy.universalDict?.usePrebuy ? (
+        <PrebuyHistoryTable 
+          strategy={strategy} 
+          currentPrebuyData={prebuyData}
+        />
+      ) : (
+        <TradingTable 
+          strategy={strategy} 
+          instrumentData={instrumentData}
+          tradingActions={tradingActions}
+        />
+      )}
     </div>
   );
 };

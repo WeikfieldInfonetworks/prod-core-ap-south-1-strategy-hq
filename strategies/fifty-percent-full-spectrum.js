@@ -488,6 +488,14 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 if (instrument.buyPrice > -1) {
                     instrument.changeFromBuy = newPrice - instrument.buyPrice;
                 }
+
+                if (this.globalDict.setStrategyFor20) {
+                    this.globalDict.target = 12;
+                    this.globalDict.stoploss = -100;
+                    this.globalDict.prebuyStoplossRequired = false;
+                    this.globalDict.prebuyStoploss = 0;
+                    this.globalDict.buySame = false;
+                }
             }
         }
 
@@ -523,16 +531,17 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             
             let ce_change = ceInstrument.last - ceInstrument.buyPrice;
             let pe_change = peInstrument.last - peInstrument.buyPrice;
-
+            let stoploss = null;
             if(!this.stoplossHit) {
                 console.log(`PREBUY | CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
-                this.stoplossHit = ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss;
+                stoploss = this.globalDict.prebuyStoplossRequired ? this.globalDict.prebuyStoploss : 0;
+                this.stoplossHit = ce_change <= stoploss || pe_change <= stoploss;
             }
             
             if(this.stoplossHit && !this.instrument_bought) {
                 let instrument = this.globalDict.buySame 
-                ? (ce_change <= this.globalDict.prebuyStoploss ? ceInstrument : peInstrument) 
-                : (ce_change <= this.globalDict.prebuyStoploss ? peInstrument : ceInstrument);
+                ? (ce_change <= stoploss ? ceInstrument : peInstrument) 
+                : (ce_change <= stoploss ? peInstrument : ceInstrument);
                 let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
                 if(!this.globalDict.buySame) {
                     this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
@@ -989,6 +998,16 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 type: 'boolean',
                 default: false,
                 description: 'Buy same instrument again'
+            },
+            prebuyStoplossRequired: {
+                type: 'boolean',
+                default: false,
+                description: 'Prebuy required or not'
+            },
+            setStrategyFor20 : {
+                type: 'boolean',
+                default: false,
+                description: 'Set strategy for 20 rupee halfdrop'
             },
             quantity: {
                 type: 'number',
