@@ -26,6 +26,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mainToken = null;
         this.oppToken = null;
         this.boughtToken = null;
+        this.prebuyBoughtToken = null;
+        this.prebuyOppBoughtToken = null;
         this.oppBoughtToken = null;
         this.mtmFirstOption = null;
         this.interimLowReached = false;
@@ -178,6 +180,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mainToken = null;
         this.oppToken = null;
         this.boughtToken = null;
+        this.prebuyBoughtToken = null;
+        this.prebuyOppBoughtToken = null;
         this.oppBoughtToken = null;
         this.mtmFirstOption = null;
         this.interimLowReached = false;
@@ -699,7 +703,7 @@ class MTMV3Strategy extends BaseStrategy {
                 : this.globalDict.buySame ? pe_instrument : ce_instrument;
                 this.prebuyBuyPriceOnce = real_instrument.last;
                 console.log(`REAL INSTRUMENT: ${real_instrument.symbol}`);
-                this.boughtToken = real_instrument.token;
+                this.prebuyBoughtToken = real_instrument.token;
                 // BUY LOGIC - Buy the real instrument
                 try {
                     const buyResult = await this.buyInstrument(real_instrument);
@@ -711,6 +715,9 @@ class MTMV3Strategy extends BaseStrategy {
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
                 }
+
+                // Emit instrument data update to show the real bought instrument
+                this.emitInstrumentDataUpdate();
 
                 this.prebuyFullData['realBuy'] = {
                     "stoplossHitBy": real_instrument === ce_instrument ? this.globalDict.buySame ? ce_instrument.symbol : pe_instrument.symbol : this.globalDict.buySame ? pe_instrument.symbol : ce_instrument.symbol,
@@ -756,31 +763,41 @@ class MTMV3Strategy extends BaseStrategy {
 
     async processDiff10Block(ticks) {
 
-        const instrument_1 = this.universalDict.instrumentMap[this.boughtToken];
-        const instrument_2 = !this.universalDict.usePrebuy ? this.universalDict.instrumentMap[this.oppBoughtToken] : {
-            token: "000000",
-            time: "N/A",
-            symbol: instrument_1.symbol.includes('CE') ? "000PE" : "000CE",
-            firstPrice: 0,
-            last: 0,
-            open: 0,
-            peak: 0,
-            prevPeak: 0,
-            lowAtRef: 0,
-            plus3: 0,
-            change: 0,
-            peakAtRef: 0,
-            peakTime: null,
-            buyPrice: 0,
-            changeFromBuy: 0,
-            calcRef: 0,
-            prevCalcRef: 0,
-            flagPlus3: false,
-            flagPeakAndFall: false,
-            flagCalcRef: false,
-            flagInterim: false,
-            flagCancel24: false,
-        };
+        // In prebuy mode, use the real bought instrument for tracking
+        let instrument_1, instrument_2;
+        
+        if (this.universalDict.usePrebuy && this.prebuyBoughtToken) {
+            // Use the real bought instrument for prebuy mode
+            instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+            instrument_2 = {
+                token: "000000",
+                time: "N/A",
+                symbol: instrument_1.symbol.includes('CE') ? "000PE" : "000CE",
+                firstPrice: 0,
+                last: 0,
+                open: 0,
+                peak: 0,
+                prevPeak: 0,
+                lowAtRef: 0,
+                plus3: 0,
+                change: 0,
+                peakAtRef: 0,
+                peakTime: null,
+                buyPrice: 0,
+                changeFromBuy: 0,
+                calcRef: 0,
+                prevCalcRef: 0,
+                flagPlus3: false,
+                flagPeakAndFall: false,
+                flagCalcRef: false,
+                flagInterim: false,
+                flagCancel24: false,
+            };
+        } else {
+            // Regular MTM mode
+            instrument_1 = this.universalDict.instrumentMap[this.boughtToken];
+            instrument_2 = this.universalDict.instrumentMap[this.oppBoughtToken];
+        }
 
         if (!instrument_1 || !instrument_2) {
             this.strategyUtils.logStrategyError('Cannot process DIFF10 block - instrument data not found');
@@ -795,12 +812,12 @@ class MTMV3Strategy extends BaseStrategy {
 
         if(this.universalDict.usePrebuy && !this.entry_7){
             if((instrument_1_original_change <= this.globalDict.prebuyStoploss) && this.prebuyBuyPriceTwice == 0){
-                //BUY AGAIN
+                //BUY AGAIN - Buy the same real instrument again
                 this.prebuyBuyPriceTwice = instrument_1.last;
                 try {
                     const buyResult = await this.buyInstrument(instrument_1);
                     if (buyResult && buyResult.success) {
-                        this.strategyUtils.logStrategyInfo(`Instrument 1 bought - Executed price: ${buyResult.executedPrice}`);
+                        this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
                     }
                     this.prebuyBuyPriceTwice = buyResult.executedPrice;
 
@@ -809,10 +826,14 @@ class MTMV3Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
                 }
 
+                // Update the real instrument's buy price to average of both buys
                 instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
                 this.globalDict.target = this.globalDict.target / 2;
                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
                 this.globalDict.quantity = this.globalDict.quantity * 2;
+
+                // Emit instrument data update after second buy
+                this.emitInstrumentDataUpdate();
 
                 this.prebuyFullData['realBuy'] = {
                     ...this.prebuyFullData['realBuy'],
@@ -917,13 +938,6 @@ class MTMV3Strategy extends BaseStrategy {
                     "sellTimestamp": this.formatTime24(new Date()),
                     "sellScenario": 'sell_both_at_7'
                 }
-                // this.mtmFullData['summary'] = {
-                //     "pnlInPoints": this.mtm,
-                //     "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['firstBuyPrice'])
-                //                 *(this.prebuyFullData['realBuy']['secondBuy'] 
-                //                 ? this.prebuyFullData['realSell']['sellQuantity'] 
-                //                 : this.prebuyFullData['realBuy']['firstBuyQuantity']),
-                // }
             }
             else {
                 try {
@@ -1618,6 +1632,8 @@ class MTMV3Strategy extends BaseStrategy {
         this.mainToken = null;
         this.oppToken = null;
         this.boughtToken = null;
+        this.prebuyBoughtToken = null;
+        this.prebuyOppBoughtToken = null;
         this.oppBoughtToken = null;
         this.mtmFirstOption = null;
         
@@ -2083,6 +2099,13 @@ class MTMV3Strategy extends BaseStrategy {
 
     // Dashboard-specific emit methods for real-time updates
     emitInstrumentDataUpdate() {
+        // Handle prebuy mode differently
+        if (this.universalDict.usePrebuy) {
+            this.emitPrebuyInstrumentDataUpdate();
+            return;
+        }
+
+        // Regular MTM mode - both instruments must be selected
         if (!this.boughtToken || !this.oppBoughtToken) {
             return; // No instruments selected yet
         }
@@ -2216,6 +2239,277 @@ class MTMV3Strategy extends BaseStrategy {
         this.emitStatusUpdate('instrument_data_update', instrumentData);
     }
 
+    // Dashboard-specific emit methods for prebuy mode
+    emitPrebuyInstrumentDataUpdate() {
+        // In prebuy mode, show both instruments before real buy, then show real bought instrument + N/A after
+        if (!this.prebuyBoughtToken) {
+            // No real instrument bought yet - show both prebuy instruments (similar to MTM mode)
+            if (!this.boughtToken || !this.oppBoughtToken) {
+                // No prebuy instruments selected yet - show N/A for both
+                const instrumentData = {
+                    status: 'instrument_data_update',
+                    boughtInstrument: {
+                        symbol: 'N/A',
+                        ltp: 0,
+                        last: 0,
+                        buyPrice: 0,
+                        diff: 0,
+                        type: 'CE',
+                        token: null,
+                        displayName: 'N/A',
+                        isSold: false,
+                        isActive: false,
+                        isBuyBack: false
+                    },
+                    oppInstrument: {
+                        symbol: 'N/A',
+                        ltp: 0,
+                        last: 0,
+                        buyPrice: 0,
+                        diff: 0,
+                        type: 'PE',
+                        token: null,
+                        displayName: 'N/A',
+                        isSold: false,
+                        isActive: false,
+                        isBuyBack: false
+                    },
+                    sum: {
+                        ltp: 0,
+                        value: 0,
+                        buyPrice: 0,
+                        diff: 0
+                    },
+                    mtm: 0,
+                    tradingState: {
+                        bothSold: false,
+                        hasBuyBack: false,
+                        entry24Stage: false,
+                        entry36Stage: false,
+                        entryPlusStage: false,
+                        entry7Stage: false
+                    },
+                    timestamp: new Date().toISOString()
+                };
+                this.emitStatusUpdate('instrument_data_update', instrumentData);
+                return;
+            }
+
+            // Show both prebuy instruments (before real buy)
+            const boughtInstrument = this.universalDict.instrumentMap[this.boughtToken];
+            const oppInstrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+            if (!boughtInstrument || !oppInstrument) {
+                return; // Instrument data not available
+            }
+
+            // Calculate prices and differences for both prebuy instruments
+            let ceInstrument = null, peInstrument = null;
+            let cePrice = 0, pePrice = 0, ceBuyPrice = 0, peBuyPrice = 0, ceDiff = 0, peDiff = 0;
+            let ceDisplayName = '', peDisplayName = '';
+            let ceToken = null, peToken = null;
+            let ceIsSold = false, peIsSold = false;
+
+            // Determine CE and PE instruments
+            if (boughtInstrument.symbol.includes('CE')) {
+                // boughtInstrument is CE
+                ceInstrument = {
+                    symbol: boughtInstrument.symbol,
+                    ltp: boughtInstrument.last,
+                    last: boughtInstrument.last,
+                    buyPrice: boughtInstrument.buyPrice > 0 ? boughtInstrument.buyPrice : boughtInstrument.last,
+                    diff: boughtInstrument.last - (boughtInstrument.buyPrice > 0 ? boughtInstrument.buyPrice : boughtInstrument.last),
+                    type: 'CE',
+                    token: this.boughtToken,
+                    displayName: boughtInstrument.symbol,
+                    isSold: false,
+                    isActive: true,
+                    isBuyBack: false
+                };
+                peInstrument = {
+                    symbol: oppInstrument.symbol,
+                    ltp: oppInstrument.last,
+                    last: oppInstrument.last,
+                    buyPrice: oppInstrument.buyPrice > 0 ? oppInstrument.buyPrice : oppInstrument.last,
+                    diff: oppInstrument.last - (oppInstrument.buyPrice > 0 ? oppInstrument.buyPrice : oppInstrument.last),
+                    type: 'PE',
+                    token: this.oppBoughtToken,
+                    displayName: oppInstrument.symbol,
+                    isSold: false,
+                    isActive: true,
+                    isBuyBack: false
+                };
+            } else {
+                // boughtInstrument is PE
+                ceInstrument = {
+                    symbol: oppInstrument.symbol,
+                    ltp: oppInstrument.last,
+                    last: oppInstrument.last,
+                    buyPrice: oppInstrument.buyPrice > 0 ? oppInstrument.buyPrice : oppInstrument.last,
+                    diff: oppInstrument.last - (oppInstrument.buyPrice > 0 ? oppInstrument.buyPrice : oppInstrument.last),
+                    type: 'CE',
+                    token: this.oppBoughtToken,
+                    displayName: oppInstrument.symbol,
+                    isSold: false,
+                    isActive: true,
+                    isBuyBack: false
+                };
+                peInstrument = {
+                    symbol: boughtInstrument.symbol,
+                    ltp: boughtInstrument.last,
+                    last: boughtInstrument.last,
+                    buyPrice: boughtInstrument.buyPrice > 0 ? boughtInstrument.buyPrice : boughtInstrument.last,
+                    diff: boughtInstrument.last - (boughtInstrument.buyPrice > 0 ? boughtInstrument.buyPrice : boughtInstrument.last),
+                    type: 'PE',
+                    token: this.boughtToken,
+                    displayName: boughtInstrument.symbol,
+                    isSold: false,
+                    isActive: true,
+                    isBuyBack: false
+                };
+            }
+
+            // Calculate sum values (both instruments)
+            const sumValue = ceInstrument.ltp + peInstrument.ltp;
+            const sumBuyPrice = ceInstrument.buyPrice + peInstrument.buyPrice;
+            const sumDiff = ceInstrument.diff + peInstrument.diff;
+
+            const instrumentData = {
+                status: 'instrument_data_update',
+                boughtInstrument: ceInstrument,
+                oppInstrument: peInstrument,
+                sum: {
+                    ltp: sumValue,
+                    value: sumValue,
+                    buyPrice: sumBuyPrice,
+                    diff: sumDiff
+                },
+                mtm: sumDiff,
+                tradingState: {
+                    bothSold: false,
+                    hasBuyBack: false,
+                    entry24Stage: false,
+                    entry36Stage: false,
+                    entryPlusStage: false,
+                    entry7Stage: false
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            this.emitStatusUpdate('instrument_data_update', instrumentData);
+            return;
+        }
+
+        // After real buy - show only the real bought instrument and N/A for the other
+        const realBoughtInstrument = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        if (!realBoughtInstrument) {
+            return; // Instrument data not available
+        }
+
+        // Determine if the real instrument is sold
+        const isRealInstrumentSold = this.isInstrumentSold(realBoughtInstrument);
+
+        // Calculate prices and differences for the real instrument
+        const realPrice = isRealInstrumentSold ? this.getSoldPrice(realBoughtInstrument) : realBoughtInstrument.last;
+        const realBuyPrice = realBoughtInstrument.buyPrice > 0 ? realBoughtInstrument.buyPrice : realBoughtInstrument.last;
+        const realDiff = realPrice - realBuyPrice;
+
+        // Determine CE and PE based on the real instrument
+        let ceInstrument = null, peInstrument = null;
+        let cePrice = 0, pePrice = 0, ceBuyPrice = 0, peBuyPrice = 0, ceDiff = 0, peDiff = 0;
+        let ceDisplayName = '', peDisplayName = '';
+        let ceToken = null, peToken = null;
+        let ceIsSold = false, peIsSold = false;
+
+        if (realBoughtInstrument.symbol.includes('CE')) {
+            // Real instrument is CE
+            ceInstrument = {
+                symbol: realBoughtInstrument.symbol,
+                ltp: realPrice,
+                last: realPrice,
+                buyPrice: realBuyPrice,
+                diff: realDiff,
+                type: 'CE',
+                token: this.prebuyBoughtToken,
+                displayName: realBoughtInstrument.symbol,
+                isSold: isRealInstrumentSold,
+                isActive: !isRealInstrumentSold,
+                isBuyBack: false
+            };
+            peInstrument = {
+                symbol: 'N/A',
+                ltp: 0,
+                last: 0,
+                buyPrice: 0,
+                diff: 0,
+                type: 'PE',
+                token: null,
+                displayName: 'N/A',
+                isSold: false,
+                isActive: false,
+                isBuyBack: false
+            };
+        } else {
+            // Real instrument is PE
+            ceInstrument = {
+                symbol: 'N/A',
+                ltp: 0,
+                last: 0,
+                buyPrice: 0,
+                diff: 0,
+                type: 'CE',
+                token: null,
+                displayName: 'N/A',
+                isSold: false,
+                isActive: false,
+                isBuyBack: false
+            };
+            peInstrument = {
+                symbol: realBoughtInstrument.symbol,
+                ltp: realPrice,
+                last: realPrice,
+                buyPrice: realBuyPrice,
+                diff: realDiff,
+                type: 'PE',
+                token: this.prebuyBoughtToken,
+                displayName: realBoughtInstrument.symbol,
+                isSold: isRealInstrumentSold,
+                isActive: !isRealInstrumentSold,
+                isBuyBack: false
+            };
+        }
+
+        // Calculate sum values (only the real instrument contributes)
+        const sumValue = realPrice;
+        const sumBuyPrice = realBuyPrice;
+        const sumDiff = realDiff;
+
+        const instrumentData = {
+            status: 'instrument_data_update',
+            boughtInstrument: ceInstrument,
+            oppInstrument: peInstrument,
+            sum: {
+                ltp: sumValue,
+                value: sumValue,
+                buyPrice: sumBuyPrice,
+                diff: sumDiff
+            },
+            mtm: sumDiff,
+            // Additional state information for frontend
+            tradingState: {
+                bothSold: isRealInstrumentSold,
+                hasBuyBack: false,
+                entry24Stage: false,
+                entry36Stage: false,
+                entryPlusStage: false,
+                entry7Stage: this.entry_7
+            },
+            timestamp: new Date().toISOString()
+        };
+
+        this.emitStatusUpdate('instrument_data_update', instrumentData);
+    }
+
     // Helper method to determine if an instrument has been sold
     isInstrumentSold(instrument) {
         if (!instrument) return false;
@@ -2318,8 +2612,38 @@ class MTMV3Strategy extends BaseStrategy {
 
     emitPrebuyDataUpdate() {
         if (this.universalDict.usePrebuy && Object.keys(this.prebuyFullData).length > 0) {
-            this.emitToUser('strategy_prebuy_data', this.prebuyFullData);
+            // Structure the data for frontend consumption with cycle information
+            const structuredPrebuyData = {
+                cycle: this.universalDict.cycles || 0,
+                data: { ...this.prebuyFullData }, // Deep copy to avoid reference issues
+                timestamp: new Date().toISOString(),
+                lastUpdated: new Date().toISOString(),
+                completed: !!this.prebuyFullData.summary, // Mark as completed if summary exists
+                // Additional metadata for frontend
+                metadata: {
+                    strategyName: this.name,
+                    usePrebuy: this.universalDict.usePrebuy,
+                    enableTrading: this.globalDict.enableTrading,
+                    currentBlock: this.getCurrentBlockName(),
+                    hasActivePosition: this.hasActivePosition
+                }
+            };
+            
+            this.emitToUser('strategy_prebuy_data', structuredPrebuyData);
+            
+            // Log the emission for debugging
+            this.strategyUtils.logStrategyInfo(`Prebuy data emitted for cycle ${structuredPrebuyData.cycle}: ${Object.keys(this.prebuyFullData).join(', ')}`);
         }
+    }
+
+    getCurrentBlockName() {
+        if (this.blockInit) return 'INIT';
+        if (this.blockUpdate) return 'UPDATE';
+        if (this.blockFinalRef) return 'FINAL_REF';
+        if (this.blockRef3) return 'REF3';
+        if (this.blockDiff10) return 'DIFF10';
+        if (this.blockNextCycle) return 'NEXT_CYCLE';
+        return 'UNKNOWN';
     }
 
     formatTime24(date) {

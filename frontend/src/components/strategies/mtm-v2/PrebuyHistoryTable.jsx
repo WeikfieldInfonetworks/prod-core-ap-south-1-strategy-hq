@@ -22,7 +22,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
   }, []);
 
   // Function to update prebuy history data
-  const updatePrebuyHistory = useCallback((prebuyData, cycleNumber) => {
+  const updatePrebuyHistory = useCallback((prebuyData, cycleNumber, structuredData = null) => {
     if (!prebuyData || Object.keys(prebuyData).length === 0) return;
     
     setHistoryData(prevHistoryData => {
@@ -38,7 +38,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
           cycle: cycleNumber,
           data: { ...prebuyData }, // Deep copy to avoid reference issues
           lastUpdated: new Date().toISOString(),
-          completed: !!prebuyData.summary
+          completed: structuredData?.completed !== undefined ? structuredData.completed : !!prebuyData.summary
         };
         
         console.log(`✏️  Updated existing cycle ${cycleNumber} data in prebuy history (same row)`, Object.keys(prebuyData));
@@ -47,9 +47,9 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
         const newCycleData = {
           cycle: cycleNumber,
           data: { ...prebuyData }, // Deep copy to avoid reference issues
-          timestamp: new Date().toISOString(),
+          timestamp: structuredData?.timestamp || new Date().toISOString(),
           lastUpdated: new Date().toISOString(),
-          completed: !!prebuyData.summary
+          completed: structuredData?.completed !== undefined ? structuredData.completed : !!prebuyData.summary
         };
         
         // Insert at the beginning (most recent first) and limit to 20 cycles
@@ -71,9 +71,26 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
 
   // Save current prebuy data when cycle completes or updates
   useEffect(() => {
+    console.log('🔍 PrebuyHistoryTable Debug:', {
+      currentPrebuyData: currentPrebuyData,
+      strategyName: strategy.name,
+      usePrebuy: strategy.universalDict?.usePrebuy,
+      cycles: strategy.universalDict?.cycles,
+      hasData: currentPrebuyData && Object.keys(currentPrebuyData).length > 0
+    });
+    
     if (currentPrebuyData && Object.keys(currentPrebuyData).length > 0) {
-      const currentCycle = strategy.universalDict?.cycles || 0;
-      updatePrebuyHistory(currentPrebuyData, currentCycle);
+      // Check if this is the new structured format from MTM V3
+      if (currentPrebuyData.cycle !== undefined && currentPrebuyData.data !== undefined) {
+        console.log('📊 Using new structured format from MTM V3');
+        // New structured format - use the cycle and data directly
+        updatePrebuyHistory(currentPrebuyData.data, currentPrebuyData.cycle, currentPrebuyData);
+      } else {
+        console.log('📊 Using old format');
+        // Old format - use strategy cycle number
+        const currentCycle = strategy.universalDict?.cycles || 0;
+        updatePrebuyHistory(currentPrebuyData, currentCycle);
+      }
     }
   }, [currentPrebuyData, strategy.universalDict?.cycles, updatePrebuyHistory]);
 
@@ -84,11 +101,24 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
 
   const formatTime = (timestamp) => {
     if (!timestamp) return '-';
-    try {
-      return new Date(timestamp).toLocaleTimeString();
-    } catch {
-      return timestamp; // If already formatted
+    
+    // Check if it's already in HH:MM:SS format (from MTM V3)
+    if (typeof timestamp === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(timestamp)) {
+      return timestamp; // Already formatted as HH:MM:SS
     }
+    
+    // Check if it's an ISO timestamp
+    try {
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString();
+      }
+    } catch {
+      // Fall through to return as-is
+    }
+    
+    // Return as-is if we can't parse it
+    return timestamp;
   };
 
   const getPnLColor = (pnl) => {

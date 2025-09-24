@@ -113,6 +113,7 @@ const MTMv2Dashboard = ({ strategy }) => {
 
     // Listen for prebuy data updates
     socket.on('strategy_prebuy_data', (data) => {
+      console.log('🔍 Received prebuy data:', data);
       setPrebuyData(data);
     });
 
@@ -243,18 +244,29 @@ const MTMv2Dashboard = ({ strategy }) => {
       </div>
 
       {/* Trading Table or Prebuy History */}
-      {strategy.universalDict?.usePrebuy ? (
-        <PrebuyHistoryTable 
-          strategy={strategy} 
-          currentPrebuyData={prebuyData}
-        />
-      ) : (
-        <TradingTable 
-          strategy={strategy} 
-          instrumentData={instrumentData}
-          tradingActions={tradingActions}
-        />
-      )}
+      {(() => {
+        const usePrebuy = strategy.universalDict?.usePrebuy;
+        console.log('🔍 MTMv2Dashboard Debug:', {
+          strategyName: strategy.name,
+          usePrebuy: usePrebuy,
+          universalDict: strategy.universalDict,
+          prebuyData: prebuyData,
+          willShowPrebuy: !!usePrebuy
+        });
+        
+        return usePrebuy ? (
+          <PrebuyHistoryTable 
+            strategy={strategy} 
+            currentPrebuyData={prebuyData}
+          />
+        ) : (
+          <TradingTable 
+            strategy={strategy} 
+            instrumentData={instrumentData}
+            tradingActions={tradingActions}
+          />
+        );
+      })()}
     </div>
   );
 };

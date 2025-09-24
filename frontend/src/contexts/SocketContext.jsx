@@ -32,19 +32,47 @@ export const SocketProvider = ({ children, socket }) => {
 
     // Listen for node identity (includes available strategies)
     socket.on('node_identity', (data) => {
+      console.log('🔍 Node Identity Received:', {
+        availableStrategies: data.availableStrategies?.length || 0,
+        currentStrategy: data.currentStrategy ? {
+          name: data.currentStrategy.name,
+          usePrebuy: data.currentStrategy.universalDict?.usePrebuy,
+          universalDict: data.currentStrategy.universalDict
+        } : null
+      });
       setStrategies(data.availableStrategies || []);
       setCurrentStrategy(data.currentStrategy);
     });
 
     // Listen for strategy updates
     socket.on('strategy_updated', (strategyConfig) => {
+      console.log('🔍 Strategy Updated:', {
+        name: strategyConfig.name,
+        usePrebuy: strategyConfig.universalDict?.usePrebuy,
+        universalDict: strategyConfig.universalDict
+      });
       setCurrentStrategy(strategyConfig);
+    });
+
+    // Listen for node updates (parameter changes)
+    socket.on('node_update', (data) => {
+      console.log('🔍 Node Update Received:', {
+        currentStrategy: data.currentStrategy ? {
+          name: data.currentStrategy.name,
+          usePrebuy: data.currentStrategy.universalDict?.usePrebuy,
+          universalDict: data.currentStrategy.universalDict
+        } : null
+      });
+      if (data.currentStrategy) {
+        setCurrentStrategy(data.currentStrategy);
+      }
     });
 
     return () => {
       socket.off('user_authenticated');
       socket.off('node_identity');
       socket.off('strategy_updated');
+      socket.off('node_update');
     };
   }, [socket]);
 
