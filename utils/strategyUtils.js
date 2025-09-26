@@ -951,6 +951,48 @@ class StrategyUtils {
     }
 
     /**
+     * Find token by trading symbol's last 7 characters
+     * @param {Object} instrumentMap - The instrument map from universalDict
+     * @param {string} symbolSuffix - The last 7 characters of the trading symbol
+     * @returns {string|null} - Token ID if found, null otherwise
+     */
+    findTokenBySymbolSuffix(instrumentMap, symbolSuffix) {
+        if (!instrumentMap || typeof instrumentMap !== 'object') {
+            console.warn('Invalid instrument map provided to findTokenBySymbolSuffix');
+            this.logStrategyDebug(`Invalid instrument map provided to findTokenBySymbolSuffix`);
+            return null;
+        }
+
+        if (!symbolSuffix || typeof symbolSuffix !== 'string' || symbolSuffix.length !== 7) {
+            console.warn('Invalid symbol suffix. Must be exactly 7 characters');
+            this.logStrategyDebug(`Invalid symbol suffix: ${symbolSuffix}`);
+            return null;
+        }
+
+        // Iterate through all instruments in the map
+        for (const [token, instrument] of Object.entries(instrumentMap)) {
+            if (!instrument || !instrument.symbol) {
+                continue;
+            }
+
+            const symbol = instrument.symbol;
+            
+            // Check if symbol has at least 7 characters
+            if (symbol.length >= 7) {
+                const last7Chars = symbol.slice(-7);
+                
+                if (last7Chars === symbolSuffix) {
+                    this.logStrategyDebug(`Found token ${token} for symbol suffix ${symbolSuffix} (full symbol: ${symbol})`);
+                    return token;
+                }
+            }
+        }
+
+        this.logStrategyWarn(`No token found for symbol suffix: ${symbolSuffix}`);
+        return null;
+    }
+
+    /**
      * Apply complete sequential filtering flow
      * @param {Array} acceptedTokens - Array of accepted token IDs
      * @param {Object} instrumentMap - The instrument map

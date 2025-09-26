@@ -21,6 +21,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyToken = null;
         this.oppBuyToken = null;
         this.modeState = {};
+        this.manuallyAddedInstruments = [];
         
 
         // Block states
@@ -115,6 +116,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyToken = null;
         this.oppBuyToken = null;
         this.modeState = {};
+        this.manuallyAddedInstruments = [];
 
         console.log('=== Initialization Complete ===');
     }
@@ -236,15 +238,15 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         
         if (today === expiryDay) {
             this.universalDict.strikeBase = 20;
-            this.universalDict.strikeDiff = 80;
+            this.universalDict.strikeDiff = 110;
             this.universalDict.strikeLowest = 20;
         } else if (today === expiryDay - 1) {
             this.universalDict.strikeBase = 20;
-            this.universalDict.strikeDiff = 80;
+            this.universalDict.strikeDiff = 110;
             this.universalDict.strikeLowest = 20;
         } else {
             this.universalDict.strikeBase = 20;
-            this.universalDict.strikeDiff = 80;
+            this.universalDict.strikeDiff = 110;
             this.universalDict.strikeLowest = 20;
         }
 
@@ -380,11 +382,6 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         for (const tick of ticks) {
             const token = tick.instrument_token.toString();
             
-            // Only process observed tokens (convert to string for comparison)
-            if (!this.universalDict.observedTicks.includes(token)) {
-                continue;
-            }
-            
             processedCount++;
 
             // Initialize instrument data if not exists
@@ -476,30 +473,63 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`NEW LOW AT REF: ${instrument.symbol}: ${instrument.lowAtRef}`);
                 }
 
-                if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
-                    this.halfdrop_flag = true;
-                    this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
-                    
-                    // Emit half drop detection notification
-                    this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
-                        halfDropDetected: true,
-                        instrument: instrument.symbol,
-                        lowAtRef: instrument.lowAtRef,
-                        firstPrice: instrument.firstPrice,
-                        dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
-                        message: `50% drop detected in ${instrument.symbol} - preparing for trading`
-                    });
-                    //GET CALL AND PUT INSTRUMENTS UNDER 200
-                    this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
-                    this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
-                    this.halfdrop_instrument = instrument;
+                if (this.globalDict.useManuallyAddedInstruments) {
+
+                    if (this.manuallyAddedInstruments.length === 0) {
+                        let manualInstruments = this.globalDict.manuallyAddedInstruments.split(',');
+                        manualInstruments = manualInstruments.map(instrument => this.strategyUtils.findTokenBySymbolSuffix(this.universalDict.instrumentMap, instrument).toString());
+                        this.manuallyAddedInstruments = manualInstruments;
+                        this.strategyUtils.logStrategyInfo(`MANUALLY ADDED INSTRUMENTS: ${this.manuallyAddedInstruments.join(', ')}`);
+                    }
+
+                    if (this.manuallyAddedInstruments.includes(instrument.token.toString())) {
+                        if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
+                            this.halfdrop_flag = true;
+                            this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
+
+                            // Emit half drop detection notification
+                            this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
+                                halfDropDetected: true,
+                                instrument: instrument.symbol,
+                                lowAtRef: instrument.lowAtRef,
+                                firstPrice: instrument.firstPrice,
+                                dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
+                                message: `50% drop detected in ${instrument.symbol} - preparing for trading`
+                            });
+                            //GET CALL AND PUT INSTRUMENTS UNDER 200
+                            this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                            this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                            this.halfdrop_instrument = instrument;
+                        }
+                    }
+                }
+                else {
+
+                    if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
+                        this.halfdrop_flag = true;
+                        this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
+                        
+                        // Emit half drop detection notification
+                        this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
+                            halfDropDetected: true,
+                            instrument: instrument.symbol,
+                            lowAtRef: instrument.lowAtRef,
+                            firstPrice: instrument.firstPrice,
+                            dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
+                            message: `50% drop detected in ${instrument.symbol} - preparing for trading`
+                        });
+                        //GET CALL AND PUT INSTRUMENTS UNDER 200
+                        this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                        this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                        this.halfdrop_instrument = instrument;
+                    }
                 }
 
                 if (instrument.buyPrice > -1) {
                     instrument.changeFromBuy = newPrice - instrument.buyPrice;
                 }
 
-                if (this.globalDict.setStrategyFor20 && Object.keys(this.modeState).length === 0) {
+                if (this.globalDict.setNoPrebuyStrategy && Object.keys(this.modeState).length === 0) {
                     this.modeState = {
                         "target": this.globalDict.target,
                         "stoploss": this.globalDict.stoploss,
@@ -513,7 +543,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
 
                 }
 
-                if(Object.keys(this.modeState).length > 0 && this.globalDict.setStrategyFor20 === false) {
+                if(Object.keys(this.modeState).length > 0 && this.globalDict.setNoPrebuyStrategy === false) {
                     this.globalDict.target = this.modeState.target;
                     this.globalDict.stoploss = this.modeState.stoploss;
                     this.globalDict.usePrebuy = this.modeState.usePrebuy;
@@ -609,10 +639,9 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 ? (this.globalDict.buySame ? ceInstrument : peInstrument) 
                 : (this.globalDict.buySame ? peInstrument : ceInstrument);
 
-                instrument.buyPrice = instrument.last;
-                this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
-
+                
                 if(!this.instrument_bought) {
+                    instrument.buyPrice = instrument.last;
                     this.instrument_bought = instrument;
                     this.halfdrop_bought = true;
                     this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
@@ -721,6 +750,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.universalDict.ceTokens = [];
         this.universalDict.peTokens = [];
         this.universalDict.observedTicks = [];
+        this.manuallyAddedInstruments = [];
         
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
         
@@ -1063,7 +1093,17 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 default: false,
                 description: 'Buy same instrument again'
             },
-            setStrategyFor20 : {
+            useManuallyAddedInstruments: {
+                type: 'boolean',
+                default: false,
+                description: 'Use manually added instruments'
+            },
+            manuallyAddedInstruments: {
+                type: 'string',
+                default: '',
+                description: 'Eg. 25000PE,24950CE'
+            },
+            setNoPrebuyStrategy : {
                 type: 'boolean',
                 default: false,
                 description: 'Set strategy for 20 rupee halfdrop'
