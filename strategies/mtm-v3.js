@@ -691,16 +691,19 @@ class MTMV3Strategy extends BaseStrategy {
             });
         }
         else {
-            let ce_instrument = this.universalDict.instrumentMap[this.boughtToken];
-            let pe_instrument = this.universalDict.instrumentMap[this.oppBoughtToken];
+            let ce_instrument = this.universalDict.instrumentMap[this.boughtToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.boughtToken] : this.universalDict.instrumentMap[this.oppBoughtToken];
+            let pe_instrument = this.universalDict.instrumentMap[this.oppBoughtToken].symbol.includes('PE') ? this.universalDict.instrumentMap[this.oppBoughtToken] : this.universalDict.instrumentMap[this.boughtToken];
             let ce_change = ce_instrument.last - ce_instrument.buyPrice;
             let pe_change = pe_instrument.last - pe_instrument.buyPrice;
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
             if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss){
-                real_instrument = ce_change <= this.globalDict.prebuyStoploss 
-                ? this.globalDict.buySame ? ce_instrument : pe_instrument
-                : this.globalDict.buySame ? pe_instrument : ce_instrument;
+                let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                real_instrument = ce_change <= this.globalDict.prebuyStoploss
+                ? (this.globalDict.buySame ? closestCEto200 : closestPEto200)
+                : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
+
                 this.prebuyBuyPriceOnce = real_instrument.last;
                 console.log(`REAL INSTRUMENT: ${real_instrument.symbol}`);
                 this.prebuyBoughtToken = real_instrument.token;
@@ -811,7 +814,7 @@ class MTMV3Strategy extends BaseStrategy {
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
 
         if(this.universalDict.usePrebuy && !this.entry_7){
-            if((instrument_1_original_change <= this.globalDict.prebuyStoploss) && this.prebuyBuyPriceTwice == 0){
+            if((instrument_1_original_change <= this.globalDict.realBuyStoploss) && this.prebuyBuyPriceTwice == 0){
                 //BUY AGAIN - Buy the same real instrument again
                 this.prebuyBuyPriceTwice = instrument_1.last;
                 try {
@@ -1784,6 +1787,11 @@ class MTMV3Strategy extends BaseStrategy {
                 type: 'number',
                 default: -7,
                 description: 'Stoploss for pre-buy'
+            },
+            realBuyStoploss: {
+                type: 'number',
+                default: -9,
+                description: 'Stoploss for real buy'
             },
             buySame : {
                 type: 'boolean',

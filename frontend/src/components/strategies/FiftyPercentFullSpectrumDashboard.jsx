@@ -185,18 +185,49 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
     return change >= 0 ? 'text-green-600' : 'text-red-600';
   };
 
-  // Filter instruments in the 20-100 price range
-  const getInstrumentsInRange = () => {
+  // Get all observed instruments being tracked by the strategy
+  const getObservedInstruments = () => {
     const instrumentMap = allInstrumentsData || strategy.universalDict?.instrumentMap || {};
-    const instruments = Object.values(instrumentMap).filter(instrument => {
-      return instrument.last >= 20 && instrument.last <= 100;
-    });
+    const observedTokens = strategy.universalDict?.observedTicks || [];
     
-    // Sort by current price
-    return instruments.sort((a, b) => a.last - b.last);
+    // Get instruments that are in the observedTicks list
+    const instruments = observedTokens.map(token => instrumentMap[token]).filter(Boolean);
+    
+    // Sort instruments: PUT first (descending by strike), then CALL (ascending by strike)
+    return instruments.sort((a, b) => {
+      // Extract strike price from symbol (last 7 characters, excluding last 2)
+      const getStrikePrice = (symbol) => {
+        if (!symbol || symbol.length < 7) return 0;
+        const strikeStr = symbol.slice(-7, -2);
+        return parseFloat(strikeStr) || 0;
+      };
+      
+      const aStrike = getStrikePrice(a.symbol);
+      const bStrike = getStrikePrice(b.symbol);
+      
+      // Check if instruments are PUT or CALL
+      const aIsPut = a.symbol.includes('PE');
+      const bIsPut = b.symbol.includes('PE');
+      
+      // PUT instruments first
+      if (aIsPut && !bIsPut) return -1;
+      if (!aIsPut && bIsPut) return 1;
+      
+      // Within PUT: sort descending by strike price
+      if (aIsPut && bIsPut) {
+        return bStrike - aStrike;
+      }
+      
+      // Within CALL: sort ascending by strike price
+      if (!aIsPut && !bIsPut) {
+        return aStrike - bStrike;
+      }
+      
+      return 0;
+    });
   };
 
-  const instrumentsInRange = getInstrumentsInRange();
+  const observedInstruments = getObservedInstruments();
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -272,8 +303,8 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
               <div>Cycles</div>
             </div>
             <div className="text-center">
-              <div className="font-semibold text-gray-900">{instrumentsInRange.length}</div>
-              <div>Instruments (20-100)</div>
+              <div className="font-semibold text-gray-900">{observedInstruments.length}</div>
+              <div>Observed Instruments</div>
             </div>
             <div className="text-center">
               <div className={`font-semibold ${
@@ -301,12 +332,12 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">Price Range Monitoring (20-100)</h3>
-                  <p className="text-sm text-gray-600 mt-1">Tracking instruments for 50% drop detection</p>
+                  <h3 className="text-lg font-semibold text-gray-900">Observed Instruments Tracking</h3>
+                  <p className="text-sm text-gray-600 mt-1">Monitoring selected instruments for {(strategy.globalDict?.dropThreshold * 100 || 50).toFixed(0)}% drop detection</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="text-sm text-gray-600">
-                    Target Range: 20-100 | Drop Threshold: 50%
+                    Drop Threshold: {(strategy.globalDict?.dropThreshold * 100 || 50).toFixed(0)}% | Total Observed: {observedInstruments.length}
                   </div>
                 </div>
               </div>
@@ -343,13 +374,14 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {instrumentsInRange.length > 0 ? (
-                    instrumentsInRange.map((instrument) => {
+                  {observedInstruments.length > 0 ? (
+                    observedInstruments.map((instrument) => {
                       const changePercent = instrument.firstPrice ? 
                         ((instrument.last - instrument.firstPrice) / instrument.firstPrice * 100) : 0;
                       const dropPercent = instrument.firstPrice && instrument.lowAtRef !== -1 ? 
                         ((instrument.lowAtRef / instrument.firstPrice) * 100) : 100;
-                      const hasHalfDrop = dropPercent <= 50;
+                      const thresholdPercent = (strategy.globalDict?.dropThreshold * 100 || 50);
+                      const hasHalfDrop = dropPercent <= thresholdPercent;
                       
                       return (
                         <tr key={instrument.token} className={`hover:bg-gray-50 ${
@@ -380,7 +412,7 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
                             {hasHalfDrop ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
-                                50% Drop ({dropPercent.toFixed(1)}%)
+                                {thresholdPercent.toFixed(0)}% Drop ({dropPercent.toFixed(1)}%)
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -396,8 +428,8 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
                     <tr>
                       <td colSpan="8" className="px-4 py-12 text-center text-gray-500">
                         <Clock className="h-8 w-8 mx-auto mb-2" />
-                        <p className="text-sm">No instruments in range (20-100)</p>
-                        <p className="text-xs mt-1">Waiting for market data...</p>
+                        <p className="text-sm">No observed instruments</p>
+                        <p className="text-xs mt-1">Waiting for strategy initialization...</p>
                       </td>
                     </tr>
                   )}

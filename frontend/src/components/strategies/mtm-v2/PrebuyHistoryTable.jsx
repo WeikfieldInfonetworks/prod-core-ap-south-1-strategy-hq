@@ -208,11 +208,11 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                         </span>
                       </div>
                       
-                      <div className="flex items-center space-x-1 text-xs text-gray-500">
+                      <div className="flex items-center space-x-1 text-sm text-gray-500">
                         <Clock className="w-3 h-3" />
-                        <span>Started: {formatTime(cycleData.timestamp)}</span>
+                        <span className="font-semibold">Started: {formatTime(cycleData.timestamp)}</span>
                         {cycleData.lastUpdated && cycleData.lastUpdated !== cycleData.timestamp && (
-                          <span className="ml-2 text-blue-600">
+                          <span className="ml-2 text-blue-600 font-semibold">
                             • Updated: {formatTime(cycleData.lastUpdated)}
                           </span>
                         )}
@@ -272,24 +272,8 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                             Pre-bought Instruments
                           </h4>
                           <div className="space-y-3">
+                            {/* PUT Instrument - Show first */}
                             <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">CE</span>
-                                <span className="text-xs text-gray-500 font-mono">
-                                  {cycleData.data.preBoughtInstruments.call?.instrument?.symbol || 'N/A'}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-semibold">
-                                  {formatPrice(cycleData.data.preBoughtInstruments.call?.price)}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Qty: {cycleData.data.preBoughtInstruments.call?.quantity || 0}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center py-2">
                               <div className="flex items-center space-x-2">
                                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                                 <span className="text-sm font-medium">PE</span>
@@ -303,6 +287,24 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   Qty: {cycleData.data.preBoughtInstruments.put?.quantity || 0}
+                                </div>
+                              </div>
+                            </div>
+                            {/* CE Instrument - Show second */}
+                            <div className="flex justify-between items-center py-2">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">CE</span>
+                                <span className="text-xs text-gray-500 font-mono">
+                                  {cycleData.data.preBoughtInstruments.call?.instrument?.symbol || 'N/A'}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-semibold">
+                                  {formatPrice(cycleData.data.preBoughtInstruments.call?.price)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  Qty: {cycleData.data.preBoughtInstruments.call?.quantity || 0}
                                 </div>
                               </div>
                             </div>
@@ -329,7 +331,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                             <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-blue-800">Buy Action</span>
-                                <span className="text-xs text-blue-600">
+                                <span className="text-sm font-semibold text-blue-600">
                                   {formatTime(cycleData.data.realBuy.firstBuyTimestamp)}
                                 </span>
                               </div>
@@ -340,7 +342,13 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                                 {cycleData.data.realBuy.secondBuy && (
                                   <>
                                     <div className="border-t border-blue-300 pt-1 mt-2">
-                                      <div>Second Buy: <span className="font-medium">{formatPrice(cycleData.data.realBuy.secondBuyPrice)}</span></div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-xs font-medium text-blue-700">Second Buy</span>
+                                        <span className="text-sm font-semibold text-blue-600">
+                                          {formatTime(cycleData.data.realBuy.secondBuyTimestamp || cycleData.data.realBuy.firstBuyTimestamp)}
+                                        </span>
+                                      </div>
+                                      <div>Second Buy Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.secondBuyPrice)}</span></div>
                                       <div>Average Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.averageBuyPrice)}</span></div>
                                     </div>
                                   </>
@@ -354,7 +362,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                             <div className="border border-red-200 rounded-lg p-3 bg-red-50">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-red-800">Sell Action</span>
-                                <span className="text-xs text-red-600">
+                                <span className="text-sm font-semibold text-red-600">
                                   {formatTime(cycleData.data.realSell.sellTimestamp)}
                                 </span>
                               </div>

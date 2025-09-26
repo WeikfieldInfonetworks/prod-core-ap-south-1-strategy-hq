@@ -464,6 +464,99 @@ class StrategyUtils {
     }
 
     /**
+     * Find the closest trading symbol above a certain price
+     * @param {Object} instrumentMap - The instrument map from universalDict
+     * @param {number} targetPrice - The target price to find symbols above
+     * @param {string} instrumentType - Type of instrument ('CE' or 'PE')
+     * @param {number} minPrice - Minimum price to consider (defaults to 0)
+     * @returns {Object|null} - Object containing token, symbol, and price, or null if not found
+     */
+    findClosestSymbolAbovePrice(instrumentMap, targetPrice, instrumentType, minPrice = 0) {
+        if (!instrumentMap || typeof instrumentMap !== 'object') {
+            console.warn('Invalid instrument map provided to findClosestSymbolAbovePrice');
+            this.logStrategyDebug(`Invalid instrument map provided to findClosestSymbolAbovePrice`);
+            return null;
+        }
+
+        if (!instrumentType || !['CE', 'PE'].includes(instrumentType.toUpperCase())) {
+            console.warn('Invalid instrument type. Must be "CE" or "PE"');
+            this.logStrategyDebug(`Invalid instrument type. Must be "CE" or "PE"`);
+            return null;
+        }
+
+        const lowerLimit = minPrice;
+        let closestSymbol = null;
+        let smallestDifference = Infinity;
+
+        // Iterate through all instruments in the map
+        for (const [token, instrument] of Object.entries(instrumentMap)) {
+            if (!instrument || !instrument.symbol || instrument.last === undefined) {
+                this.logStrategyDebug(`Instrument not found: ${token}`);
+                continue;
+            }
+
+            const symbol = instrument.symbol;
+            const price = instrument.last;
+
+            // Check if this is the correct instrument type
+            if (!this.isOptionsInstrument(symbol) || !symbol.includes(instrumentType.toUpperCase())) {
+                this.logStrategyDebug(`Instrument not found: ${token}`);
+                continue;
+            }
+
+            // Check if price is above the lower limit
+            if (price < lowerLimit) {
+                this.logStrategyDebug(`Instrument price below lower limit: ${token}`);
+                continue;
+            }
+
+            // Calculate the difference from target price
+            const difference = price - targetPrice;
+
+            // If this is closer to target price than previous best, update
+            if (difference >= 0 && difference < smallestDifference) {
+                smallestDifference = difference;
+                closestSymbol = {
+                    token: parseInt(token),
+                    symbol: symbol,
+                    price: price,
+                    difference: difference
+                };
+            }
+        }
+
+        if (closestSymbol) {
+            this.logStrategyDebug(`Found closest ${instrumentType} symbol above ${targetPrice}: ${closestSymbol.symbol} @ ${closestSymbol.price} (diff: ${closestSymbol.difference.toFixed(2)})`);
+        } else {
+            this.logStrategyWarn(`No ${instrumentType} symbols found above ${targetPrice}`);
+        }
+
+        return closestSymbol;
+    }
+
+    /**
+     * Find the closest CE trading symbol above a certain price
+     * @param {Object} instrumentMap - The instrument map from universalDict
+     * @param {number} targetPrice - The target price to find symbols above
+     * @param {number} minPrice - Minimum price to consider (defaults to 0)
+     * @returns {Object|null} - Object containing token, symbol, and price, or null if not found
+     */
+    findClosestCEAbovePrice(instrumentMap, targetPrice, minPrice = 0) {
+        return this.findClosestSymbolAbovePrice(instrumentMap, targetPrice, 'CE', minPrice);
+    }
+
+    /**
+     * Find the closest PE trading symbol above a certain price
+     * @param {Object} instrumentMap - The instrument map from universalDict
+     * @param {number} targetPrice - The target price to find symbols above
+     * @param {number} minPrice - Minimum price to consider (defaults to 0)
+     * @returns {Object|null} - Object containing token, symbol, and price, or null if not found
+     */
+    findClosestPEAbovePrice(instrumentMap, targetPrice, minPrice = 0) {
+        return this.findClosestSymbolAbovePrice(instrumentMap, targetPrice, 'PE', minPrice);
+    }
+
+    /**
      * Apply Plus3 filter to tokens
      * @param {Array} tokens - Array of token IDs
      * @param {Object} instrumentMap - The instrument map

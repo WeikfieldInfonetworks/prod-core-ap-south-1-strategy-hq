@@ -20,6 +20,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.other_instrument = null;
         this.buyToken = null;
         this.oppBuyToken = null;
+        this.modeState = {};
         
 
         // Block states
@@ -110,8 +111,10 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         
         // Additional Full Spectrum properties (only relevant ones)
         this.halfdrop_bought = false;
+        this.halfdrop_instrument = null;
         this.buyToken = null;
         this.oppBuyToken = null;
+        this.modeState = {};
 
         console.log('=== Initialization Complete ===');
     }
@@ -304,8 +307,8 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         });
 
         // TEMPORARY FIX: For testing
-        // this.universalDict.ceTokens = ["12227842", "12229890", "12230914", "12231426"]
-        // this.universalDict.peTokens = ["12226562", "12227074", "12227586", "12228098", "12230146"]
+        // this.universalDict.ceTokens = ["15473410", "15487234", "15486722", "15486210", "15485698", "15485186"]
+        // this.universalDict.peTokens = ["15479298", "15479810", "15480322", "15481602", "15483394", "15483906"]
 
         this.strategyUtils.logStrategyInfo(`CE Tokens: ${this.universalDict.ceTokens.length}`);
         this.strategyUtils.logStrategyInfo(`PE Tokens: ${this.universalDict.peTokens.length}`);
@@ -326,6 +329,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         });
 
         this.strategyUtils.logStrategyInfo(`Observed ticks set: ${this.universalDict.observedTicks.length}`);
+        this.strategyUtils.logStrategyInfo(`Observed tokens: ${this.universalDict.observedTicks.join(', ')}`);
 
         // Transition to next block only if we have sufficient tokens
         this.blockInit = false;
@@ -347,6 +351,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
 
     processUpdateBlock(ticks) {
         console.log('Processing UPDATE block');
+        console.log(`Observed tokens to track: ${this.universalDict.observedTicks?.join(', ') || 'None'}`);
         
         const currentTime = new Date().toISOString();
         this.globalDict.timestamp = currentTime;
@@ -371,12 +376,16 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         });
 
         // Initialize or update instrument data for all observed tokens
+        let processedCount = 0;
         for (const tick of ticks) {
             const token = tick.instrument_token.toString();
             
-            // if (!this.universalDict.observedTicks.includes(Number(token))) {
-            //     continue;
-            // }
+            // Only process observed tokens (convert to string for comparison)
+            if (!this.universalDict.observedTicks.includes(token)) {
+                continue;
+            }
+            
+            processedCount++;
 
             // Initialize instrument data if not exists
             if (!this.universalDict.instrumentMap[token]) {
@@ -417,39 +426,39 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
 
             // // TEMPORARY FIX: For testing
 
-            // if (token === "12226562"){
-            //     instrument.firstPrice = 20.9
+            // if (token === "15473410"){
+            //     instrument.firstPrice = 21.3
             // }
 
-            // if (token === "12227074"){
-            //     instrument.firstPrice = 30
+            // if (token === "15487234"){
+            //     instrument.firstPrice = 28.9
             // }
 
-            // if (token === "12227586"){
-            //     instrument.firstPrice = 43.25
+            // if (token === "15486722"){
+            //     instrument.firstPrice = 36.8
             // }
 
-            // if (token === "12228098"){
-            //     instrument.firstPrice = 61.35
+            // if (token === "15486210"){
+            //     instrument.firstPrice = 47.95
             // }
 
-            // if (token === "12230146"){
-            //     instrument.firstPrice = 85.1
+            // if (token === "15485698"){
+            //     instrument.firstPrice = 62.45
             // }
 
-            // if (token === "12227842"){
-            //     instrument.firstPrice = 91.2
+            // if (token === "15485186"){
+            //     instrument.firstPrice = 80.6
             // }
 
-            // if (token === "12231426"){
-            //     instrument.firstPrice = 29.6
+            // if (token === "15479298"){
+            //     instrument.firstPrice = 23.45
             // }
 
-            // if (token === "12230914"){
-            //     instrument.firstPrice = 45.55
+            // if (token === "15479810"){
+            //     instrument.firstPrice = 29.3
             // }
 
-            // if (token === "12229890"){
+            // if (token === ""){
             //     instrument.firstPrice = 65.35
             // }
             // Other updates only for selected instruments.
@@ -483,21 +492,38 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     //GET CALL AND PUT INSTRUMENTS UNDER 200
                     this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
                     this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                    this.halfdrop_instrument = instrument;
                 }
 
                 if (instrument.buyPrice > -1) {
                     instrument.changeFromBuy = newPrice - instrument.buyPrice;
                 }
 
-                if (this.globalDict.setStrategyFor20) {
+                if (this.globalDict.setStrategyFor20 && Object.keys(this.modeState).length === 0) {
+                    this.modeState = {
+                        "target": this.globalDict.target,
+                        "stoploss": this.globalDict.stoploss,
+                        "usePrebuy": this.globalDict.usePrebuy,
+                        "buySame": this.globalDict.buySame
+                    }
                     this.globalDict.target = 12;
                     this.globalDict.stoploss = -100;
-                    this.globalDict.prebuyStoplossRequired = false;
-                    this.globalDict.prebuyStoploss = 0;
+                    this.globalDict.usePrebuy = false;
                     this.globalDict.buySame = false;
+
+                }
+
+                if(Object.keys(this.modeState).length > 0 && this.globalDict.setStrategyFor20 === false) {
+                    this.globalDict.target = this.modeState.target;
+                    this.globalDict.stoploss = this.modeState.stoploss;
+                    this.globalDict.usePrebuy = this.modeState.usePrebuy;
+                    this.globalDict.buySame = this.modeState.buySame;
+                    this.modeState = {};
                 }
             }
         }
+
+        console.log(`Processed ${processedCount} observed instruments out of ${ticks.length} total ticks`);
 
         if (this.halfdrop_flag && !this.blockDiff10) {
             this.blockDiff10 = true;
@@ -529,52 +555,89 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 peInstrument.buyPrice = peInstrument.last;
             }
             
-            let ce_change = ceInstrument.last - ceInstrument.buyPrice;
-            let pe_change = peInstrument.last - peInstrument.buyPrice;
-            let stoploss = null;
-            if(!this.stoplossHit) {
-                console.log(`PREBUY | CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
-                stoploss = this.globalDict.prebuyStoplossRequired ? this.globalDict.prebuyStoploss : 0;
-                this.stoplossHit = ce_change <= stoploss || pe_change <= stoploss;
-            }
-            
-            if(this.stoplossHit && !this.instrument_bought) {
-                let instrument = this.globalDict.buySame 
-                ? (ce_change <= stoploss ? ceInstrument : peInstrument) 
-                : (ce_change <= stoploss ? peInstrument : ceInstrument);
-                let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
-                if(!this.globalDict.buySame) {
-                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
-                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
-                }
-                else {
-                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${instrument.symbol} at ${instrument.last}`);
-                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
-                }
-                this.instrument_bought = instrument;
-                
-                // Set tracking flags for dashboard
-                this.halfdrop_bought = true;
-                if (instrument === peInstrument) {
-                    // We're buying the PE token, so set it as the bought token
-                    this.buyToken = this.oppToken; // PE token (the one we're buying)
-                    this.oppBuyToken = this.mainToken; // CE token (not bought)
-                } else {
-                    // We're buying the CE token, so set it as the bought token
-                    this.buyToken = this.mainToken; // CE token (the one we're buying)  
-                    this.oppBuyToken = this.oppToken; // PE token (not bought)
+            if (this.universalDict.usePrebuy) {
+                let ce_change = ceInstrument.last - ceInstrument.buyPrice;
+                let pe_change = peInstrument.last - peInstrument.buyPrice;
+                let stoploss = null;
+                if(!this.stoplossHit) {
+                    console.log(`PREBUY | CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
+                    stoploss = this.globalDict.prebuyStoploss;
+                    this.stoplossHit = ce_change <= stoploss || pe_change <= stoploss;
                 }
                 
-                //BUYING LOGIC - Buy the instrument
-                try {
-                    const buyResult = await this.buyInstrument(instrument);
-                    if (buyResult && buyResult.success) {
-                        this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
+                if(this.stoplossHit && !this.instrument_bought) {
+                    let instrument = this.globalDict.buySame 
+                    ? (ce_change <= stoploss ? ceInstrument : peInstrument) 
+                    : (ce_change <= stoploss ? peInstrument : ceInstrument);
+                    let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
+                    if(!this.globalDict.buySame) {
+                        this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
+                        this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                    }
+                    else {
+                        this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${instrument.symbol} at ${instrument.last}`);
+                        this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                    }
+                    this.instrument_bought = instrument;
+                    
+                    // Set tracking flags for dashboard
+                    this.halfdrop_bought = true;
+                    if (instrument === peInstrument) {
+                        // We're buying the PE token, so set it as the bought token
+                        this.buyToken = this.oppToken; // PE token (the one we're buying)
+                        this.oppBuyToken = this.mainToken; // CE token (not bought)
+                    } else {
+                        // We're buying the CE token, so set it as the bought token
+                        this.buyToken = this.mainToken; // CE token (the one we're buying)  
+                        this.oppBuyToken = this.oppToken; // PE token (not bought)
+                    }
+                    
+                    //BUYING LOGIC - Buy the instrument
+                    try {
+                        const buyResult = await this.buyInstrument(instrument);
+                        if (buyResult && buyResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
                     }
                 }
-                catch (error) {
-                    this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
+            }
+            else {
+                let instrument = this.halfdrop_instrument.symbol.includes('CE') 
+                ? (this.globalDict.buySame ? ceInstrument : peInstrument) 
+                : (this.globalDict.buySame ? peInstrument : ceInstrument);
+
+                instrument.buyPrice = instrument.last;
+                this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+
+                if(!this.instrument_bought) {
+                    this.instrument_bought = instrument;
+                    this.halfdrop_bought = true;
+                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+
+                    if (instrument === peInstrument) {
+                        this.buyToken = this.oppToken;
+                        this.oppBuyToken = this.mainToken;
+                    }
+                    else {
+                        this.buyToken = this.mainToken;
+                        this.oppBuyToken = this.oppToken;
+                    }
+
+                    //BUYING LOGIC - Buy the instrument
+                    try {
+                        const buyResult = await this.buyInstrument(instrument);
+                        if (buyResult && buyResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
+                    }
                 }
+
             }
 
             if(this.instrument_bought) {
@@ -634,6 +697,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.halfdrop_flag = false;
         this.stoplossHit = false;
         this.instrument_bought = null;
+        this.modeState = {};
         
         // Reset additional Full Spectrum properties
         this.halfdrop_bought = false;
@@ -999,11 +1063,6 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 default: false,
                 description: 'Buy same instrument again'
             },
-            prebuyStoplossRequired: {
-                type: 'boolean',
-                default: false,
-                description: 'Prebuy required or not'
-            },
             setStrategyFor20 : {
                 type: 'boolean',
                 default: false,
@@ -1028,6 +1087,11 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 type: 'number',
                 default: 1,
                 description: 'Skip buying after this many cycles'
+            },
+            usePrebuy: {
+                type: 'boolean',
+                default: false,
+                description: 'Use prebuy or not'
             }
         };
     }
