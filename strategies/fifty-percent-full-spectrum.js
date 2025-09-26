@@ -635,12 +635,15 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 }
             }
             else {
-                let instrument = this.halfdrop_instrument.symbol.includes('CE') 
-                ? (this.globalDict.buySame ? ceInstrument : peInstrument) 
-                : (this.globalDict.buySame ? peInstrument : ceInstrument);
-
-                
+                let instrument = null;
                 if(!this.instrument_bought) {
+                    let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                    let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                    this.mainToken = closestCEto200.token.toString();
+                    this.oppToken = closestPEto200.token.toString();
+                    instrument = this.halfdrop_instrument.symbol.includes('CE') 
+                    ? (this.globalDict.buySame ? closestCEto200 : closestPEto200) 
+                    : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
                     instrument.buyPrice = instrument.last;
                     this.instrument_bought = instrument;
                     this.halfdrop_bought = true;
