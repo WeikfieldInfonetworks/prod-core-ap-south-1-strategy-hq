@@ -713,7 +713,7 @@ class MTMV3Strategy extends BaseStrategy {
                     if (buyResult && buyResult.success) {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
                     }
-                    this.prebuyBuyPriceOnce = buyResult.executedPrice;
+                    this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? real_instrument.last : buyResult.executedPrice;
                 }
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
