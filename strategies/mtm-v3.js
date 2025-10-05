@@ -822,7 +822,7 @@ class MTMV3Strategy extends BaseStrategy {
                     if (buyResult && buyResult.success) {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
                     }
-                    this.prebuyBuyPriceTwice = buyResult.executedPrice;
+                    this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
 
                 }
                 catch (error) {
