@@ -698,8 +698,8 @@ class MTMV3Strategy extends BaseStrategy {
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
             if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss){
-                let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
-                let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
                 real_instrument = ce_change <= this.globalDict.prebuyStoploss
                 ? (this.globalDict.buySame ? closestCEto200 : closestPEto200)
                 : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
