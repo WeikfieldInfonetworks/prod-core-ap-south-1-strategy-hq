@@ -22,6 +22,10 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.oppBuyToken = null;
         this.modeState = {};
         this.manuallyAddedInstruments = [];
+        this.manuallyAddedInstrumentsFirstPrices = [];
+        this.buyPriceOnce = 0;
+        this.buyPriceTwice = 0;
+        this.rebuyDone = false;
         
 
         // Block states
@@ -117,6 +121,10 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.oppBuyToken = null;
         this.modeState = {};
         this.manuallyAddedInstruments = [];
+        this.manuallyAddedInstrumentsFirstPrices = [];
+        this.buyPriceOnce = 0;
+        this.buyPriceTwice = 0;
+        this.rebuyDone = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -374,6 +382,10 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             stoplossHit: this.stoplossHit,
             instrument_bought: this.instrument_bought,
             boughtSold: this.boughtSold,
+            // Add rebuy information
+            rebuyDone: this.rebuyDone,
+            buyPriceOnce: this.buyPriceOnce,
+            buyPriceTwice: this.buyPriceTwice,
             timestamp: currentTime
         });
 
@@ -421,43 +433,13 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             instrument.change = newPrice - oldPrice;
             instrument.last = newPrice;
 
-            // // TEMPORARY FIX: For testing
+            // Update first price if manually added instrument
+            if (this.manuallyAddedInstruments.length > 0 && this.manuallyAddedInstrumentsFirstPrices.length > 0) {
+                if (this.manuallyAddedInstruments.includes(instrument.token.toString())) {
+                    instrument.firstPrice = parseFloat(this.manuallyAddedInstrumentsFirstPrices[this.manuallyAddedInstruments.indexOf(instrument.token.toString())]);
+                }
+            }
 
-            // if (token === "15473410"){
-            //     instrument.firstPrice = 21.3
-            // }
-
-            // if (token === "15487234"){
-            //     instrument.firstPrice = 28.9
-            // }
-
-            // if (token === "15486722"){
-            //     instrument.firstPrice = 36.8
-            // }
-
-            // if (token === "15486210"){
-            //     instrument.firstPrice = 47.95
-            // }
-
-            // if (token === "15485698"){
-            //     instrument.firstPrice = 62.45
-            // }
-
-            // if (token === "15485186"){
-            //     instrument.firstPrice = 80.6
-            // }
-
-            // if (token === "15479298"){
-            //     instrument.firstPrice = 23.45
-            // }
-
-            // if (token === "15479810"){
-            //     instrument.firstPrice = 29.3
-            // }
-
-            // if (token === ""){
-            //     instrument.firstPrice = 65.35
-            // }
             // Other updates only for selected instruments.
             if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {
 
@@ -477,13 +459,15 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
 
                     if (this.manuallyAddedInstruments.length === 0) {
                         let manualInstruments = this.globalDict.manuallyAddedInstruments.split(',');
-                        manualInstruments = manualInstruments.map(instrument => this.strategyUtils.findTokenBySymbolSuffix(this.universalDict.instrumentMap, instrument).toString());
-                        this.manuallyAddedInstruments = manualInstruments;
+                        let manualInstrumentTokens = manualInstruments.map(instrument => this.strategyUtils.findTokenBySymbolSuffix(this.universalDict.instrumentMap, instrument.split(':')[0]).toString());
+                        let manualInstrumentFirstPrices = manualInstruments.map(instrument => instrument.split(':')[1]);
+                        this.manuallyAddedInstruments = manualInstrumentTokens;
+                        this.manuallyAddedInstrumentsFirstPrices = manualInstrumentFirstPrices;
                         this.strategyUtils.logStrategyInfo(`MANUALLY ADDED INSTRUMENTS: ${this.manuallyAddedInstruments.join(', ')}`);
                     }
 
                     if (this.manuallyAddedInstruments.includes(instrument.token.toString())) {
-                        if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
+                        if (instrument.lowAtRef <= parseFloat(this.manuallyAddedInstrumentsFirstPrices[this.manuallyAddedInstruments.indexOf(instrument.token.toString())])*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
                             this.halfdrop_flag = true;
                             this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
 
@@ -637,8 +621,8 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             else {
                 let instrument = null;
                 if(!this.instrument_bought) {
-                    let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
-                    let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                    let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                    let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
                     this.mainToken = closestCEto200.token.toString();
                     this.oppToken = closestPEto200.token.toString();
                     instrument = this.halfdrop_instrument.symbol.includes('CE') 
@@ -663,6 +647,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                         const buyResult = await this.buyInstrument(instrument);
                         if (buyResult && buyResult.success) {
                             this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
+                            this.buyPriceOnce = buyResult.executedPrice == 0 ? instrument.last : buyResult.executedPrice;
                         }
                     }
                     catch (error) {
@@ -688,6 +673,79 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     }
                     catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                    }
+
+                    if(this.rebuyDone) {
+                        // Store original values before modification
+                        const originalTarget = this.globalDict.target;
+                        const originalStoploss = this.globalDict.stoploss;
+                        const originalQuantity = this.globalDict.quantity;
+                        
+                        // Reset target, stoploss, and quantity
+                        this.globalDict.target = this.globalDict.target * 2;
+                        this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                        this.globalDict.quantity = this.globalDict.quantity / 2;
+                        this.globalDict.useManuallyAddedInstruments = false;
+                        this.globalDict.manuallyAddedInstruments = '';
+                        
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        
+                        // Emit target reset notification
+                        this.emitStatusUpdate('Target reset after completion', {
+                            targetChange: true,
+                            targetReset: true,
+                            originalTarget: originalTarget,
+                            newTarget: this.globalDict.target,
+                            originalStoploss: originalStoploss,
+                            newStoploss: this.globalDict.stoploss,
+                            originalQuantity: originalQuantity,
+                            newQuantity: this.globalDict.quantity,
+                            instrument: instrument.symbol,
+                            sellPrice: instrument.last,
+                            message: `Target reset to ${this.globalDict.target} points after successful completion`
+                        });
+                    }
+                }
+                else if(change <= this.globalDict.realBuyStoploss && !this.rebuyDone) {
+                    this.rebuyDone = true;
+                    this.strategyUtils.logStrategyInfo(`REBUYING ${instrument.symbol} at ${instrument.last} AS STOPLOSS OF ${this.globalDict.realBuyStoploss} REACHED`);
+                    this.buyPriceTwice = instrument.last;
+                    try {
+                        const buyResult = await this.buyInstrument(instrument);
+                        if (buyResult && buyResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Instrument bought again - Executed price: ${buyResult.executedPrice}`);
+                            this.buyPriceTwice = buyResult.executedPrice == 0 ? instrument.last : buyResult.executedPrice;
+                            instrument.buyPrice = (this.buyPriceOnce + this.buyPriceTwice) / 2;
+                            
+                            // Store original values before modification
+                            const originalTarget = this.globalDict.target;
+                            const originalStoploss = this.globalDict.stoploss;
+                            const originalQuantity = this.globalDict.quantity;
+                            
+                            // Modify target, stoploss, and quantity
+                            this.globalDict.target = this.globalDict.target / 2;
+                            this.globalDict.stoploss = this.globalDict.stoploss / 2;
+                            this.globalDict.quantity = this.globalDict.quantity * 2;
+                            
+                            // Emit target change notification
+                            this.emitStatusUpdate('Target adjusted due to rebuy', {
+                                targetChange: true,
+                                rebuyTriggered: true,
+                                originalTarget: originalTarget,
+                                newTarget: this.globalDict.target,
+                                originalStoploss: originalStoploss,
+                                newStoploss: this.globalDict.stoploss,
+                                originalQuantity: originalQuantity,
+                                newQuantity: this.globalDict.quantity,
+                                instrument: instrument.symbol,
+                                rebuyPrice: this.buyPriceTwice,
+                                averageBuyPrice: instrument.buyPrice,
+                                message: `Target reduced to ${this.globalDict.target} points due to rebuy at ${this.buyPriceTwice}`
+                            });
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
                     }
                 }
             }
@@ -730,6 +788,9 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.stoplossHit = false;
         this.instrument_bought = null;
         this.modeState = {};
+        this.buyPriceOnce = 0;
+        this.buyPriceTwice = 0;
+        this.rebuyDone = false;
         
         // Reset additional Full Spectrum properties
         this.halfdrop_bought = false;
@@ -754,7 +815,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.universalDict.peTokens = [];
         this.universalDict.observedTicks = [];
         this.manuallyAddedInstruments = [];
-        
+        this.manuallyAddedInstrumentsFirstPrices = [];
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
         
         // Emit new cycle notification
@@ -1091,6 +1152,11 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 default: -15,
                 description: 'Prebuy stoploss in points'
             },
+            realBuyStoploss: {
+                type: 'number',
+                default: -11,
+                description: 'Stoploss to activate second buy.'
+            },
             buySame: {
                 type: 'boolean',
                 default: false,
@@ -1104,7 +1170,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             manuallyAddedInstruments: {
                 type: 'string',
                 default: '',
-                description: 'Eg. 25000PE,24950CE'
+                description: 'Eg. 25000PE:159.3,24950CE:98.1'
             },
             setNoPrebuyStrategy : {
                 type: 'boolean',

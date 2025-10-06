@@ -15,6 +15,9 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
   const stoplossHit = instrumentData?.stoplossHit !== undefined ? instrumentData.stoplossHit : strategy.stoplossHit;
   const instrumentBought = instrumentData?.instrument_bought || strategy.instrument_bought;
   const boughtSold = instrumentData?.boughtSold !== undefined ? instrumentData.boughtSold : strategy.boughtSold;
+  const rebuyDone = instrumentData?.rebuyDone !== undefined ? instrumentData.rebuyDone : strategy.rebuyDone;
+  const buyPriceOnce = instrumentData?.buyPriceOnce || strategy.buyPriceOnce;
+  const buyPriceTwice = instrumentData?.buyPriceTwice || strategy.buyPriceTwice;
   
   // Get instrument data for display
   const getInstrumentData = (token) => {
@@ -265,6 +268,49 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
         </div>
       )}
 
+      {/* Rebuy Information */}
+      {rebuyDone && instrumentBought && (
+        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-500 bg-orange-50">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-orange-900">
+              Rebuy Information
+              <span className="ml-2 px-2 py-1 text-xs font-bold bg-orange-200 text-orange-800 rounded-full">
+                REBUY EXECUTED
+              </span>
+            </h4>
+            <AlertTriangle className="h-4 w-4 text-orange-600" />
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">First Buy Price:</span>
+              <span className="text-sm font-mono">{formatPrice(buyPriceOnce)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Second Buy Price:</span>
+              <span className="text-sm font-mono">{formatPrice(buyPriceTwice)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Average Buy Price:</span>
+              <span className="text-sm font-mono font-semibold">
+                {formatPrice((buyPriceOnce + buyPriceTwice) / 2)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Target Adjusted:</span>
+              <span className="text-sm font-mono text-orange-600 font-bold">
+                {(strategy.globalDict?.target || 12) / 2} points
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-gray-500">Quantity Doubled:</span>
+              <span className="text-sm font-mono text-orange-600 font-bold">
+                {(strategy.globalDict?.quantity || 75) * 2}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Target Achievement Status */}
       {instrumentBought && (
         <div className={`bg-white rounded-lg shadow-sm p-4 border-l-4 ${
@@ -290,7 +336,7 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
             if (!instrument) return <div className="text-sm text-gray-500">Loading...</div>;
             
             const changeFromBuy = instrument.last - instrument.buyPrice;
-            const targetPoints = strategy.globalDict?.target || 12;
+            const targetPoints = rebuyDone ? (strategy.globalDict?.target || 12) / 2 : (strategy.globalDict?.target || 12);
             const progress = (changeFromBuy / targetPoints * 100).toFixed(1);
             
             return (
@@ -301,7 +347,14 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Target Points:</span>
-                  <span className="text-sm font-mono">{targetPoints}</span>
+                  <span className="text-sm font-mono">
+                    {targetPoints}
+                    {rebuyDone && (
+                      <span className="ml-1 text-xs text-orange-600 font-bold">
+                        (Adjusted)
+                      </span>
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Current Progress:</span>
@@ -312,8 +365,13 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">Progress %:</span>
-                  <span className={`text-sm font-mono ${progress >= 100 ? 'text-green-600 font-bold' : 'text-gray-600'}`}>
+                  <span className={`text-sm font-mono ${progress >= 100 ? 'text-green-600 font-bold' : rebuyDone ? 'text-orange-600' : 'text-gray-600'}`}>
                     {progress}%
+                    {rebuyDone && progress < 100 && (
+                      <span className="ml-1 text-xs text-orange-500">
+                        (vs adjusted target)
+                      </span>
+                    )}
                   </span>
                 </div>
                 {/* Progress bar */}
@@ -321,7 +379,9 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        progress >= 100 ? 'bg-green-500' : progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
+                        progress >= 100 ? 'bg-green-500' : 
+                        rebuyDone ? 'bg-orange-500' : 
+                        progress >= 50 ? 'bg-blue-500' : 'bg-yellow-500'
                       }`}
                       style={{ width: `${Math.min(Math.max(progress, 0), 100)}%` }}
                     ></div>
