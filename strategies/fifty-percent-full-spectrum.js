@@ -27,6 +27,9 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyPriceTwice = 0;
         this.rebuyDone = false;
         
+        // Timestamp storage for trading actions
+        this.buyTimestamp = null;
+        this.rebuyTimestamp = null;
 
         // Block states
         this.blockInit = true;
@@ -489,22 +492,22 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 }
                 else {
 
-                    if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
-                        this.halfdrop_flag = true;
-                        this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
-                        
-                        // Emit half drop detection notification
-                        this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
-                            halfDropDetected: true,
-                            instrument: instrument.symbol,
-                            lowAtRef: instrument.lowAtRef,
-                            firstPrice: instrument.firstPrice,
-                            dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
-                            message: `50% drop detected in ${instrument.symbol} - preparing for trading`
-                        });
-                        //GET CALL AND PUT INSTRUMENTS UNDER 200
-                        this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
-                        this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
+                    this.halfdrop_flag = true;
+                    this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
+                    
+                    // Emit half drop detection notification
+                    this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
+                        halfDropDetected: true,
+                        instrument: instrument.symbol,
+                        lowAtRef: instrument.lowAtRef,
+                        firstPrice: instrument.firstPrice,
+                        dropPercentage: ((instrument.lowAtRef / instrument.firstPrice) * 100).toFixed(2),
+                        message: `50% drop detected in ${instrument.symbol} - preparing for trading`
+                    });
+                    //GET CALL AND PUT INSTRUMENTS UNDER 200
+                    this.mainToken = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+                    this.oppToken = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
                         this.halfdrop_instrument = instrument;
                     }
                 }
@@ -570,52 +573,52 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             }
             
             if (this.universalDict.usePrebuy) {
-                let ce_change = ceInstrument.last - ceInstrument.buyPrice;
-                let pe_change = peInstrument.last - peInstrument.buyPrice;
-                let stoploss = null;
-                if(!this.stoplossHit) {
-                    console.log(`PREBUY | CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
+            let ce_change = ceInstrument.last - ceInstrument.buyPrice;
+            let pe_change = peInstrument.last - peInstrument.buyPrice;
+            let stoploss = null;
+            if(!this.stoplossHit) {
+                console.log(`PREBUY | CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
                     stoploss = this.globalDict.prebuyStoploss;
-                    this.stoplossHit = ce_change <= stoploss || pe_change <= stoploss;
+                this.stoplossHit = ce_change <= stoploss || pe_change <= stoploss;
+            }
+            
+            if(this.stoplossHit && !this.instrument_bought) {
+                let instrument = this.globalDict.buySame 
+                ? (ce_change <= stoploss ? ceInstrument : peInstrument) 
+                : (ce_change <= stoploss ? peInstrument : ceInstrument);
+                let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
+                if(!this.globalDict.buySame) {
+                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
+                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                }
+                else {
+                    this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${instrument.symbol} at ${instrument.last}`);
+                    this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                }
+                this.instrument_bought = instrument;
+                
+                // Set tracking flags for dashboard
+                this.halfdrop_bought = true;
+                if (instrument === peInstrument) {
+                    // We're buying the PE token, so set it as the bought token
+                    this.buyToken = this.oppToken; // PE token (the one we're buying)
+                    this.oppBuyToken = this.mainToken; // CE token (not bought)
+                } else {
+                    // We're buying the CE token, so set it as the bought token
+                    this.buyToken = this.mainToken; // CE token (the one we're buying)  
+                    this.oppBuyToken = this.oppToken; // PE token (not bought)
                 }
                 
-                if(this.stoplossHit && !this.instrument_bought) {
-                    let instrument = this.globalDict.buySame 
-                    ? (ce_change <= stoploss ? ceInstrument : peInstrument) 
-                    : (ce_change <= stoploss ? peInstrument : ceInstrument);
-                    let otherInstrument = instrument === ceInstrument ? peInstrument : ceInstrument;
-                    if(!this.globalDict.buySame) {
-                        this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${otherInstrument.symbol} at ${otherInstrument.last}`);
-                        this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
+                //BUYING LOGIC - Buy the instrument
+                try {
+                    const buyResult = await this.buyInstrument(instrument);
+                    if (buyResult && buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
                     }
-                    else {
-                        this.strategyUtils.logStrategyInfo(`STOPLOSS HIT: ${instrument.symbol} at ${instrument.last}`);
-                        this.strategyUtils.logStrategyInfo(`BUYING ${instrument.symbol} at ${instrument.last}`);
-                    }
-                    this.instrument_bought = instrument;
-                    
-                    // Set tracking flags for dashboard
-                    this.halfdrop_bought = true;
-                    if (instrument === peInstrument) {
-                        // We're buying the PE token, so set it as the bought token
-                        this.buyToken = this.oppToken; // PE token (the one we're buying)
-                        this.oppBuyToken = this.mainToken; // CE token (not bought)
-                    } else {
-                        // We're buying the CE token, so set it as the bought token
-                        this.buyToken = this.mainToken; // CE token (the one we're buying)  
-                        this.oppBuyToken = this.oppToken; // PE token (not bought)
-                    }
-                    
-                    //BUYING LOGIC - Buy the instrument
-                    try {
-                        const buyResult = await this.buyInstrument(instrument);
-                        if (buyResult && buyResult.success) {
-                            this.strategyUtils.logStrategyInfo(`Instrument bought - Executed price: ${buyResult.executedPrice}`);
-                        }
-                    }
-                    catch (error) {
-                        this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
-                    }
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
+                }
                 }
             }
             else {
@@ -643,6 +646,8 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     }
 
                     //BUYING LOGIC - Buy the instrument
+                    const buyTimestamp = new Date().toISOString();
+                    this.buyTimestamp = buyTimestamp; // Store for later use
                     try {
                         const buyResult = await this.buyInstrument(instrument);
                         if (buyResult && buyResult.success) {
@@ -653,6 +658,32 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                     catch (error) {
                         this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
                     }
+
+                    // Emit current cycle data update with buy timestamp
+                    this.emitStatusUpdate('current_cycle_data', {
+                        cycle: this.universalDict.cycles || 0,
+                        data: {
+                            halfDropInstrument: {
+                                symbol: this.halfdrop_instrument?.symbol,
+                                price: this.halfdrop_instrument?.lowAtRef,
+                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                firstPrice: this.halfdrop_instrument?.firstPrice,
+                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                            },
+                            instrumentBought: {
+                                symbol: instrument.symbol,
+                                price: this.buyPriceOnce || instrument.buyPrice,
+                                timestamp: buyTimestamp,
+                                quantity: 75 // Always show original quantity
+                            },
+                            rebuyData: null, // Will be updated when rebuy happens
+                            sellData: null, // Will be updated when sell happens
+                            summary: null // Will be updated when cycle completes
+                        },
+                        completed: false,
+                        timestamp: buyTimestamp
+                    });
                 }
 
             }
@@ -705,9 +736,58 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                             message: `Target reset to ${this.globalDict.target} points after successful completion`
                         });
                     }
+
+                    // Emit structured cycle completion data with sell timestamp
+                    const sellTimestamp = new Date().toISOString();
+                    // Store quantities correctly
+                    const originalQuantity = 75; // Base quantity
+                    const sellQuantity = this.rebuyDone ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
+                    this.emitStatusUpdate('cycle_completion_data', {
+                        cycle: this.universalDict.cycles || 0,
+                        data: {
+                            halfDropInstrument: {
+                                symbol: this.halfdrop_instrument?.symbol,
+                                price: this.halfdrop_instrument?.lowAtRef,
+                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                firstPrice: this.halfdrop_instrument?.firstPrice,
+                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                            },
+                            instrumentBought: {
+                                symbol: instrument.symbol,
+                                price: this.buyPriceOnce || instrument.buyPrice,
+                                timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                                quantity: originalQuantity // Always show original quantity
+                            },
+                            rebuyData: this.rebuyDone ? {
+                                firstBuyPrice: this.buyPriceOnce,
+                                secondBuyPrice: this.buyPriceTwice,
+                                averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                                quantity: originalQuantity // Show original quantity for rebuy
+                            } : null,
+                            sellData: {
+                                symbol: instrument.symbol,
+                                price: instrument.last,
+                                timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                                quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                                pnl: instrument.buyPrice !== -1 ? 
+                                    (instrument.last - instrument.buyPrice) * sellQuantity : 0
+                            },
+                            summary: {
+                                pnlInPoints: instrument.buyPrice !== -1 ? (instrument.last - instrument.buyPrice) : 0,
+                                pnlActual: instrument.buyPrice !== -1 ? 
+                                    (instrument.last - instrument.buyPrice) * sellQuantity : 0
+                            }
+                        },
+                        completed: true,
+                        timestamp: sellTimestamp
+                    });
                 }
                 else if(change <= this.globalDict.realBuyStoploss && !this.rebuyDone) {
                     this.rebuyDone = true;
+                    const rebuyTimestamp = new Date().toISOString();
+                    this.rebuyTimestamp = rebuyTimestamp; // Store for later use
                     this.strategyUtils.logStrategyInfo(`REBUYING ${instrument.symbol} at ${instrument.last} AS STOPLOSS OF ${this.globalDict.realBuyStoploss} REACHED`);
                     this.buyPriceTwice = instrument.last;
                     try {
@@ -741,6 +821,38 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                                 rebuyPrice: this.buyPriceTwice,
                                 averageBuyPrice: instrument.buyPrice,
                                 message: `Target reduced to ${this.globalDict.target} points due to rebuy at ${this.buyPriceTwice}`
+                            });
+
+                            // Emit rebuy data update with proper timestamp
+                            this.emitStatusUpdate('current_cycle_data', {
+                                cycle: this.universalDict.cycles || 0,
+                                data: {
+                                    halfDropInstrument: {
+                                        symbol: this.halfdrop_instrument?.symbol,
+                                        price: this.halfdrop_instrument?.lowAtRef,
+                                        timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                        firstPrice: this.halfdrop_instrument?.firstPrice,
+                                        dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                            ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                                    },
+                                    instrumentBought: {
+                                        symbol: instrument.symbol,
+                                        price: this.buyPriceOnce || instrument.buyPrice,
+                                        timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                                        quantity: 75 // Always show original quantity
+                                    },
+                                    rebuyData: {
+                                        firstBuyPrice: this.buyPriceOnce,
+                                        secondBuyPrice: this.buyPriceTwice,
+                                        averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                        timestamp: rebuyTimestamp,
+                                        quantity: 75 // Show original quantity for rebuy
+                                    },
+                                    sellData: null, // Will be updated when sell happens
+                                    summary: null // Will be updated when cycle completes
+                                },
+                                completed: false,
+                                timestamp: rebuyTimestamp
                             });
                         }
                     }

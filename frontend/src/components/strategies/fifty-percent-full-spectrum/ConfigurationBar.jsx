@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSocket } from '../../../contexts/SocketContext';
 import { Settings, ChevronDown, ChevronUp, Save, RotateCcw } from 'lucide-react';
 
-const ConfigurationBar = ({ strategy }) => {
+const ConfigurationBar = ({ strategy, onParameterUpdate }) => {
   const { updateGlobalParameter, updateUniversalParameter } = useSocket();
   const [isExpanded, setIsExpanded] = useState(false);
   const [pendingChanges, setPendingChanges] = useState({});
@@ -41,6 +41,10 @@ const ConfigurationBar = ({ strategy }) => {
       
       if (type === 'global') {
         updateGlobalParameter(paramName, convertedValue);
+        // Notify parent component of parameter update
+        if (onParameterUpdate) {
+          onParameterUpdate(paramName, convertedValue);
+        }
       } else {
         updateUniversalParameter(paramName, convertedValue);
       }

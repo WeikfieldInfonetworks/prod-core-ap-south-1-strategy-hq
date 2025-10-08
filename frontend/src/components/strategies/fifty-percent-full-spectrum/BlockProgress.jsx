@@ -1,7 +1,17 @@
 import React from 'react';
 import { Play, Activity, TrendingUp, RotateCcw, CheckCircle } from 'lucide-react';
 
-const BlockProgress = ({ blockState }) => {
+const BlockProgress = ({ blockState, strategy, currentDropThreshold }) => {
+  // Helper function to get drop threshold with multiple fallbacks
+  const getDropThreshold = () => {
+    const threshold = currentDropThreshold || 
+                     strategy?.globalDict?.dropThreshold || 
+                     strategy?.globalDictParameters?.dropThreshold?.default ||
+                     0.5; // Default fallback
+    
+    return (threshold * 100).toFixed(0);
+  };
+
   const blocks = [
     {
       key: 'blockInit',
@@ -13,7 +23,7 @@ const BlockProgress = ({ blockState }) => {
     {
       key: 'blockUpdate',
       name: 'UPDATE',
-      description: 'Monitor 50% Drop Detection',
+      description: `Monitor ${getDropThreshold()}% Drop Detection`,
       icon: Activity,
       color: 'purple'
     },
@@ -153,7 +163,7 @@ const BlockProgress = ({ blockState }) => {
         )}
         {blockState.blockUpdate && (
           <p className="text-sm text-purple-600">
-            📊 Monitoring for 50% price drops and selecting CE/PE under 200...
+            📊 Monitoring for {getDropThreshold()}% price drops and selecting CE/PE under 200...
           </p>
         )}
         {blockState.blockDiff10 && (

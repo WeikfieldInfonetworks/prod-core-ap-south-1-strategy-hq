@@ -1,8 +1,18 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Target, AlertTriangle, Clock, DollarSign } from 'lucide-react';
 
-const InstrumentTiles = ({ strategy, instrumentData }) => {
+const InstrumentTiles = ({ strategy, instrumentData, currentDropThreshold }) => {
   if (!strategy) return null;
+
+  // Helper function to get drop threshold with multiple fallbacks
+  const getDropThreshold = () => {
+    const threshold = currentDropThreshold || 
+                     strategy?.globalDict?.dropThreshold || 
+                     strategy?.globalDictParameters?.dropThreshold?.default ||
+                     0.5; // Default fallback
+    
+    return (threshold * 100).toFixed(0);
+  };
 
   // Use instrumentData if available, otherwise fall back to strategy
   const instrumentMap = instrumentData?.instrumentMap || strategy.universalDict?.instrumentMap || {};
@@ -68,7 +78,7 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
             <h4 className={`text-sm font-medium ${
               halfdropFlag ? 'text-red-900' : 'text-gray-900'
             }`}>
-              50% Drop Detection
+              {getDropThreshold()}% Drop Detection
               {halfdropFlag && (
                 <span className="ml-2 px-2 py-1 text-xs font-bold bg-red-200 text-red-800 rounded-full animate-pulse">
                   TRIGGERED!
@@ -398,7 +408,7 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
         <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-gray-300">
           <div className="text-center text-gray-500">
             <Clock className="h-8 w-8 mx-auto mb-2" />
-            <p className="text-sm">Waiting for 50% drop detection...</p>
+            <p className="text-sm">Waiting for {getDropThreshold()}% drop detection...</p>
             <p className="text-xs mt-1">Monitoring instruments in 20-100 range</p>
           </div>
         </div>

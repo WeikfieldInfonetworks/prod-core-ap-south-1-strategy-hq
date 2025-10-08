@@ -13,6 +13,7 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
   const [allInstrumentsData, setAllInstrumentsData] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [fadingNotifications, setFadingNotifications] = useState(new Set());
+  const [currentDropThreshold, setCurrentDropThreshold] = useState(0.5); // Track current drop threshold
 
   const addNotification = (notification) => {
     const notificationWithId = { ...notification, id: Date.now() };
@@ -42,6 +43,24 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
     }, 300); // Match animation duration
   };
 
+  // Track drop threshold changes
+  useEffect(() => {
+    if (strategy?.globalDict?.dropThreshold !== undefined) {
+      setCurrentDropThreshold(strategy.globalDict.dropThreshold);
+    }
+  }, [strategy?.globalDict?.dropThreshold]);
+
+  // Helper function to get drop threshold with multiple fallbacks
+  const getDropThreshold = () => {
+    // Use the tracked current value first, then fallback to strategy values
+    const threshold = currentDropThreshold || 
+                     strategy?.globalDict?.dropThreshold || 
+                     strategy?.globalDictParameters?.dropThreshold?.default ||
+                     0.5; // Default fallback
+    
+    return (threshold * 100).toFixed(0);
+  };
+
   useEffect(() => {
     if (!socket || !strategy) return;
 
@@ -52,14 +71,31 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
         // The block state is already managed by the strategy object
       }
 
-      // Handle instrument data updates
+      // Handle instrument data updates (only if not structured format)
       if (data.status === 'instrument_data_update') {
-        setInstrumentData(data);
+        // Only update instrumentData if we don't already have structured data
+        setInstrumentData(prevData => {
+          // If we have structured data, don't overwrite it with old format
+          if (prevData && (prevData.status === 'current_cycle_data' || prevData.status === 'cycle_completion_data')) {
+            return prevData; // Keep structured data
+          }
+          return data; // Use new data
+        });
         
         // Update all instruments data for the table
         if (data.instrumentMap) {
           setAllInstrumentsData(data.instrumentMap);
         }
+      }
+
+      // Handle structured cycle data updates
+      if (data.status === 'current_cycle_data' || data.status === 'cycle_completion_data') {
+        setInstrumentData(data);
+        console.log('📊 Dashboard: Received structured cycle data', {
+          status: data.status,
+          cycle: data.cycle,
+          completed: data.completed
+        });
       }
 
       // Handle half drop detection specifically
@@ -79,7 +115,8 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
       }
 
       // Add to notifications for other status updates
-      if (data.status !== 'instrument_data_update' && !data.halfDropDetected) {
+      if (data.status !== 'instrument_data_update' && !data.halfDropDetected && 
+          data.status !== 'current_cycle_data' && data.status !== 'cycle_completion_data') {
         addNotification({
           type: 'info',
           title: 'Strategy Update',
@@ -319,10 +356,14 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
       </div>
 
       {/* Block Progress */}
-      <BlockProgress blockState={blockState} />
+      <BlockProgress blockState={blockState} strategy={strategy} currentDropThreshold={currentDropThreshold} />
 
       {/* Configuration */}
-      <ConfigurationBar strategy={strategy} />
+      <ConfigurationBar strategy={strategy} onParameterUpdate={(paramName, value) => {
+        if (paramName === 'dropThreshold') {
+          setCurrentDropThreshold(value);
+        }
+      }} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -333,11 +374,11 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">Observed Instruments Tracking</h3>
-                  <p className="text-sm text-gray-600 mt-1">Monitoring selected instruments for {(strategy.globalDict?.dropThreshold * 100 || 50).toFixed(0)}% drop detection</p>
+                  <p className="text-sm text-gray-600 mt-1">Monitoring selected instruments for {getDropThreshold()}% drop detection</p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="text-sm text-gray-600">
-                    Drop Threshold: {(strategy.globalDict?.dropThreshold * 100 || 50).toFixed(0)}% | Total Observed: {observedInstruments.length}
+                    Drop Threshold: {getDropThreshold()}% | Total Observed: {observedInstruments.length}
                   </div>
                 </div>
               </div>
@@ -444,6 +485,7 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
           <InstrumentTiles 
             strategy={strategy} 
             instrumentData={instrumentData}
+            currentDropThreshold={currentDropThreshold}
           />
         </div>
       </div>
@@ -453,6 +495,7 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
         strategy={strategy} 
         instrumentData={instrumentData}
         tradingActions={tradingActions}
+        currentDropThreshold={currentDropThreshold}
       />
     </div>
   );
