@@ -26,6 +26,13 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyPriceOnce = 0;
         this.buyPriceTwice = 0;
         this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
         
         // Timestamp storage for trading actions
         this.buyTimestamp = null;
@@ -128,6 +135,13 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyPriceOnce = 0;
         this.buyPriceTwice = 0;
         this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -691,15 +705,27 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
             if(this.instrument_bought) {
                 let instrument = this.universalDict.instrumentMap[this.instrument_bought.token];
                 const change = instrument.last - instrument.buyPrice;
+                let threshold_change = instrument.last - this.rebuyPrice;
+                
                 console.log(`CHANGE: ${change} TARGET: ${this.globalDict.target}`);
-                if(change >= this.globalDict.target) {
+                if(this.rebuyDone && threshold_change <= this.globalDict.prebuySignificantThreshold && !this.droppedBelowSignificantThreshold){
+                    this.droppedBelowSignificantThreshold = true;
+                }
+
+                if(this.rebuyDone && this.droppedBelowSignificantThreshold){
+                    await this.singleRebuyStoplossManagement(instrument, this.rebuyDone, this.rebuyPrice, this.rebuyAveragePrice, this.flagSet);
+                }
+
+
+                if(change >= this.globalDict.target && !this.boughtSold) {
                     this.boughtSold = true;
                     this.strategyUtils.logStrategyInfo(`SELLING ${instrument.symbol} at ${instrument.last} AS TARGET OF ${this.globalDict.target} REACHED`);
+                    let sellResult = null;
                     // SELLING LOGIC - Sell the instrument
                     try {
-                        const sellResult = await this.sellInstrument(instrument);
+                        sellResult = await this.sellInstrument(instrument);
                         if (sellResult && sellResult.success) {
-                            this.strategyUtils.logStrategyInfo(`Instrument sold - Executed price: ${sellResult.executedPrice}`);
+                            this.strategyUtils.logStrategyInfo(`${instrument.symbol} sold at target price - Executed price: ${sellResult.executedPrice}`);
                         }
                     }
                     catch (error) {
@@ -732,7 +758,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                             originalQuantity: originalQuantity,
                             newQuantity: this.globalDict.quantity,
                             instrument: instrument.symbol,
-                            sellPrice: instrument.last,
+                            sellPrice: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
                             message: `Target reset to ${this.globalDict.target} points after successful completion`
                         });
                     }
@@ -768,16 +794,16 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                             } : null,
                             sellData: {
                                 symbol: instrument.symbol,
-                                price: instrument.last,
+                                price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
                                 timestamp: sellTimestamp, // Only sell action uses sell timestamp
                                 quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
                                 pnl: instrument.buyPrice !== -1 ? 
-                                    (instrument.last - instrument.buyPrice) * sellQuantity : 0
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
                             },
                             summary: {
-                                pnlInPoints: instrument.buyPrice !== -1 ? (instrument.last - instrument.buyPrice) : 0,
+                                pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
                                 pnlActual: instrument.buyPrice !== -1 ? 
-                                    (instrument.last - instrument.buyPrice) * sellQuantity : 0
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
                             }
                         },
                         completed: true,
@@ -796,6 +822,8 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                             this.strategyUtils.logStrategyInfo(`Instrument bought again - Executed price: ${buyResult.executedPrice}`);
                             this.buyPriceTwice = buyResult.executedPrice == 0 ? instrument.last : buyResult.executedPrice;
                             instrument.buyPrice = (this.buyPriceOnce + this.buyPriceTwice) / 2;
+                            this.rebuyPrice = this.buyPriceTwice;
+                            this.rebuyAveragePrice = (this.buyPriceOnce + this.buyPriceTwice) / 2;
                             
                             // Store original values before modification
                             const originalTarget = this.globalDict.target;
@@ -903,6 +931,13 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         this.buyPriceOnce = 0;
         this.buyPriceTwice = 0;
         this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
         
         // Reset additional Full Spectrum properties
         this.halfdrop_bought = false;
@@ -1209,6 +1244,217 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         }
     }
 
+    async singleRebuyStoplossManagement(instrument, rebuy_flag, rebuy_price, average_price, flag_set){
+        if(rebuy_flag && !this.boughtSold){
+            if(instrument.last > rebuy_price && !flag_set.reached_rebuy_price && !this.boughtSold){
+                flag_set.reached_rebuy_price = true;
+            }
+            
+            if (flag_set.reached_rebuy_price && !this.boughtSold){
+                if(instrument.last > average_price && !flag_set.reached_average_price){
+                    flag_set.reached_average_price = true;
+                }
+
+                if(instrument.last < rebuy_price && !flag_set.reached_average_price && flag_set.reached_rebuy_price && !this.boughtSold){
+                    this.strategyUtils.logStrategyInfo(`SELLING ${instrument.symbol} at ${instrument.last} AS TARGET OF ${this.globalDict.target} REACHED`);
+                    let sellResult = null;
+                    // SELLING LOGIC - Sell the instrument
+                    try {
+                        sellResult = await this.sellInstrument(instrument);
+                        if (sellResult && sellResult.success) {
+                            this.strategyUtils.logStrategyInfo(`${instrument.symbol} sold at rebuy price - Executed price: ${sellResult.executedPrice}`);
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                    }
+
+                    if(rebuy_flag) {
+                        // Store original values before modification
+                        const originalTarget = this.globalDict.target;
+                        const originalStoploss = this.globalDict.stoploss;
+                        const originalQuantity = this.globalDict.quantity;
+                        
+                        // Reset target, stoploss, and quantity
+                        this.globalDict.target = this.globalDict.target * 2;
+                        this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                        this.globalDict.quantity = this.globalDict.quantity / 2;
+                        this.globalDict.useManuallyAddedInstruments = false;
+                        this.globalDict.manuallyAddedInstruments = '';
+                        
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        
+                        // Emit target reset notification
+                        this.emitStatusUpdate('Target reset after completion', {
+                            targetChange: true,
+                            targetReset: true,
+                            originalTarget: originalTarget,
+                            newTarget: this.globalDict.target,
+                            originalStoploss: originalStoploss,
+                            newStoploss: this.globalDict.stoploss,
+                            originalQuantity: originalQuantity,
+                            newQuantity: this.globalDict.quantity,
+                            instrument: instrument.symbol,
+                            sellPrice: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                            message: `Target reset to ${this.globalDict.target} points after successful completion`
+                        });
+                    }
+
+                    // Emit structured cycle completion data with sell timestamp
+                    const sellTimestamp = new Date().toISOString();
+                    // Store quantities correctly
+                    const originalQuantity = 75; // Base quantity
+                    const sellQuantity = this.rebuyDone ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
+                    this.emitStatusUpdate('cycle_completion_data', {
+                        cycle: this.universalDict.cycles || 0,
+                        data: {
+                            halfDropInstrument: {
+                                symbol: this.halfdrop_instrument?.symbol,
+                                price: this.halfdrop_instrument?.lowAtRef,
+                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                firstPrice: this.halfdrop_instrument?.firstPrice,
+                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                            },
+                            instrumentBought: {
+                                symbol: instrument.symbol,
+                                price: this.buyPriceOnce || instrument.buyPrice,
+                                timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                                quantity: originalQuantity // Always show original quantity
+                            },
+                            rebuyData: this.rebuyDone ? {
+                                firstBuyPrice: this.buyPriceOnce,
+                                secondBuyPrice: this.buyPriceTwice,
+                                averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                                quantity: originalQuantity // Show original quantity for rebuy
+                            } : null,
+                            sellData: {
+                                symbol: instrument.symbol,
+                                price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                                timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                                quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                                pnl: instrument.buyPrice !== -1 ? 
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
+                                sellReason: "REBUY_PRICE" // Add sell reason for TradingTable badges
+                            },
+                            summary: {
+                                pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
+                                pnlActual: instrument.buyPrice !== -1 ? 
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                            }
+                        },
+                        completed: true,
+                        timestamp: sellTimestamp
+                    });
+
+                    this.boughtSold = true;
+                }
+            }
+
+            if(flag_set.reached_average_price && !this.boughtSold){
+                if(instrument.last < average_price && !flag_set.reached_average_price && !this.boughtSold){
+                    this.strategyUtils.logStrategyInfo(`SELLING ${instrument.symbol} at ${instrument.last} AS TARGET OF ${this.globalDict.target} REACHED`);
+                    let sellResult = null;
+                    // SELLING LOGIC - Sell the instrument
+                    try {
+                        sellResult = await this.sellInstrument(instrument);
+                        if (sellResult && sellResult.success) {
+                            this.strategyUtils.logStrategyInfo(`${instrument.symbol} sold at average price - Executed price: ${sellResult.executedPrice}`);
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                    }
+
+                    if(rebuy_flag) {
+                        // Store original values before modification
+                        const originalTarget = this.globalDict.target;
+                        const originalStoploss = this.globalDict.stoploss;
+                        const originalQuantity = this.globalDict.quantity;
+                        
+                        // Reset target, stoploss, and quantity
+                        this.globalDict.target = this.globalDict.target * 2;
+                        this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                        this.globalDict.quantity = this.globalDict.quantity / 2;
+                        this.globalDict.useManuallyAddedInstruments = false;
+                        this.globalDict.manuallyAddedInstruments = '';
+                        
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        
+                        // Emit target reset notification
+                        this.emitStatusUpdate('Target reset after completion', {
+                            targetChange: true,
+                            targetReset: true,
+                            originalTarget: originalTarget,
+                            newTarget: this.globalDict.target,
+                            originalStoploss: originalStoploss,
+                            newStoploss: this.globalDict.stoploss,
+                            originalQuantity: originalQuantity,
+                            newQuantity: this.globalDict.quantity,
+                            instrument: instrument.symbol,
+                            sellPrice: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                            message: `Target reset to ${this.globalDict.target} points after successful completion`
+                        });
+                    }
+
+                    // Emit structured cycle completion data with sell timestamp
+                    const sellTimestamp = new Date().toISOString();
+                    // Store quantities correctly
+                    const originalQuantity = 75; // Base quantity
+                    const sellQuantity = this.rebuyDone ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
+                    this.emitStatusUpdate('cycle_completion_data', {
+                        cycle: this.universalDict.cycles || 0,
+                        data: {
+                            halfDropInstrument: {
+                                symbol: this.halfdrop_instrument?.symbol,
+                                price: this.halfdrop_instrument?.lowAtRef,
+                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                firstPrice: this.halfdrop_instrument?.firstPrice,
+                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                            },
+                            instrumentBought: {
+                                symbol: instrument.symbol,
+                                price: this.buyPriceOnce || instrument.buyPrice,
+                                timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                                quantity: originalQuantity // Always show original quantity
+                            },
+                            rebuyData: this.rebuyDone ? {
+                                firstBuyPrice: this.buyPriceOnce,
+                                secondBuyPrice: this.buyPriceTwice,
+                                averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                                quantity: originalQuantity // Show original quantity for rebuy
+                            } : null,
+                            sellData: {
+                                symbol: instrument.symbol,
+                                price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                                timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                                quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                                pnl: instrument.buyPrice !== -1 ? 
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
+                                sellReason: "AVG_PRICE" // Add sell reason for TradingTable badges
+                            },
+                            summary: {
+                                pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
+                                pnlActual: instrument.buyPrice !== -1 ? 
+                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                            }
+                        },
+                        completed: true,
+                        timestamp: sellTimestamp
+                    });
+
+                    this.boughtSold = true;
+                }
+            }
+
+        }
+
+
+    }
+
     getConfig() {
         const config = {
             name: this.name,
@@ -1268,6 +1514,11 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
                 type: 'number',
                 default: -11,
                 description: 'Stoploss to activate second buy.'
+            },
+            prebuySignificantThreshold: {
+                type: 'number',
+                default: -11,
+                description: 'Significant stoploss threshold for pre-buy'
             },
             buySame: {
                 type: 'boolean',

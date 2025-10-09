@@ -99,10 +99,10 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, currentDropThr
       instrumentDataStatus: instrumentData?.status
     });
     
-    const currentCycle = strategy.universalDict?.cycles || 0;
+    const currentCycle = (strategy.universalDict?.cycles || 0) + 1; // Display cycles starting from 1
     
     // Check if we need to create a new cycle row (when cycle number increases)
-    if (currentCycle > 0) {
+    if (currentCycle > 1) {
       const hasCurrentCycle = historyData.some(item => item.cycle === currentCycle);
       if (!hasCurrentCycle) {
         console.log('🆕 Creating new cycle row for cycle', currentCycle);
@@ -131,7 +131,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, currentDropThr
         });
         // New structured format - use the cycle and data directly
         // The timestamps are already properly set in the data from strategy
-        updateCycleHistory(instrumentData.data, instrumentData.cycle, instrumentData);
+        // Add 1 to cycle number for display (backend cycles start at 0, frontend displays from 1)
+        updateCycleHistory(instrumentData.data, instrumentData.cycle + 1, instrumentData);
       } else {
         console.log('📊 Using old format - converting to structured');
         // Old format - convert to structured format
@@ -434,7 +435,22 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, currentDropThr
                                 </div>
                                 <div className="text-xs text-gray-700 space-y-1">
                                   <div>Instrument: <span className="font-medium">{cycleData.data.sellData.symbol}</span></div>
-                                  <div>Sell Price: <span className="font-medium">{formatPrice(cycleData.data.sellData.price)}</span></div>
+                                  <div className="flex items-center space-x-2">
+                                    <span>Sell Price: <span className="font-medium">{formatPrice(cycleData.data.sellData.price)}</span></span>
+                                    {cycleData.data.sellData.sellReason && (
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        cycleData.data.sellData.sellReason === 'REBUY_PRICE' 
+                                          ? 'bg-orange-100 text-orange-800' 
+                                          : cycleData.data.sellData.sellReason === 'AVG_PRICE'
+                                          ? 'bg-blue-100 text-blue-800'
+                                          : 'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {cycleData.data.sellData.sellReason === 'REBUY_PRICE' ? 'SOLD AT REBUY' : 
+                                         cycleData.data.sellData.sellReason === 'AVG_PRICE' ? 'SOLD AT AVG PRICE' : 
+                                         cycleData.data.sellData.sellReason}
+                                      </span>
+                                    )}
+                                  </div>
                                   <div>Quantity: <span className="font-medium">{cycleData.data.sellData.quantity}</span></div>
                                   <div className={`font-semibold ${getPnLColor(cycleData.data.sellData.pnl)}`}>
                                     P&L: {formatPrice(cycleData.data.sellData.pnl)}

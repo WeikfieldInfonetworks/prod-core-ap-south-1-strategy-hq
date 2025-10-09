@@ -92,6 +92,16 @@ class MTMV3Strategy extends BaseStrategy {
         this.mtmSoldAt10 = false;
         this.mtmNextSellAfter10 = false;
         this.mtm10firstHit = false;
+        this.prebuyLowTrackingPrice = 0;
+        this.prebuyLowTrackingTime = null;
+        this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
         
         // Entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -218,6 +228,16 @@ class MTMV3Strategy extends BaseStrategy {
         this.entry_24 = false;
         this.entry_36 = false;
         this.entry_7 = false;
+        this.prebuyLowTrackingPrice = 0;
+        this.prebuyLowTrackingTime = null;
+        this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
         
         // Reset entry stage variables
         this.entry_24_first_stage = false;
@@ -549,6 +569,15 @@ class MTMV3Strategy extends BaseStrategy {
                 instrument.changeFromBuy = newPrice - instrument.buyPrice;
             }
 
+            if(this.prebuyBoughtToken){
+                if(instrument.token == this.prebuyBoughtToken && instrument.last < this.prebuyLowTrackingPrice){
+                    console.log(`📉 UPDATE Block - New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
+                    this.prebuyLowTrackingPrice = instrument.last;
+                    this.prebuyLowTrackingTime = this.globalDict.timestamp;
+                    // Track the low but don't emit real-time updates
+                }
+            }
+
             // Update peak2 if applicable
             // if (instrument.peak2 > -1 && newPrice > instrument.peak2) {
             //     instrument.peak2 = newPrice;
@@ -714,6 +743,7 @@ class MTMV3Strategy extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
                     }
                     this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? real_instrument.last : buyResult.executedPrice;
+                    this.prebuyLowTrackingPrice = this.prebuyBuyPriceOnce;
                 }
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
@@ -728,6 +758,8 @@ class MTMV3Strategy extends BaseStrategy {
                     "firstBuyInstrument": real_instrument,
                     "firstBuyPrice": this.prebuyBuyPriceOnce,
                     "firstBuyQuantity": this.globalDict.quantity || 75,
+                    "originalQuantity": this.globalDict.quantity || 75, // Store original quantity
+                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
                     "firstBuyTimestamp": this.formatTime24(new Date()),
                     "secondBuy": false,
                     "averageBuyPrice": this.prebuyBuyPriceOnce
@@ -813,6 +845,16 @@ class MTMV3Strategy extends BaseStrategy {
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
 
+        // Low tracking logic for prebuy mode - track the lowest price reached
+        if(this.universalDict.usePrebuy && this.prebuyBoughtToken && instrument_1.token == this.prebuyBoughtToken){
+            console.log(`🔍 Checking low tracking - Current: ${instrument_1.last}, Tracking: ${this.prebuyLowTrackingPrice}`);
+            if(instrument_1.last < this.prebuyLowTrackingPrice){
+                console.log(`📉 New low detected! ${instrument_1.last} < ${this.prebuyLowTrackingPrice}`);
+                this.prebuyLowTrackingPrice = instrument_1.last;
+                // Track the low but don't emit real-time updates
+            }
+        }
+
         if(this.universalDict.usePrebuy && !this.entry_7){
             if((instrument_1_original_change <= this.globalDict.realBuyStoploss) && this.prebuyBuyPriceTwice == 0){
                 //BUY AGAIN - Buy the same real instrument again
@@ -823,6 +865,9 @@ class MTMV3Strategy extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
                     }
                     this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                    this.rebuyDone = true;
+                    this.rebuyPrice = this.prebuyBuyPriceTwice;
+                    this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
 
                 }
                 catch (error) {
@@ -845,6 +890,7 @@ class MTMV3Strategy extends BaseStrategy {
                     "secondBuyPrice": this.prebuyBuyPriceTwice,
                     "secondBuyQuantity": this.globalDict.quantity / 2,
                     "secondBuyTimestamp": this.formatTime24(new Date()),
+                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
                     "averageBuyPrice": (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2
                 }
                 this.emitPrebuyDataUpdate();
@@ -852,6 +898,12 @@ class MTMV3Strategy extends BaseStrategy {
                 
             }
 
+        }
+
+        let threshold_change = instrument_1.last - this.prebuyBuyPriceTwice;
+
+        if(this.globalDict.usePrebuy && this.rebuyDone && threshold_change <= this.globalDict.prebuySignificantThreshold && !this.droppedBelowSignificantThreshold){
+            this.droppedBelowSignificantThreshold = true;
         }
 
         const hit_24 = (instrument_1_original_change >= this.globalDict.sellAt24Limit || instrument_2_original_change >= this.globalDict.sellAt24Limit) && !this.universalDict.usePrebuy;
@@ -894,7 +946,11 @@ class MTMV3Strategy extends BaseStrategy {
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
         }
-        
+
+        if(this.globalDict.usePrebuy && this.rebuyDone && this.droppedBelowSignificantThreshold){
+            await this.singleRebuyStoplossManagement(instrument_1, this.rebuyDone, this.rebuyPrice, this.rebuyAveragePrice, this.flagSet);
+        }
+
         if(this.entry_7){
             this.boughtSold = true;
             let sellResult = null;
@@ -964,18 +1020,26 @@ class MTMV3Strategy extends BaseStrategy {
 
                 this.prebuyFullData['realSell'] = {
                     "sellInstrument": instrument_1,
-                    "sellPrice": sellResult.executedPrice,
+                    "sellPrice": sellResult.executedPrice == 0 ? instrument_1.last : sellResult.executedPrice,
                     "sellQuantity": this.globalDict.quantity || 75,
+                    "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'], // Use original quantity
                     "sellTimestamp": this.formatTime24(new Date())
                 }
 
+                // Update the final low tracking price and time in realBuy data
+                this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
+                this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
+
+                // Calculate correct quantities for P&L
+                const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
+                const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
+                
                 this.prebuyFullData['summary'] = {
                     "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
-                    "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['firstBuyPrice'])
-                                *(this.prebuyFullData['realBuy']['secondBuy'] 
-                                ? this.prebuyFullData['realSell']['sellQuantity'] 
-                                : this.prebuyFullData['realBuy']['firstBuyQuantity']),
-                    
+                    "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
+                    "originalQuantity": originalQuantity,
+                    "sellQuantity": sellQuantity,
+                    "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
                 }
                 this.emitPrebuyDataUpdate();
             }
@@ -1615,6 +1679,16 @@ class MTMV3Strategy extends BaseStrategy {
         this.prebuyFullData = {};
         this.prebuyBuyPriceOnce = 0;
         this.prebuyBuyPriceTwice = 0;
+        this.prebuyLowTrackingPrice = 0;
+        this.prebuyLowTrackingTime = null;
+        this.rebuyDone = false;
+        this.rebuyPrice = 0;
+        this.rebuyAveragePrice = 0;
+        this.flagSet = {
+            reached_rebuy_price: false,
+            reached_average_price: false
+        }
+        this.droppedBelowSignificantThreshold = false;
         
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -1792,6 +1866,11 @@ class MTMV3Strategy extends BaseStrategy {
                 type: 'number',
                 default: -9,
                 description: 'Stoploss for real buy'
+            },
+            prebuySignificantThreshold: {
+                type: 'number',
+                default: -11,
+                description: 'Significant stoploss threshold for pre-buy'
             },
             buySame : {
                 type: 'boolean',
@@ -2105,6 +2184,123 @@ class MTMV3Strategy extends BaseStrategy {
         }
     }
 
+    async singleRebuyStoplossManagement(instrument, rebuy_flag, rebuy_price, average_price, flag_set){
+        if(rebuy_flag && !this.boughtSold){
+            if(instrument.last > rebuy_price && !flag_set.reached_rebuy_price && !this.boughtSold){
+                flag_set.reached_rebuy_price = true;
+            }
+            
+            if (flag_set.reached_rebuy_price && !this.boughtSold){
+                if(instrument.last > average_price && !flag_set.reached_average_price){
+                    flag_set.reached_average_price = true;
+                }
+
+                if(instrument.last < rebuy_price && !flag_set.reached_average_price && flag_set.reached_rebuy_price && !this.boughtSold){
+                    let sellResult = null;
+                    try {
+                        sellResult = await this.sellInstrument(instrument);
+                        if (sellResult && sellResult.success) {
+                            this.strategyUtils.logStrategyInfo(`${instrument.symbol} sold at rebuy price - Executed price: ${sellResult.executedPrice}`);
+                        } else {
+                            this.strategyUtils.logStrategyError('Failed to sell instrument at rebuy price');
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                    }
+    
+                    if(this.prebuyBuyPriceTwice > 0){
+                        this.globalDict.target = this.globalDict.target * 2;
+                        this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                        this.globalDict.quantity = this.globalDict.quantity / 2;
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                    }
+    
+                    this.prebuyFullData['realSell'] = {
+                        "sellInstrument": instrument,
+                        "sellPrice": sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                        "sellQuantity": this.globalDict.quantity || 75,
+                        "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'],
+                        "sellTimestamp": this.formatTime24(new Date()),
+                        "sellReason": "REBUY_PRICE"
+                    }
+    
+                    // Update the final low tracking price and time in realBuy data
+                    this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
+                    this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
+    
+                    // Calculate correct quantities for P&L
+                    const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
+                    const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
+                    
+                    this.prebuyFullData['summary'] = {
+                        "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
+                        "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
+                        "originalQuantity": originalQuantity,
+                        "sellQuantity": sellQuantity,
+                        "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
+                    }
+                    this.emitPrebuyDataUpdate();
+
+                    this.boughtSold = true;
+                }
+            }
+
+            if(flag_set.reached_average_price && !this.boughtSold){
+                if(instrument.last < average_price && !flag_set.reached_average_price && !this.boughtSold){
+                    let sellResult = null;
+                    try {
+                        sellResult = await this.sellInstrument(instrument);
+                        if (sellResult && sellResult.success) {
+                            this.strategyUtils.logStrategyInfo(`${instrument.symbol} sold at average price - Executed price: ${sellResult.executedPrice}`);
+                        } else {
+                            this.strategyUtils.logStrategyError('Failed to sell instrument at average price');
+                        }
+                    }
+                    catch (error) {
+                        this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                    }
+    
+                    if(this.prebuyBuyPriceTwice > 0){
+                        this.globalDict.target = this.globalDict.target * 2;
+                        this.globalDict.stoploss = this.globalDict.stoploss * 2;
+                        this.globalDict.quantity = this.globalDict.quantity / 2;
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                    }
+    
+                    this.prebuyFullData['realSell'] = {
+                        "sellInstrument": instrument,
+                        "sellPrice": sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                        "sellQuantity": this.globalDict.quantity || 75,
+                        "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'],
+                        "sellTimestamp": this.formatTime24(new Date()),
+                        "sellReason": "AVG_PRICE"
+                    }
+    
+                    // Update the final low tracking price and time in realBuy data
+                    this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
+                    this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
+    
+                    // Calculate correct quantities for P&L
+                    const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
+                    const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
+                    
+                    this.prebuyFullData['summary'] = {
+                        "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
+                        "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
+                        "originalQuantity": originalQuantity,
+                        "sellQuantity": sellQuantity,
+                        "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
+                    }
+                    this.emitPrebuyDataUpdate();
+                    this.boughtSold = true;
+                }
+            }
+
+        }
+
+
+    }
     // Dashboard-specific emit methods for real-time updates
     emitInstrumentDataUpdate() {
         // Handle prebuy mode differently
@@ -2640,7 +2836,7 @@ class MTMV3Strategy extends BaseStrategy {
             this.emitToUser('strategy_prebuy_data', structuredPrebuyData);
             
             // Log the emission for debugging
-            this.strategyUtils.logStrategyInfo(`Prebuy data emitted for cycle ${structuredPrebuyData.cycle}: ${Object.keys(this.prebuyFullData).join(', ')}`);
+            this.strategyUtils.logStrategyInfo(`Prebuy data emitted for cycle ${structuredPrebuyData.cycle}: ${Object.keys(this.prebuyFullData).join(', ')}`);                                                    
         }
     }
 

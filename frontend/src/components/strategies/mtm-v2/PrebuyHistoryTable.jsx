@@ -84,11 +84,13 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
       if (currentPrebuyData.cycle !== undefined && currentPrebuyData.data !== undefined) {
         console.log('📊 Using new structured format from MTM V3');
         // New structured format - use the cycle and data directly
-        updatePrebuyHistory(currentPrebuyData.data, currentPrebuyData.cycle, currentPrebuyData);
+        // Add 1 to cycle number for display (backend cycles start at 0, frontend displays from 1)
+        updatePrebuyHistory(currentPrebuyData.data, currentPrebuyData.cycle + 1, currentPrebuyData);
       } else {
         console.log('📊 Using old format');
         // Old format - use strategy cycle number
-        const currentCycle = strategy.universalDict?.cycles || 0;
+        // Add 1 to cycle number for display (backend cycles start at 0, frontend displays from 1)
+        const currentCycle = (strategy.universalDict?.cycles || 0) + 1;
         updatePrebuyHistory(currentPrebuyData, currentCycle);
       }
     }
@@ -111,7 +113,12 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
     try {
       const date = new Date(timestamp);
       if (!isNaN(date.getTime())) {
-        return date.toLocaleTimeString();
+        return date.toLocaleTimeString('en-GB', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        });
       }
     } catch {
       // Fall through to return as-is
@@ -339,6 +346,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                                 <div>Stoploss Hit By: <span className="font-medium">{cycleData.data.realBuy.stoplossHitBy}</span></div>
                                 <div>Buy Instrument: <span className="font-medium">{cycleData.data.realBuy.firstBuyInstrument?.symbol}</span></div>
                                 <div>Buy Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.firstBuyPrice)}</span></div>
+                                <div>Quantity: <span className="font-medium">{cycleData.data.realBuy.originalQuantity || cycleData.data.realBuy.firstBuyQuantity || 75}</span></div>
                                 {cycleData.data.realBuy.secondBuy && (
                                   <>
                                     <div className="border-t border-blue-300 pt-1 mt-2">
@@ -349,6 +357,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                                         </span>
                                       </div>
                                       <div>Second Buy Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.secondBuyPrice)}</span></div>
+                                      <div>Quantity: <span className="font-medium">{cycleData.data.realBuy.originalQuantity || cycleData.data.realBuy.secondBuyQuantity || 75}</span></div>
                                       <div>Average Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.averageBuyPrice)}</span></div>
                                     </div>
                                   </>
@@ -368,8 +377,44 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                               </div>
                               <div className="text-xs text-gray-700 space-y-1">
                                 <div>Sell Instrument: <span className="font-medium">{cycleData.data.realSell.sellInstrument?.symbol}</span></div>
-                                <div>Sell Price: <span className="font-medium">{formatPrice(cycleData.data.realSell.sellPrice)}</span></div>
-                                <div>Quantity: <span className="font-medium">{cycleData.data.realSell.sellQuantity}</span></div>
+                                <div className="flex items-center space-x-2">
+                                  <span>Sell Price: <span className="font-medium">{formatPrice(cycleData.data.realSell.sellPrice)}</span></span>
+                                  {cycleData.data.realSell.sellReason && (
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      cycleData.data.realSell.sellReason === 'REBUY_PRICE' 
+                                        ? 'bg-orange-100 text-orange-800' 
+                                        : cycleData.data.realSell.sellReason === 'AVG_PRICE'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {cycleData.data.realSell.sellReason === 'REBUY_PRICE' ? 'SOLD AT REBUY' : 
+                                       cycleData.data.realSell.sellReason === 'AVG_PRICE' ? 'SOLD AT AVG PRICE' : 
+                                       cycleData.data.realSell.sellReason}
+                                    </span>
+                                  )}
+                                </div>
+                                <div>Quantity Sold: <span className="font-medium">{cycleData.data.summary?.sellQuantity || cycleData.data.realSell.sellQuantity || 75}</span></div>
+                                {cycleData.data.summary?.rebuyOccurred && (
+                                  <div className="text-xs text-orange-600 font-medium">
+                                    (Double quantity due to rebuy)
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Low Price Section - Only show for completed cycles */}
+                          {cycleData.completed && cycleData.data.realBuy?.lowTrackingPrice && (
+                            <div className="border border-orange-200 rounded-lg p-3 bg-orange-50">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-orange-800">Lowest Price Reached</span>
+                                <span className="text-sm font-semibold text-orange-600">
+                                  {formatTime(cycleData.data.realBuy.lowTrackingTime || cycleData.data.realBuy.firstBuyTimestamp)}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-700 space-y-1">
+                                <div>Instrument: <span className="font-medium">{cycleData.data.realBuy.firstBuyInstrument?.symbol}</span></div>
+                                <div>Lowest Price: <span className="font-medium text-red-600">{formatPrice(cycleData.data.realBuy.lowTrackingPrice)}</span></div>
                               </div>
                             </div>
                           )}
@@ -392,6 +437,15 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                                   <div className={`font-semibold ${getPnLColor(cycleData.data.summary.pnlActual)}`}>
                                     {formatPrice(cycleData.data.summary.pnlActual)}
                                   </div>
+                                </div>
+                              </div>
+                              <div className="mt-2 pt-2 border-t border-gray-200">
+                                <div className="text-xs text-gray-600 space-y-1">
+                                  <div>Original Quantity: <span className="font-medium">{cycleData.data.summary?.originalQuantity || 75}</span></div>
+                                  <div>Quantity Sold: <span className="font-medium">{cycleData.data.summary?.sellQuantity || 75}</span></div>
+                                  {cycleData.data.summary?.rebuyOccurred && (
+                                    <div className="text-orange-600 font-medium">✓ Rebuy occurred - Double quantity sold</div>
+                                  )}
                                 </div>
                               </div>
                             </div>
