@@ -1,6 +1,7 @@
 const BaseStrategy = require('./base');
 const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
+const TradeQueue = require('../collection-framework/TradeQueue');
 
 class MTMV4Strategy extends BaseStrategy {
     constructor() {
@@ -733,8 +734,10 @@ class MTMV4Strategy extends BaseStrategy {
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
             if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss){
-                let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-                let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                // let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                // let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                let closestPEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('PE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
+                let closestCEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
                 real_instrument = ce_change <= this.globalDict.prebuyStoploss
                 ? (this.globalDict.buySame ? closestCEto200 : closestPEto200)
                 : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
@@ -926,8 +929,8 @@ class MTMV4Strategy extends BaseStrategy {
 
                 // Select opposite instrument
                 instrument_1 = instrument_1.symbol.includes('CE')
-                ? this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205)
-                : this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205);
+                ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
                 this.prebuyBoughtToken = instrument_1.token;
 
@@ -1028,8 +1031,8 @@ class MTMV4Strategy extends BaseStrategy {
                 }
 
                 instrument_1 = instrument_1.symbol.includes('CE')
-                ? this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205)
-                : this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205);
+                ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
                 this.prebuyBoughtToken = instrument_1.token;
 

@@ -1076,6 +1076,10 @@ class StrategyUtils {
             interimLowReached: updatedFlags.interimLowReached
         };
     }
+
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 }
 
 module.exports = StrategyUtils; 

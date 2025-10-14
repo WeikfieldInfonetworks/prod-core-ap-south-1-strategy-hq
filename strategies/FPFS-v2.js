@@ -940,8 +940,8 @@ class FPFSV2 extends BaseStrategy {
 
                     // Select opposite instrument
                     instrument = instrument.symbol.includes('CE') 
-                    ? this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205) 
-                    : this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205);
+                    ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                    : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
                     // BUY opposite instrument
                     instrument.buyPrice = instrument.last;
@@ -1109,8 +1109,8 @@ class FPFSV2 extends BaseStrategy {
 
                     // Select opposite instrument
                     instrument = instrument.symbol.includes('CE') 
-                    ? this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205) 
-                    : this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205);
+                    ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                    : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
                     // BUY opposite instrument
                     instrument.buyPrice = instrument.last;
