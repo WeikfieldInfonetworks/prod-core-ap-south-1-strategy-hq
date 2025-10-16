@@ -595,9 +595,11 @@ class StrategyUtils {
                     if (!result.mainToken) {
                         result.mainToken = token;
                         this.logStrategyInfo(`Main token assigned: ${instrument.symbol} (CE)`);
-                    } else {
+                    } else if (!result.oppToken) {
                         result.oppToken = token;
                         this.logStrategyInfo(`Opposite token assigned: ${instrument.symbol} (CE)`);
+                    } else {
+                        this.logStrategyInfo(`Token ${instrument.symbol} (CE) qualified but mainToken and oppToken already set - skipping assignment`);
                     }
                 }
                 
@@ -620,9 +622,11 @@ class StrategyUtils {
                     if (!result.mainToken) {
                         result.mainToken = token;
                         this.logStrategyInfo(`Main token assigned: ${instrument.symbol} (PE)`);
-                    } else {
+                    } else if (!result.oppToken) {
                         result.oppToken = token;
                         this.logStrategyInfo(`Opposite token assigned: ${instrument.symbol} (PE)`);
+                    } else {
+                        this.logStrategyInfo(`Token ${instrument.symbol} (PE) qualified but mainToken and oppToken already set - skipping assignment`);
                     }
                 }
                 
