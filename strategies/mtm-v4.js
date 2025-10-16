@@ -1007,67 +1007,72 @@ class MTMV4Strategy extends BaseStrategy {
                 }
                 this.emitPrebuyDataUpdate();
             }
-            else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss){
-                this.rebuyDone = false;
-                this.realBuyStoplossHit = false;
-                this.reachedHalfTarget = false;
+            else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss && !this.boughtSold){
+                // this.rebuyDone = false;
+                // this.realBuyStoplossHit = false;
+                // this.reachedHalfTarget = false;
+                this.boughtSold = true;
                 
                 //SELL existing instrument
-                this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+                // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
                 let sellResult = null;
                 let diff = 0;
                 try {
                     sellResult = await this.sellInstrument(instrument_1);
                     diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                    if(!this.savedState['target']){
-                        this.savedState['target'] = this.globalDict.target;
-                        this.savedState['stoploss'] = this.globalDict.stoploss;
-                        this.savedState['quantity'] = this.globalDict.quantity;
-                    }
-                    this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                    // if(!this.savedState['target']){
+                    //     this.savedState['target'] = this.globalDict.target;
+                    //     this.savedState['stoploss'] = this.globalDict.stoploss;
+                    //     this.savedState['quantity'] = this.globalDict.quantity;
+                    // }
+                    // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                    this.globalDict.target = this.savedState['target'];
+                    this.globalDict.stoploss = this.savedState['stoploss'];
+                    this.globalDict.quantity = this.savedState['quantity'];
+                    this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                 }
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
                 }
 
-                instrument_1 = instrument_1.symbol.includes('CE')
-                ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-                : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                // instrument_1 = instrument_1.symbol.includes('CE')
+                // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                // : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
-                this.prebuyBoughtToken = instrument_1.token;
+                // this.prebuyBoughtToken = instrument_1.token;
 
-                // BUY opposite instrument
-                instrument_1.buyPrice = instrument_1.last;
-                let buyResult = null;
-                try {
-                    buyResult = await this.buyInstrument(instrument_1);
-                    if (buyResult && buyResult.success) {
-                        this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-                    }
-                    this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-                    this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-                    instrument_1.buyPrice = this.prebuyBuyPriceTwice;
-                    this.rebuyPrice = this.prebuyBuyPriceTwice;
-                    this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
-                }
-                catch (error) {
-                    this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-                }
+                // // BUY opposite instrument
+                // instrument_1.buyPrice = instrument_1.last;
+                // let buyResult = null;
+                // try {
+                //     buyResult = await this.buyInstrument(instrument_1);
+                //     if (buyResult && buyResult.success) {
+                //         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+                //     }
+                //     this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                //     this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+                //     instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+                //     this.rebuyPrice = this.prebuyBuyPriceTwice;
+                //     this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+                // }
+                // catch (error) {
+                //     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                // }
 
                 // Emit instrument data update after second buy
-                this.prebuyFullData['realBuy'] = {
-                    ...this.prebuyFullData['realBuy'],
-                    "secondBuy": true,
-                    "secondBuyInstrument": instrument_1,
-                    "secondBuyPrice": this.prebuyBuyPriceTwice,
-                    "secondBuyQuantity": this.globalDict.quantity,
-                    "originalQuantity": this.globalDict.quantity,
-                    "secondBuyTimestamp": this.formatTime24(new Date()),
-                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
-                    "averageBuyPrice": this.prebuyBuyPriceTwice
-                }
+                // this.prebuyFullData['realBuy'] = {
+                //     ...this.prebuyFullData['realBuy'],
+                //     "secondBuy": true,
+                //     "secondBuyInstrument": instrument_1,
+                //     "secondBuyPrice": this.prebuyBuyPriceTwice,
+                //     "secondBuyQuantity": this.globalDict.quantity,
+                //     "originalQuantity": this.globalDict.quantity,
+                //     "secondBuyTimestamp": this.formatTime24(new Date()),
+                //     "lowTrackingPrice": this.prebuyLowTrackingPrice,
+                //     "averageBuyPrice": this.prebuyBuyPriceTwice
+                // }
 
-                this.emitPrebuyDataUpdate();
+                // this.emitPrebuyDataUpdate();
             }
 
         }
@@ -1979,7 +1984,7 @@ class MTMV4Strategy extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 7,
+                default: 10,
                 description: 'Target profit in points'
             },
             stoploss: {
@@ -2049,7 +2054,7 @@ class MTMV4Strategy extends BaseStrategy {
             },
             realBuyStoploss: {
                 type: 'number',
-                default: -9,
+                default: -11,
                 description: 'Stoploss for real buy'
             },
             prebuySignificantThreshold: {
@@ -2094,7 +2099,7 @@ class MTMV4Strategy extends BaseStrategy {
             },
             usePrebuy: {
                 type: 'boolean',
-                default: false,
+                default: true,
                 description: 'Use pre-buy technique.'
             }
         };

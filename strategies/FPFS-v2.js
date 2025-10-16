@@ -1084,95 +1084,100 @@ class FPFSV2 extends BaseStrategy {
                         this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
                     }
                 }
-                else if(this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && change <= this.globalDict.realBuyStoploss){
-                    this.rebuyDone = false;
-                    this.realBuyStoplossHit = false;
-                    this.reachedHalfTarget = false;
+                else if(this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && change <= this.globalDict.realBuyStoploss && !this.boughtSold){
+                    // this.rebuyDone = false;
+                    // this.realBuyStoplossHit = false;
+                    // this.reachedHalfTarget = false;
+                    this.boughtSold = true;
 
                     // SELL existing instrument
-                    this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+                    // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
                     let sellResult = null;
                     let diff = 0;
                     try {
                         sellResult = await this.sellInstrument(instrument);
                         diff = sellResult.executedPrice == 0 ? instrument.last - instrument.buyPrice : sellResult.executedPrice - instrument.buyPrice;
-                        if(!this.savedState['target']){
-                            this.savedState['target'] = this.globalDict.target;
-                            this.savedState['stoploss'] = this.globalDict.stoploss;
-                            this.savedState['quantity'] = this.globalDict.quantity;
-                        }
-                        this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                        // if(!this.savedState['target']){
+                        //     this.savedState['target'] = this.globalDict.target;
+                        //     this.savedState['stoploss'] = this.globalDict.stoploss;
+                        //     this.savedState['quantity'] = this.globalDict.quantity;
+                        // }
+                        // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                        this.globalDict.target = this.savedState['target'];
+                        this.globalDict.stoploss = this.savedState['stoploss'];
+                        this.globalDict.quantity = this.savedState['quantity'];
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                     }
                     catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
                     }
 
-                    // Select opposite instrument
-                    instrument = instrument.symbol.includes('CE') 
-                    ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-                    : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                    // // Select opposite instrument
+                    // instrument = instrument.symbol.includes('CE') 
+                    // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+                    // : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
-                    // BUY opposite instrument
-                    instrument.buyPrice = instrument.last;
-                    this.instrument_bought = instrument;
-                    let buyResult = null;
-                    try {
-                        buyResult = await this.buyInstrument(instrument);
-                        this.buyPriceTwice = buyResult.executedPrice == 0 ? instrument.last : buyResult.executedPrice;
-                        instrument.buyPrice = this.buyPriceTwice;
-                        this.rebuyPrice = this.buyPriceTwice;
-                        this.rebuyAveragePrice = this.buyPriceTwice;
+                    // // BUY opposite instrument
+                    // instrument.buyPrice = instrument.last;
+                    // this.instrument_bought = instrument;
+                    // let buyResult = null;
+                    // try {
+                    //     buyResult = await this.buyInstrument(instrument);
+                    //     this.buyPriceTwice = buyResult.executedPrice == 0 ? instrument.last : buyResult.executedPrice;
+                    //     instrument.buyPrice = this.buyPriceTwice;
+                    //     this.rebuyPrice = this.buyPriceTwice;
+                    //     this.rebuyAveragePrice = this.buyPriceTwice;
 
-                        // Emit Target Change Notification
-                        this.emitStatusUpdate('Target adjusted due to rebuy', {
-                            targetChange: true,
-                            rebuyTriggered: true,
-                            originalTarget: this.savedState['target'],
-                            newTarget: this.globalDict.target,
-                            originalStoploss: this.savedState['stoploss'],
-                            newStoploss: this.globalDict.stoploss,
-                            originalQuantity: this.savedState['quantity'],
-                            newQuantity: this.globalDict.quantity,
-                            instrument: instrument.symbol,
-                            rebuyPrice: this.buyPriceTwice,
-                            averageBuyPrice: instrument.buyPrice,
-                            message: `Target changed to ${this.globalDict.target} points due to opp buy.`
-                        });
+                    //     // Emit Target Change Notification
+                    //     this.emitStatusUpdate('Target adjusted due to rebuy', {
+                    //         targetChange: true,
+                    //         rebuyTriggered: true,
+                    //         originalTarget: this.savedState['target'],
+                    //         newTarget: this.globalDict.target,
+                    //         originalStoploss: this.savedState['stoploss'],
+                    //         newStoploss: this.globalDict.stoploss,
+                    //         originalQuantity: this.savedState['quantity'],
+                    //         newQuantity: this.globalDict.quantity,
+                    //         instrument: instrument.symbol,
+                    //         rebuyPrice: this.buyPriceTwice,
+                    //         averageBuyPrice: instrument.buyPrice,
+                    //         message: `Target changed to ${this.globalDict.target} points due to opp buy.`
+                    //     });
 
-                        this.emitStatusUpdate('current_cycle_data', {
-                            cycle: this.universalDict.cycles || 0,
-                            data: {
-                                halfDropInstrument: {
-                                    symbol: this.halfdrop_instrument?.symbol,
-                                    price: this.halfdrop_instrument?.lowAtRef,
-                                    timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                    firstPrice: this.halfdrop_instrument?.firstPrice,
-                                    dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                        ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                },
-                                instrumentBought: {
-                                    symbol: instrument.symbol,
-                                    price: this.buyPriceOnce || instrument.buyPrice,
-                                    timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
-                                    quantity: 75 // Always show original quantity
-                                },
-                                rebuyData: {
-                                    firstBuyPrice: this.buyPriceOnce,
-                                    secondBuyPrice: this.buyPriceTwice,
-                                    averagePrice: this.buyPriceTwice,
-                                    timestamp: rebuyTimestamp,
-                                    quantity: 75 // Show original quantity for rebuy
-                                },
-                                sellData: null, // Will be updated when sell happens
-                                summary: null // Will be updated when cycle completes
-                            },
-                            completed: false,
-                            timestamp: rebuyTimestamp
-                        });
-                    }
-                    catch (error) {
-                        this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
-                    }
+                    //     this.emitStatusUpdate('current_cycle_data', {
+                    //         cycle: this.universalDict.cycles || 0,
+                    //         data: {
+                    //             halfDropInstrument: {
+                    //                 symbol: this.halfdrop_instrument?.symbol,
+                    //                 price: this.halfdrop_instrument?.lowAtRef,
+                    //                 timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                    //                 firstPrice: this.halfdrop_instrument?.firstPrice,
+                    //                 dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                    //                     ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                    //             },
+                    //             instrumentBought: {
+                    //                 symbol: instrument.symbol,
+                    //                 price: this.buyPriceOnce || instrument.buyPrice,
+                    //                 timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                    //                 quantity: 75 // Always show original quantity
+                    //             },
+                    //             rebuyData: {
+                    //                 firstBuyPrice: this.buyPriceOnce,
+                    //                 secondBuyPrice: this.buyPriceTwice,
+                    //                 averagePrice: this.buyPriceTwice,
+                    //                 timestamp: rebuyTimestamp,
+                    //                 quantity: 75 // Show original quantity for rebuy
+                    //             },
+                    //             sellData: null, // Will be updated when sell happens
+                    //             summary: null // Will be updated when cycle completes
+                    //         },
+                    //         completed: false,
+                    //         timestamp: rebuyTimestamp
+                    //     });
+                    // }
+                    // catch (error) {
+                    //     this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
+                    // }
                 }
             }
             
