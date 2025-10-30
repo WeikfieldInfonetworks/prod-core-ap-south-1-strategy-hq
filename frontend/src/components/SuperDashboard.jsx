@@ -6,6 +6,7 @@ import ConnectionStatus from './ConnectionStatus';
 import MTMv2Dashboard from './strategies/MTMv2Dashboard';
 import FiftyPercentDashboard from './strategies/FiftyPercentDashboard';
 import FiftyPercentFullSpectrumDashboard from './strategies/FiftyPercentFullSpectrumDashboard';
+import NewXDashboard from './strategies/NewXDashboard';
 import { Settings, Activity, TrendingUp } from 'lucide-react';
 
 const SuperDashboard = ({ connectionStatus }) => {
@@ -57,6 +58,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
       case 'Fifty Percent Full Spectrum V2':
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
+      case 'New X Strategy':
+        return <NewXDashboard strategy={currentStrategy} />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center">
