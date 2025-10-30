@@ -23,6 +23,8 @@ const MTMv2Dashboard = ({ strategy }) => {
   const [notifications, setNotifications] = useState([]);
   const [fadingNotifications, setFadingNotifications] = useState(new Set());
   const [prebuyData, setPrebuyData] = useState(null);
+  const [prebuyEvents, setPrebuyEvents] = useState([]);
+  const [tradeEvents, setTradeEvents] = useState([]);
 
   useEffect(() => {
     if (!socket) return;
@@ -117,12 +119,68 @@ const MTMv2Dashboard = ({ strategy }) => {
       setPrebuyData(data);
     });
 
+    // Listen for prebought instruments
+    socket.on('strategy_prebought_instruments', (data) => {
+      console.log('🔍 Received prebought instruments:', data);
+      setPrebuyEvents(prev => [{
+        type: 'prebought_instruments',
+        cycle: data.cycle || 0,
+        preboughtInstruments: data,
+        timestamp: data.timestamp || new Date().toISOString()
+      }, ...prev]);
+    });
+
+    // Listen for trade events
+    socket.on('strategy_trade_event', (data) => {
+      console.log('🔍 Received trade event:', data);
+      const cycleNumber = data.cycle || 0;
+      
+      // Update trade events for current cycle
+      setTradeEvents(prev => {
+        // Group by cycle
+        const cyclesMap = new Map();
+        
+        // Add existing events
+        prev.forEach(event => {
+          const cycle = event.cycle || 0;
+          if (!cyclesMap.has(cycle)) {
+            cyclesMap.set(cycle, []);
+          }
+          cyclesMap.get(cycle).push(event);
+        });
+        
+        // Add new event to its cycle
+        if (!cyclesMap.has(cycleNumber)) {
+          cyclesMap.set(cycleNumber, []);
+        }
+        cyclesMap.get(cycleNumber).push(data);
+        
+        // Flatten back to array
+        const result = [];
+        cyclesMap.forEach((events, cycle) => {
+          events.forEach(event => result.push(event));
+        });
+        
+        return result;
+      });
+
+      // Also add to prebuy events for the history table
+      setPrebuyEvents(prev => [{
+        type: 'trade_event',
+        cycle: cycleNumber,
+        tradeEvent: data,
+        timestamp: data.timestamp || new Date().toISOString()
+      }, ...prev]);
+    });
+
     return () => {
       socket.off('strategy_status_update');
       socket.off('strategy_trade_action');
       socket.off('strategy_parameter_updated');
       socket.off('strategy_parameter_error');
       socket.off('strategy_prebuy_data');
+      socket.off('strategy_prebought_instruments');
+      socket.off('strategy_trade_event');
     };
   }, [socket]);
 
@@ -258,6 +316,8 @@ const MTMv2Dashboard = ({ strategy }) => {
           <PrebuyHistoryTable 
             strategy={strategy} 
             currentPrebuyData={prebuyData}
+            socketEvents={prebuyEvents}
+            tradeEvents={tradeEvents}
           />
         ) : (
           <TradingTable 
