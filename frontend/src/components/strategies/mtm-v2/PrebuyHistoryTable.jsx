@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { History, TrendingUp, TrendingDown, DollarSign, Target, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
-const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
+const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments = null, currentPrebuyData = null, socketEvents = [] }) => {
   const [historyData, setHistoryData] = useState([]);
   const [expandedCycles, setExpandedCycles] = useState(new Set());
+  const [socketEventQueue, setSocketEventQueue] = useState([]);
 
   // Session storage key for this strategy
   const getStorageKey = useCallback(() => `prebuy_history_${strategy.name || 'mtm_v2'}`, [strategy.name]);
@@ -21,80 +22,212 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
     }
   }, []);
 
-  // Function to update prebuy history data
-  const updatePrebuyHistory = useCallback((prebuyData, cycleNumber, structuredData = null) => {
-    if (!prebuyData || Object.keys(prebuyData).length === 0) return;
-    
+  // Auto-expand current cycle when it gets updated
+  useEffect(() => {
+    if (historyData.length > 0) {
+      const currentCycle = historyData[0].cycle;
+      setExpandedCycles(prev => {
+        const newExpanded = new Set(prev);
+        newExpanded.add(currentCycle);
+        return newExpanded;
+      });
+    }
+  }, [historyData]);
+
+  // Process incoming socket events for real-time updates
+  useEffect(() => {
+    if (!socketEvents || socketEvents.length === 0) return;
+
     setHistoryData(prevHistoryData => {
-      // Check if this cycle data already exists
-      const existingIndex = prevHistoryData.findIndex(item => item.cycle === cycleNumber);
+      let newHistoryData = [...prevHistoryData];
       
-      let newHistoryData;
-      if (existingIndex >= 0) {
-        // Update existing cycle data (same cycle, update same row)
-        newHistoryData = [...prevHistoryData];
-        newHistoryData[existingIndex] = {
-          ...newHistoryData[existingIndex], // Preserve original timestamp
-          cycle: cycleNumber,
-          data: { ...prebuyData }, // Deep copy to avoid reference issues
-          lastUpdated: new Date().toISOString(),
-          completed: structuredData?.completed !== undefined ? structuredData.completed : !!prebuyData.summary
-        };
-        
-        console.log(`✏️  Updated existing cycle ${cycleNumber} data in prebuy history (same row)`, Object.keys(prebuyData));
-      } else {
-        // Add new cycle data (different cycle, create new row)
-        const newCycleData = {
-          cycle: cycleNumber,
-          data: { ...prebuyData }, // Deep copy to avoid reference issues
-          timestamp: structuredData?.timestamp || new Date().toISOString(),
-          lastUpdated: new Date().toISOString(),
-          completed: structuredData?.completed !== undefined ? structuredData.completed : !!prebuyData.summary
-        };
-        
-        // Insert at the beginning (most recent first) and limit to 20 cycles
-        newHistoryData = [newCycleData, ...prevHistoryData].slice(0, 20);
-        
-        console.log(`➕ Added new cycle ${cycleNumber} data to prebuy history (new row)`, Object.keys(prebuyData));
-      }
-      
+      // Process each event in the queue
+      socketEvents.forEach(eventData => {
+        const cycleNumber = eventData.cycle || 0;
+        const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
+
+        if (existingIndex >= 0) {
+          // Update existing cycle
+          const existingCycle = newHistoryData[existingIndex];
+          
+          if (eventData.type === 'prebought_instruments') {
+            // Update prebought instruments
+            newHistoryData[existingIndex] = {
+              ...existingCycle,
+              preboughtInstruments: eventData.preboughtInstruments,
+              lastUpdated: new Date().toISOString(),
+              timestamp: existingCycle.timestamp || eventData.timestamp || new Date().toISOString()
+            };
+          } else if (eventData.type === 'trade_event' && eventData.tradeEvent) {
+            // Add trade event to the cycle's tradeEvents array
+            const currentTradeEvents = existingCycle.tradeEvents || [];
+            const newTradeEvent = eventData.tradeEvent;
+            
+            // Check if this trade event already exists (avoid duplicates)
+            const eventExists = currentTradeEvents.some(evt => 
+              evt.symbol === newTradeEvent.symbol &&
+              evt.action === newTradeEvent.action &&
+              evt.timestamp === newTradeEvent.timestamp
+            );
+            
+            if (!eventExists) {
+              newHistoryData[existingIndex] = {
+                ...existingCycle,
+                tradeEvents: [newTradeEvent, ...currentTradeEvents],
+                lastUpdated: new Date().toISOString()
+              };
+            }
+          }
+        } else {
+          // Add new cycle
+          const newCycleData = {
+            cycle: cycleNumber,
+            preboughtInstruments: eventData.type === 'prebought_instruments' ? eventData.preboughtInstruments : null,
+            tradeEvents: eventData.type === 'trade_event' && eventData.tradeEvent ? [eventData.tradeEvent] : [],
+            timestamp: eventData.timestamp || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            completed: false
+          };
+          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+        }
+      });
+
       // Save to session storage
       try {
         sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
       } catch (error) {
         console.error('Error saving prebuy history to session storage:', error);
       }
-      
+
       return newHistoryData;
     });
+  }, [socketEvents, getStorageKey]);
+
+  // Cleanup session storage on tab close and component unmount
+  useEffect(() => {
+    const cleanupStorage = () => {
+      try {
+        sessionStorage.removeItem(getStorageKey());
+        console.log('🧹 PrebuyHistoryTable: Session storage cleared on tab close');
+      } catch (error) {
+        console.error('Error clearing session storage:', error);
+      }
+    };
+
+    // Cleanup on tab close
+    const handleBeforeUnload = () => {
+      cleanupStorage();
+    };
+
+    // Cleanup on component unmount
+    const handleUnload = () => {
+      cleanupStorage();
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+
+    // Cleanup function for component unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+      cleanupStorage(); // Also cleanup on component unmount
+    };
   }, [getStorageKey]);
 
-  // Save current prebuy data when cycle completes or updates
+  // Process trade events and update history
   useEffect(() => {
-    console.log('🔍 PrebuyHistoryTable Debug:', {
-      currentPrebuyData: currentPrebuyData,
-      strategyName: strategy.name,
-      usePrebuy: strategy.universalDict?.usePrebuy,
-      cycles: strategy.universalDict?.cycles,
-      hasData: currentPrebuyData && Object.keys(currentPrebuyData).length > 0
-    });
-    
-    if (currentPrebuyData && Object.keys(currentPrebuyData).length > 0) {
-      // Check if this is the new structured format from MTM V3
-      if (currentPrebuyData.cycle !== undefined && currentPrebuyData.data !== undefined) {
-        console.log('📊 Using new structured format from MTM V3');
-        // New structured format - use the cycle and data directly
-        // Add 1 to cycle number for display (backend cycles start at 0, frontend displays from 1)
-        updatePrebuyHistory(currentPrebuyData.data, currentPrebuyData.cycle + 1, currentPrebuyData);
-      } else {
-        console.log('📊 Using old format');
-        // Old format - use strategy cycle number
-        // Add 1 to cycle number for display (backend cycles start at 0, frontend displays from 1)
-        const currentCycle = (strategy.universalDict?.cycles || 0) + 1;
-        updatePrebuyHistory(currentPrebuyData, currentCycle);
+    if (!tradeEvents || tradeEvents.length === 0) return;
+
+    setHistoryData(prevHistoryData => {
+      // Group trade events by cycle
+      const eventsByCycle = {};
+      tradeEvents.forEach(event => {
+        if (!eventsByCycle[event.cycle]) {
+          eventsByCycle[event.cycle] = [];
+        }
+        eventsByCycle[event.cycle].push(event);
+      });
+
+      let newHistoryData = [...prevHistoryData];
+
+      // Process each cycle's events
+      Object.entries(eventsByCycle).forEach(([cycleNum, events]) => {
+        const cycleNumber = parseInt(cycleNum);
+        const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
+
+        if (existingIndex >= 0) {
+          // Update existing cycle
+          newHistoryData[existingIndex] = {
+            ...newHistoryData[existingIndex],
+            lastUpdated: new Date().toISOString(),
+            tradeEvents: events
+          };
+        } else {
+          // Add new cycle
+          const newCycleData = {
+            cycle: cycleNumber,
+            tradeEvents: events,
+            timestamp: events[0].timestamp || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            completed: false
+          };
+          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+        }
+      });
+
+      // Save to session storage
+      try {
+        sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
+      } catch (error) {
+        console.error('Error saving prebuy history to session storage:', error);
       }
-    }
-  }, [currentPrebuyData, strategy.universalDict?.cycles, updatePrebuyHistory]);
+
+      return newHistoryData;
+    });
+  }, [tradeEvents, getStorageKey]);
+
+  // Process prebought instruments data
+  useEffect(() => {
+    if (!preboughtInstruments || !preboughtInstruments.cycle) return;
+
+    setHistoryData(prevHistoryData => {
+      const cycleNumber = preboughtInstruments.cycle;
+      const existingIndex = prevHistoryData.findIndex(item => item.cycle === cycleNumber);
+
+      let newHistoryData = [...prevHistoryData];
+
+      if (existingIndex >= 0) {
+        // Update existing cycle with prebought data
+        newHistoryData[existingIndex] = {
+          ...newHistoryData[existingIndex],
+          preboughtInstruments: preboughtInstruments,
+          lastUpdated: new Date().toISOString()
+        };
+      } else {
+        // Add new cycle with prebought data
+        const newCycleData = {
+          cycle: cycleNumber,
+          preboughtInstruments: preboughtInstruments,
+          tradeEvents: [],
+          timestamp: preboughtInstruments.timestamp || new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          completed: false
+        };
+        newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+      }
+
+      // Save to session storage
+      try {
+        sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
+      } catch (error) {
+        console.error('Error saving prebuy history to session storage:', error);
+      }
+
+      return newHistoryData;
+    });
+  }, [preboughtInstruments, getStorageKey]);
 
   const formatPrice = (price) => {
     if (typeof price !== 'number' || price === 0) return '-';
@@ -104,7 +237,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
   const formatTime = (timestamp) => {
     if (!timestamp) return '-';
     
-    // Check if it's already in HH:MM:SS format (from MTM V3)
+    // Check if it's already in HH:MM:SS format (from backend)
     if (typeof timestamp === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(timestamp)) {
       return timestamp; // Already formatted as HH:MM:SS
     }
@@ -126,16 +259,6 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
     
     // Return as-is if we can't parse it
     return timestamp;
-  };
-
-  const getPnLColor = (pnl) => {
-    if (typeof pnl !== 'number') return 'text-gray-600';
-    return pnl >= 0 ? 'text-green-600' : 'text-red-600';
-  };
-
-  const getPnLIcon = (pnl) => {
-    if (typeof pnl !== 'number') return null;
-    return pnl >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />;
   };
 
   const toggleCycleExpansion = (cycle) => {
@@ -181,7 +304,7 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
           </div>
         </div>
         <p className="text-sm text-gray-600 mt-1">
-          Complete trading history for prebuy mode cycles with detailed P&L breakdown
+          Trading history for prebuy mode cycles
         </p>
       </div>
 
@@ -190,13 +313,15 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
         {historyData.length === 0 ? (
           <div className="text-center py-12">
             <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No prebuy trading history available</p>
-            <p className="text-sm text-gray-500 mt-1">Complete a cycle to see history data</p>
+            <p className="text-gray-600">No trading history available</p>
+            <p className="text-sm text-gray-500 mt-1">Trades will appear here as they occur</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {historyData.map((cycleData) => (
-              <div key={cycleData.cycle} className="bg-white">
+            {historyData.map((cycleData, index) => {
+              const isCurrentCycle = index === 0; // First item is most recent (current cycle)
+              return (
+              <div key={cycleData.cycle} className={`bg-white ${isCurrentCycle ? 'border-l-4 border-blue-600' : ''}`}>
                 {/* Cycle Summary Row */}
                 <div 
                   className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
@@ -210,9 +335,14 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                         ) : (
                           <ChevronDown className="w-4 h-4 text-gray-500" />
                         )}
-                        <span className="font-semibold text-gray-900">
+                        <span className={`font-semibold ${isCurrentCycle ? 'text-blue-600' : 'text-gray-900'}`}>
                           Cycle {cycleData.cycle}
                         </span>
+                        {isCurrentCycle && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 animate-pulse">
+                            LIVE
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex items-center space-x-1 text-sm text-gray-500">
@@ -225,277 +355,134 @@ const PrebuyHistoryTable = ({ strategy, currentPrebuyData }) => {
                         )}
                       </div>
                       
-                      <div className="flex items-center space-x-2">
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          cycleData.completed 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {cycleData.completed ? 'Completed' : 'In Progress'}
-                        </div>
-                        
-                        {/* Show update indicator if data was updated */}
-                        {cycleData.lastUpdated && cycleData.lastUpdated !== cycleData.timestamp && (
-                          <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Updated
-                          </div>
-                        )}
+                      <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {cycleData.tradeEvents?.length || 0} trade{cycleData.tradeEvents?.length !== 1 ? 's' : ''}
                       </div>
                     </div>
-
-                    {/* P&L Summary */}
-                    {cycleData.data.summary && (
-                      <div className="flex items-center space-x-6">
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">P&L (Points)</div>
-                          <div className={`text-sm font-semibold ${getPnLColor(cycleData.data.summary.pnlInPoints)}`}>
-                            {typeof cycleData.data.summary.pnlInPoints === 'number' 
-                              ? cycleData.data.summary.pnlInPoints.toFixed(2) 
-                              : '-'}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">P&L (₹)</div>
-                          <div className={`text-sm font-semibold flex items-center space-x-1 ${getPnLColor(cycleData.data.summary.pnlActual)}`}>
-                            {getPnLIcon(cycleData.data.summary.pnlActual)}
-                            <span>{formatPrice(cycleData.data.summary.pnlActual)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* Expanded Details */}
+                {/* Expanded Details - Two Column Layout */}
                 {expandedCycles.has(cycleData.cycle) && (
                   <div className="px-6 pb-4 bg-gray-50">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       
-                      {/* Pre-bought Instruments */}
-                      {cycleData.data.preBoughtInstruments && (
-                        <div className="bg-white rounded-lg p-4">
+                      {/* Left Side - Prebought Instruments */}
+                      {cycleData.preboughtInstruments && (
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                            <Target className="w-4 h-4 mr-2 text-blue-600" />
+                            <span className="text-blue-600 mr-2">📋</span>
                             Pre-bought Instruments
                           </h4>
                           <div className="space-y-3">
-                            {/* PUT Instrument - Show first */}
-                            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                            {/* PE Instrument */}
+                            <div className="flex items-center justify-between p-2 border rounded">
                               <div className="flex items-center space-x-2">
                                 <div className="w-3 h-3 bg-red-500 rounded-full"></div>
                                 <span className="text-sm font-medium">PE</span>
                                 <span className="text-xs text-gray-500 font-mono">
-                                  {cycleData.data.preBoughtInstruments.put?.instrument?.symbol || 'N/A'}
+                                  {cycleData.preboughtInstruments.peInstrument?.symbol || 'N/A'}
                                 </span>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold">
-                                  {formatPrice(cycleData.data.preBoughtInstruments.put?.price)}
+                                  {formatPrice(cycleData.preboughtInstruments.peInstrument?.price)}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Qty: {cycleData.data.preBoughtInstruments.put?.quantity || 0}
+                                  Qty: {cycleData.preboughtInstruments.peInstrument?.quantity || 0}
                                 </div>
                               </div>
                             </div>
-                            {/* CE Instrument - Show second */}
-                            <div className="flex justify-between items-center py-2">
+                            {/* CE Instrument */}
+                            <div className="flex items-center justify-between p-2 border rounded">
                               <div className="flex items-center space-x-2">
                                 <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                                 <span className="text-sm font-medium">CE</span>
                                 <span className="text-xs text-gray-500 font-mono">
-                                  {cycleData.data.preBoughtInstruments.call?.instrument?.symbol || 'N/A'}
+                                  {cycleData.preboughtInstruments.ceInstrument?.symbol || 'N/A'}
                                 </span>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold">
-                                  {formatPrice(cycleData.data.preBoughtInstruments.call?.price)}
+                                  {formatPrice(cycleData.preboughtInstruments.ceInstrument?.price)}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Qty: {cycleData.data.preBoughtInstruments.call?.quantity || 0}
+                                  Qty: {cycleData.preboughtInstruments.ceInstrument?.quantity || 0}
                                 </div>
                               </div>
                             </div>
                           </div>
-                          {cycleData.data.preBoughtInstruments.timestamp && (
+                          {cycleData.preboughtInstruments.timestamp && (
                             <div className="text-xs text-gray-500 mt-2 flex items-center">
                               <Clock className="w-3 h-3 mr-1" />
-                              {formatTime(cycleData.data.preBoughtInstruments.timestamp)}
+                              {formatTime(cycleData.preboughtInstruments.timestamp)}
                             </div>
                           )}
                         </div>
                       )}
 
-                      {/* Real Trading Actions */}
-                      <div className="bg-white rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                          <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-                          Trading Actions
-                        </h4>
-                        <div className="space-y-3">
-                          
-                          {/* Real Buy */}
-                          {cycleData.data.realBuy && (
-                            <div className="border border-blue-200 rounded-lg p-3 bg-blue-50">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-blue-800">Buy Action</span>
-                                <span className="text-sm font-semibold text-blue-600">
-                                  {formatTime(cycleData.data.realBuy.firstBuyTimestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>Stoploss Hit By: <span className="font-medium">{cycleData.data.realBuy.stoplossHitBy}</span></div>
-                                <div>Buy Instrument: <span className="font-medium">{cycleData.data.realBuy.firstBuyInstrument?.symbol}</span></div>
-                                <div>Buy Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.firstBuyPrice)}</span></div>
-                                <div>Quantity: <span className="font-medium">{cycleData.data.realBuy.originalQuantity || cycleData.data.realBuy.firstBuyQuantity || 75}</span></div>
-                                {cycleData.data.realBuy.secondBuy && (
-                                  <>
-                                    <div className="border-t border-blue-300 pt-1 mt-2">
-                                      <div className="flex items-center justify-between mb-1">
-                                        <span className="text-xs font-medium text-blue-700">Second Buy</span>
-                                        <span className="text-sm font-semibold text-blue-600">
-                                          {formatTime(cycleData.data.realBuy.secondBuyTimestamp || cycleData.data.realBuy.firstBuyTimestamp)}
-                                        </span>
+                      {/* Right Side - Event Blocks */}
+                      {cycleData.tradeEvents && cycleData.tradeEvents.length > 0 && (
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                            <span className="text-green-600 mr-2">📊</span>
+                            Trading Events
+                          </h4>
+                          <div className={`space-y-3 ${cycleData.tradeEvents.length > 5 ? 'max-h-96 overflow-y-auto' : ''}`}>
+            {cycleData.tradeEvents.map((event, index) => (
+              <div 
+                key={index}
+                className={`p-3 rounded-lg border transition-all duration-300 ${
+                  event.action === 'buy' 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}
+              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    {event.action === 'buy' ? (
+                                      <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                                    ) : (
+                                      <ArrowDownCircle className="w-5 h-5 text-red-600" />
+                                    )}
+                                    <div>
+                                      <div className={`text-sm font-semibold ${
+                                        event.action === 'buy' ? 'text-green-800' : 'text-red-800'
+                                      }`}>
+                                        {event.action === 'buy' ? 'BUY' : 'SELL'}
                                       </div>
-                                      <div>Second Buy Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.secondBuyPrice)}</span></div>
-                                      <div>Quantity: <span className="font-medium">{cycleData.data.realBuy.originalQuantity || cycleData.data.realBuy.secondBuyQuantity || 75}</span></div>
-                                      <div>Average Price: <span className="font-medium">{formatPrice(cycleData.data.realBuy.averageBuyPrice)}</span></div>
+                                      <div className="text-xs text-gray-600 font-mono">{event.symbol}</div>
                                     </div>
-                                  </>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Real Sell */}
-                          {cycleData.data.realSell && (
-                            <div className="border border-red-200 rounded-lg p-3 bg-red-50">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-red-800">Sell Action</span>
-                                <span className="text-sm font-semibold text-red-600">
-                                  {formatTime(cycleData.data.realSell.sellTimestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>Sell Instrument: <span className="font-medium">{cycleData.data.realSell.sellInstrument?.symbol}</span></div>
-                                <div className="flex items-center space-x-2">
-                                  <span>Sell Price: <span className="font-medium">{formatPrice(cycleData.data.realSell.sellPrice)}</span></span>
-                                  {cycleData.data.realSell.sellReason && (
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      cycleData.data.realSell.sellReason === 'REBUY_PRICE' 
-                                        ? 'bg-orange-100 text-orange-800' 
-                                        : cycleData.data.realSell.sellReason === 'AVG_PRICE'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-gray-100 text-gray-800'
+                                  </div>
+                                  <div className="text-right">
+                                    <div className={`text-sm font-semibold ${
+                                      event.action === 'buy' ? 'text-green-800' : 'text-red-800'
                                     }`}>
-                                      {cycleData.data.realSell.sellReason === 'REBUY_PRICE' ? 'SOLD AT REBUY' : 
-                                       cycleData.data.realSell.sellReason === 'AVG_PRICE' ? 'SOLD AT AVG PRICE' : 
-                                       cycleData.data.realSell.sellReason}
-                                    </span>
-                                  )}
-                                </div>
-                                <div>Quantity Sold: <span className="font-medium">{cycleData.data.summary?.sellQuantity || cycleData.data.realSell.sellQuantity || 75}</span></div>
-                                {cycleData.data.summary?.rebuyOccurred && (
-                                  <div className="text-xs text-orange-600 font-medium">
-                                    (Double quantity due to rebuy)
+                                      {formatPrice(event.price)}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      Qty: {event.quantity || 0}
+                                    </div>
                                   </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Low Price Section - Only show for completed cycles */}
-                          {cycleData.completed && cycleData.data.realBuy?.lowTrackingPrice && (
-                            <div className="border border-orange-200 rounded-lg p-3 bg-orange-50">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-orange-800">Lowest Price Reached</span>
-                                <span className="text-sm font-semibold text-orange-600">
-                                  {formatTime(cycleData.data.realBuy.lowTrackingTime || cycleData.data.realBuy.firstBuyTimestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>Instrument: <span className="font-medium">{cycleData.data.realBuy.firstBuyInstrument?.symbol}</span></div>
-                                <div>Lowest Price: <span className="font-medium text-red-600">{formatPrice(cycleData.data.realBuy.lowTrackingPrice)}</span></div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Summary */}
-                          {cycleData.data.summary && (
-                            <div className="border border-gray-300 rounded-lg p-3 bg-gray-50">
-                              <div className="text-sm font-medium text-gray-800 mb-2">Cycle Summary</div>
-                              <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div>
-                                  <span className="text-gray-600">P&L Points:</span>
-                                  <div className={`font-semibold ${getPnLColor(cycleData.data.summary.pnlInPoints)}`}>
-                                    {typeof cycleData.data.summary.pnlInPoints === 'number' 
-                                      ? cycleData.data.summary.pnlInPoints.toFixed(2) 
-                                      : '-'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <span className="text-gray-600">P&L Amount:</span>
-                                  <div className={`font-semibold ${getPnLColor(cycleData.data.summary.pnlActual)}`}>
-                                    {formatPrice(cycleData.data.summary.pnlActual)}
+                                  <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{formatTime(event.timestamp)}</span>
                                   </div>
                                 </div>
                               </div>
-                              <div className="mt-2 pt-2 border-t border-gray-200">
-                                <div className="text-xs text-gray-600 space-y-1">
-                                  <div>Original Quantity: <span className="font-medium">{cycleData.data.summary?.originalQuantity || 75}</span></div>
-                                  <div>Quantity Sold: <span className="font-medium">{cycleData.data.summary?.sellQuantity || 75}</span></div>
-                                  {cycleData.data.summary?.rebuyOccurred && (
-                                    <div className="text-orange-600 font-medium">✓ Rebuy occurred - Double quantity sold</div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
-
-      {/* Footer with totals */}
-      {historyData.length > 0 && (
-        <div className="bg-blue-50 px-6 py-4 border-t">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-blue-800">
-              Total Cycles: {historyData.filter(c => c.completed).length} completed, {historyData.filter(c => !c.completed).length} in progress
-            </div>
-            <div className="flex items-center space-x-6">
-              {(() => {
-                const completedCycles = historyData.filter(c => c.completed && c.data.summary);
-                const totalPnLPoints = completedCycles.reduce((sum, c) => sum + (c.data.summary.pnlInPoints || 0), 0);
-                const totalPnLAmount = completedCycles.reduce((sum, c) => sum + (c.data.summary.pnlActual || 0), 0);
-                
-                return (
-                  <>
-                    <div className="text-right">
-                      <div className="text-xs text-blue-600">Total P&L (Points)</div>
-                      <div className={`text-sm font-bold ${getPnLColor(totalPnLPoints)}`}>
-                        {totalPnLPoints.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-xs text-blue-600">Total P&L (₹)</div>
-                      <div className={`text-sm font-bold flex items-center space-x-1 ${getPnLColor(totalPnLAmount)}`}>
-                        {getPnLIcon(totalPnLAmount)}
-                        <span>{formatPrice(totalPnLAmount)}</span>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

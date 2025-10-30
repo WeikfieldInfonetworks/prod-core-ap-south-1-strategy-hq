@@ -35,6 +35,39 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, currentDropThr
     }
   }, [getStorageKey]);
 
+  // Cleanup session storage on tab close and component unmount
+  useEffect(() => {
+    const cleanupStorage = () => {
+      try {
+        sessionStorage.removeItem(getStorageKey());
+        console.log('🧹 TradingTable: Session storage cleared on tab close');
+      } catch (error) {
+        console.error('Error clearing session storage:', error);
+      }
+    };
+
+    // Cleanup on tab close
+    const handleBeforeUnload = () => {
+      cleanupStorage();
+    };
+
+    // Cleanup on component unmount
+    const handleUnload = () => {
+      cleanupStorage();
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleUnload);
+
+    // Cleanup function for component unmount
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleUnload);
+      cleanupStorage(); // Also cleanup on component unmount
+    };
+  }, [getStorageKey]);
+
   // Function to update cycle history data (similar to PrebuyHistoryTable)
   const updateCycleHistory = useCallback((cycleData, cycleNumber, structuredData = null) => {
     if (!cycleData || Object.keys(cycleData).length === 0) return;

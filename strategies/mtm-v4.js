@@ -106,6 +106,8 @@ class MTMV4Strategy extends BaseStrategy {
         this.reachedHalfTarget = false;
         this.realBuyStoplossHit = false;
         this.savedState = {};
+        this.targetNet = false;
+        this.secondBought = false;
         
         // Entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -245,7 +247,8 @@ class MTMV4Strategy extends BaseStrategy {
         this.reachedHalfTarget = false;
         this.savedState = {};
         this.realBuyStoplossHit = false;
-        
+        this.targetNet = false;
+        this.secondBought = false;
         // Reset entry stage variables
         this.entry_24_first_stage = false;
         this.entry_24_second_stage = false;
@@ -392,21 +395,7 @@ class MTMV4Strategy extends BaseStrategy {
             this.globalDict.enableTrading = false;
         }
 
-        if(this.universalDict.usePrebuy){
-        this.prebuyFullData['init'] = {
-            "cycles": this.universalDict.cycles,
-                "enableTrading": this.globalDict.enableTrading,
-                "timestamp": this.formatTime24(new Date())
-            };
-            this.emitPrebuyDataUpdate();
-        }
-        else{
-            this.mtmFullData['init'] = {
-                "cycles": this.universalDict.cycles,
-                "enableTrading": this.globalDict.enableTrading,
-                "timestamp": this.formatTime24(new Date())
-            };
-        }
+        // Data initialization removed - now using simplified event emission
 
         // Set strike base and diff based on weekday
         const today = new Date().getDay();
@@ -761,20 +750,6 @@ class MTMV4Strategy extends BaseStrategy {
                 // Emit instrument data update to show the real bought instrument
                 this.emitInstrumentDataUpdate();
 
-                this.prebuyFullData['realBuy'] = {
-                    "stoplossHitBy": real_instrument === ce_instrument ? this.globalDict.buySame ? ce_instrument.symbol : pe_instrument.symbol : this.globalDict.buySame ? pe_instrument.symbol : ce_instrument.symbol,
-                    "stoplossHitByPrice": real_instrument === ce_instrument ? this.globalDict.buySame ? ce_instrument.last : pe_instrument.last : this.globalDict.buySame ? pe_instrument.last : ce_instrument.last,
-                    "firstBuyInstrument": real_instrument,
-                    "firstBuyPrice": this.prebuyBuyPriceOnce,
-                    "firstBuyQuantity": this.globalDict.quantity || 75,
-                    "originalQuantity": this.globalDict.quantity || 75, // Store original quantity
-                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
-                    "firstBuyTimestamp": this.formatTime24(new Date()),
-                    "secondBuy": false,
-                    "averageBuyPrice": this.prebuyBuyPriceOnce
-                }
-                this.emitPrebuyDataUpdate();
-
                 this.blockFinalRef = false;
                 this.blockDiff10 = true;
                 this.finalRefCompleted = true;
@@ -787,6 +762,12 @@ class MTMV4Strategy extends BaseStrategy {
                     ordersPlaced: true
                 });
             }
+            if(!this.savedState['target']){
+                this.savedState['target'] = this.globalDict.target;
+                this.savedState['stoploss'] = this.globalDict.stoploss;
+                this.savedState['quantity'] = this.globalDict.quantity;
+            }
+
         }
     }
 
@@ -853,6 +834,8 @@ class MTMV4Strategy extends BaseStrategy {
         const mtm = instrument_1_original_change + instrument_2_original_change;
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
+        console.log(`TARGET: ${this.globalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.globalDict.quantity}`);
+        console.log(`BUY PRICE: ${instrument_1.buyPrice}`);
 
         // Low tracking logic for prebuy mode - track the lowest price reached
         if(this.universalDict.usePrebuy && this.prebuyBoughtToken && instrument_1.token == this.prebuyBoughtToken){
@@ -915,11 +898,6 @@ class MTMV4Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                         diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                        if(!this.savedState['target']){
-                            this.savedState['target'] = this.globalDict.target;
-                            this.savedState['stoploss'] = this.globalDict.stoploss;
-                            this.savedState['quantity'] = this.globalDict.quantity;
-                        }
                         this.globalDict.target = this.globalDict.target + Math.abs(diff);
                     }
                 }
@@ -954,22 +932,10 @@ class MTMV4Strategy extends BaseStrategy {
                 }
 
                 // Emit instrument data update after second buy
-                this.prebuyFullData['realBuy'] = {
-                    ...this.prebuyFullData['realBuy'],
-                    "secondBuy": true,
-                    "secondBuyInstrument": instrument_1,
-                    "secondBuyPrice": this.prebuyBuyPriceTwice,
-                    "secondBuyQuantity": this.globalDict.quantity,
-                    "originalQuantity": this.globalDict.quantity,
-                    "secondBuyTimestamp": this.formatTime24(new Date()),
-                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
-                    "averageBuyPrice": this.prebuyBuyPriceTwice
-                }
-
-                this.emitPrebuyDataUpdate();
+                this.emitInstrumentDataUpdate();
                 
             }
-            else if(this.reachedHalfTarget && this.prebuyBuyPriceTwice == 0 && instrument_1_original_change <= -1*this.globalDict.target && !this.realBuyStoplossHit){
+            else if(this.reachedHalfTarget && this.prebuyBuyPriceTwice == 0 && instrument_1_original_change <= -10 && !this.realBuyStoplossHit){
                 this.prebuyBuyPriceTwice = instrument_1.last;
                 let buyResult = null;
                 try {
@@ -988,97 +954,90 @@ class MTMV4Strategy extends BaseStrategy {
 
                 // Update the real instrument's buy price to average of both buys
                 instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+
                 this.globalDict.target = this.globalDict.target / 2;
                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
                 this.globalDict.quantity = this.globalDict.quantity * 2;
 
                 // Emit instrument data update after second buy
                 this.emitInstrumentDataUpdate();
-
-                this.prebuyFullData['realBuy'] = {
-                    ...this.prebuyFullData['realBuy'],
-                    "secondBuy": true,
-                    "secondBuyInstrument": instrument_1,
-                    "secondBuyPrice": this.prebuyBuyPriceTwice,
-                    "secondBuyQuantity": this.globalDict.quantity / 2,
-                    "secondBuyTimestamp": this.formatTime24(new Date()),
-                    "lowTrackingPrice": this.prebuyLowTrackingPrice,
-                    "averageBuyPrice": (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2
-                }
-                this.emitPrebuyDataUpdate();
             }
-            else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss && !this.boughtSold){
+            else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss && !this.boughtSold && !this.secondBought){
+                this.secondBought = true;
                 // this.rebuyDone = false;
                 // this.realBuyStoplossHit = false;
                 // this.reachedHalfTarget = false;
-                this.boughtSold = true;
+                // this.boughtSold = true;
                 
                 //SELL existing instrument
                 // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-                let sellResult = null;
-                let diff = 0;
-                try {
-                    sellResult = await this.sellInstrument(instrument_1);
-                    diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                    // if(!this.savedState['target']){
-                    //     this.savedState['target'] = this.globalDict.target;
-                    //     this.savedState['stoploss'] = this.globalDict.stoploss;
-                    //     this.savedState['quantity'] = this.globalDict.quantity;
-                    // }
-                    // this.globalDict.target = this.globalDict.target + Math.abs(diff);
-                    this.globalDict.target = this.savedState['target'];
-                    this.globalDict.stoploss = this.savedState['stoploss'];
-                    this.globalDict.quantity = this.savedState['quantity'];
-                    this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
-                }
-                catch (error) {
-                    this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-                }
+                // let sellResult = null;
+                // let diff = 0;
+                // try {
+                //     sellResult = await this.sellInstrument(instrument_1);
+                //     diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                //     if(!this.savedState['target']){
+                //         this.savedState['target'] = this.globalDict.target;
+                //         this.savedState['stoploss'] = this.globalDict.stoploss;
+                //         this.savedState['quantity'] = this.globalDict.quantity;
+                //     }
+                //     this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                //     // this.globalDict.target = this.savedState['target'];
+                //     // this.globalDict.stoploss = this.savedState['stoploss'];
+                //     // this.globalDict.quantity = this.savedState['quantity'];
+                //     // this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                // }
+                // catch (error) {
+                //     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+                // }
 
                 // instrument_1 = instrument_1.symbol.includes('CE')
                 // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
                 // : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
-                // this.prebuyBoughtToken = instrument_1.token;
+                this.prebuyBoughtToken = instrument_1.token;
 
-                // // BUY opposite instrument
-                // instrument_1.buyPrice = instrument_1.last;
-                // let buyResult = null;
-                // try {
-                //     buyResult = await this.buyInstrument(instrument_1);
-                //     if (buyResult && buyResult.success) {
-                //         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-                //     }
-                //     this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-                //     this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-                //     instrument_1.buyPrice = this.prebuyBuyPriceTwice;
-                //     this.rebuyPrice = this.prebuyBuyPriceTwice;
-                //     this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
-                // }
-                // catch (error) {
-                //     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-                // }
+                // BUY opposite instrument
+                instrument_1.buyPrice = instrument_1.last;
+                let buyResult = null;
+                try {
+                    buyResult = await this.buyInstrument(instrument_1);
+                    if (buyResult && buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+                    }
+
+                    this.globalDict.target /= 2;
+                    this.globalDict.stoploss /= 2;
+                    this.globalDict.quantity *= 2;
+
+                    this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                    this.strategyUtils.logStrategyInfo(`PREBUY BUY PRICE TWICE: ${this.prebuyBuyPriceTwice}`);
+                    instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                    this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
+                    this.strategyUtils.logStrategyInfo(`BUY PRICE: ${instrument_1.buyPrice}`);
+                    this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+                    this.rebuyPrice = this.prebuyBuyPriceTwice;
+                    this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                }
 
                 // Emit instrument data update after second buy
-                // this.prebuyFullData['realBuy'] = {
-                //     ...this.prebuyFullData['realBuy'],
-                //     "secondBuy": true,
-                //     "secondBuyInstrument": instrument_1,
-                //     "secondBuyPrice": this.prebuyBuyPriceTwice,
-                //     "secondBuyQuantity": this.globalDict.quantity,
-                //     "originalQuantity": this.globalDict.quantity,
-                //     "secondBuyTimestamp": this.formatTime24(new Date()),
-                //     "lowTrackingPrice": this.prebuyLowTrackingPrice,
-                //     "averageBuyPrice": this.prebuyBuyPriceTwice
-                // }
-
-                // this.emitPrebuyDataUpdate();
+                this.emitInstrumentDataUpdate();
             }
 
         }
 
         if(!this.reachedHalfTarget && this.universalDict.usePrebuy){
             this.reachedHalfTarget = (instrument_1.last - instrument_1.buyPrice) >= this.globalDict.target / 2;
+        }
+
+        if(!this.targetNet && this.universalDict.usePrebuy){
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) > (this.globalDict.target - 1); // Casting net if price within 1 point of target
+            if(this.targetNet){
+                this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
+            }
         }
 
         let threshold_change = instrument_1.last - this.prebuyBuyPriceTwice;
@@ -1122,7 +1081,7 @@ class MTMV4Strategy extends BaseStrategy {
             this.who_hit_36 = instrument_1_original_change <= this.globalDict.sellAt36Limit ? instrument_1 : instrument_2;
         }
         
-        const hit_7 = mtm >= this.globalDict.target;
+        const hit_7 = mtm >= this.globalDict.target || (this.targetNet && mtm <= this.globalDict.target - 1);
         const reached_stoploss = mtm <= this.globalDict.stoploss;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1141,42 +1100,11 @@ class MTMV4Strategy extends BaseStrategy {
                     sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
-                        
-                        // Emit specific trade actions for dashboard table
-                        this.emitTradeAction('sell', {
-                            symbol: instrument_1.symbol,
-                            price: sellResult.executedPrices.instrument1,
-                            quantity: this.globalDict.quantity || 75,
-                            scenario: 'sell_both_at_7',
-                            instrumentType: instrument_1.symbol.includes('CE') ? 'CE' : 'PE'
-                        });
-                        
-                        this.emitTradeAction('sell', {
-                            symbol: instrument_2.symbol,
-                            price: sellResult.executedPrices.instrument2,
-                            quantity: this.globalDict.quantity || 75,
-                            scenario: 'sell_both_at_7',
-                            instrumentType: instrument_2.symbol.includes('CE') ? 'CE' : 'PE'
-                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
                     }
                 } catch (error) {
                     this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
-                }
-                this.mtmFullData['realSell'] = {
-                    "call": {
-                        "sellInstrument": instrument_1.symbol.includes('CE') ? instrument_1 : instrument_2,
-                        "sellPrice": instrument_1.symbol.includes('CE') ? sellResult.executedPrices.instrument1 : sellResult.executedPrices.instrument2,
-                        "sellQuantity": this.globalDict.quantity || 75,
-                    },
-                    "put": {
-                        "sellInstrument": instrument_2.symbol.includes('CE') ? instrument_2 : instrument_1,
-                        "sellPrice": instrument_2.symbol.includes('CE') ? sellResult.executedPrices.instrument2 : sellResult.executedPrices.instrument1,
-                        "sellQuantity": this.globalDict.quantity || 75,
-                    },
-                    "sellTimestamp": this.formatTime24(new Date()),
-                    "sellScenario": 'sell_both_at_7'
                 }
             }
             else {
@@ -1192,43 +1120,10 @@ class MTMV4Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
                 }
 
-                if(this.prebuyBuyPriceTwice > 0 && !this.realBuyStoplossHit){
-                    this.globalDict.target = this.globalDict.target * 2;
-                    this.globalDict.stoploss = this.globalDict.stoploss * 2;
-                    this.globalDict.quantity = this.globalDict.quantity / 2;
-                    this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
-                }
-
-                if(this.realBuyStoplossHit){
-                    this.globalDict.target = this.savedState['target'];
-                    this.globalDict.stoploss = this.savedState['stoploss'];
-                    this.globalDict.quantity = this.savedState['quantity'];
-                }
-
-                this.prebuyFullData['realSell'] = {
-                    "sellInstrument": instrument_1,
-                    "sellPrice": sellResult.executedPrice == 0 ? instrument_1.last : sellResult.executedPrice,
-                    "sellQuantity": this.globalDict.quantity || 75,
-                    "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'], // Use original quantity
-                    "sellTimestamp": this.formatTime24(new Date())
-                }
-
-                // Update the final low tracking price and time in realBuy data
-                this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
-                this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
-
-                // Calculate correct quantities for P&L
-                const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
-                const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
-                
-                this.prebuyFullData['summary'] = {
-                    "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
-                    "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
-                    "originalQuantity": originalQuantity,
-                    "sellQuantity": sellQuantity,
-                    "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
-                }
-                this.emitPrebuyDataUpdate();
+                this.globalDict.target = this.savedState['target'];
+                this.globalDict.stoploss = this.savedState['stoploss'];
+                this.globalDict.quantity = this.savedState['quantity'];
+                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
             }
         }
 
@@ -1248,15 +1143,6 @@ class MTMV4Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`Lower instrument sold at +24 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt24Sell = sellResult.executedPrice || lower_instrument.last;
-                        
-                        // Emit specific trade action for dashboard table
-                        this.emitTradeAction('sell', {
-                            symbol: lower_instrument.symbol,
-                            price: sellResult.executedPrice || lower_instrument.last,
-                            quantity: this.globalDict.quantity || 75,
-                            scenario: 'sell_at_24_plus',
-                            instrumentType: lower_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell lower instrument at +24');
                         this.mtmPriceAt24Sell = lower_instrument.last;
@@ -1277,15 +1163,6 @@ class MTMV4Strategy extends BaseStrategy {
                         const sellResult = await this.sellInstrument(higher_instrument);
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at target - Executed price: ${sellResult.executedPrice}`);
-                            
-                            // Emit specific trade action for dashboard table
-                            this.emitTradeAction('sell', {
-                                symbol: higher_instrument.symbol,
-                                price: sellResult.executedPrice || higher_instrument.last,
-                                quantity: this.globalDict.quantity || 75,
-                                scenario: 'target_after_24_plus',
-                                instrumentType: higher_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at target');
                         }
@@ -1309,15 +1186,6 @@ class MTMV4Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at +24 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt24Sell = sellResult.executedPrice || first_instrument.last; // Store price of remaining instrument with fallback
-                        
-                        // Emit specific trade action for dashboard table
-                        this.emitTradeAction('sell', {
-                            symbol: first_instrument.symbol,
-                            price: sellResult.executedPrice || first_instrument.last,
-                            quantity: this.globalDict.quantity || 75,
-                            scenario: 'sell_at_24',
-                            instrumentType: first_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell first instrument at +24');
                         this.mtmPriceAt24Sell = first_instrument.last;
@@ -1339,15 +1207,6 @@ class MTMV4Strategy extends BaseStrategy {
                         const sellResult = await this.sellInstrument(second_instrument);
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at target - Executed price: ${sellResult.executedPrice}`);
-                            
-                            // Emit specific trade action for dashboard table
-                            this.emitTradeAction('sell', {
-                                symbol: second_instrument.symbol,
-                                price: sellResult.executedPrice || second_instrument.last,
-                                quantity: this.globalDict.quantity || 75,
-                                scenario: 'target_after_24',
-                                instrumentType: second_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at target');
                         }
@@ -1368,15 +1227,6 @@ class MTMV4Strategy extends BaseStrategy {
                         if (sellResult && sellResult.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold at -36 - Executed price: ${sellResult.executedPrice}`);
                             this.mtmPriceAt36Sell = sellResult.executedPrice || second_instrument.last; // Store price for buy back calculation with fallback
-                            
-                            // Emit specific trade action for dashboard table
-                            this.emitTradeAction('sell', {
-                                symbol: second_instrument.symbol,
-                                price: sellResult.executedPrice || second_instrument.last,
-                                quantity: this.globalDict.quantity || 75,
-                                scenario: 'sell_at_36',
-                                instrumentType: second_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                            });
                         } else {
                             this.strategyUtils.logStrategyError('Failed to sell second instrument at -36');
                             this.mtmPriceAt36Sell = second_instrument.last;
@@ -1430,15 +1280,6 @@ class MTMV4Strategy extends BaseStrategy {
                             const sellResult = await this.sellInstrument(this.buyBackInstrument);
                             if (sellResult && sellResult.success) {
                                 this.strategyUtils.logStrategyInfo(`Buy back instrument sold at target - Executed price: ${sellResult.executedPrice}`);
-                                
-                                // Emit specific trade action for dashboard table
-                                this.emitTradeAction('sell', {
-                                    symbol: this.buyBackInstrument.symbol,
-                                    price: sellResult.executedPrice || this.buyBackInstrument.last,
-                                    quantity: this.globalDict.quantity || 75,
-                                    scenario: 'sell_buyback_after_24',
-                                    instrumentType: this.buyBackInstrument.symbol.includes('CE') ? 'CE' : 'PE'
-                                });
                             } else {
                                 this.strategyUtils.logStrategyError('Failed to sell buy back instrument at target');
                             }
@@ -1471,15 +1312,6 @@ class MTMV4Strategy extends BaseStrategy {
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at -36 - Executed price: ${sellResult.executedPrice}`);
                         this.mtmPriceAt36Sell = sellResult.executedPrice || first_instrument.last; // Store price of remaining instrument with fallback
-                        
-                        // Emit specific trade action for dashboard table
-                        this.emitTradeAction('sell', {
-                            symbol: first_instrument.symbol,
-                            price: sellResult.executedPrice || first_instrument.last,
-                            quantity: this.globalDict.quantity || 75,
-                            scenario: 'sell_at_36_first',
-                            instrumentType: first_instrument.symbol.includes('CE') ? 'CE' : 'PE'
-                        });
                     } else {
                         this.strategyUtils.logStrategyError('Failed to sell first instrument at -36');
                         this.mtmPriceAt36Sell = first_instrument.last;
@@ -1561,15 +1393,6 @@ class MTMV4Strategy extends BaseStrategy {
                             const sellResult = await this.sellInstrument(this.buyBackInstrument);
                             if (sellResult && sellResult.success) {
                                 this.strategyUtils.logStrategyInfo(`Buy back instrument sold at target - Executed price: ${sellResult.executedPrice}`);
-                                
-                                // Emit specific trade action for dashboard table
-                                this.emitTradeAction('sell', {
-                                    symbol: this.buyBackInstrument.symbol,
-                                    price: sellResult.executedPrice || this.buyBackInstrument.last,
-                                    quantity: this.globalDict.quantity || 75,
-                                    scenario: 'sell_buyback_after_36',
-                                    instrumentType: this.buyBackInstrument.symbol.includes('CE') ? 'CE' : 'PE'
-                                });
                             } else {
                                 this.strategyUtils.logStrategyError('Failed to sell buy back instrument at target');
                             }
@@ -1667,13 +1490,6 @@ class MTMV4Strategy extends BaseStrategy {
                 if (boughtOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${boughtInstrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken);
-                    
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('buy', {
-                        symbol: boughtInstrument.symbol,
-                        price: boughtInstrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${boughtInstrument.symbol}: ${boughtOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 75, this.boughtToken, boughtOrderResult.error);
@@ -1708,13 +1524,6 @@ class MTMV4Strategy extends BaseStrategy {
                 if (oppOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${oppInstrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken);
-                    
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('buy', {
-                        symbol: oppInstrument.symbol,
-                        price: oppInstrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
                     this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 75, this.oppBoughtToken, oppOrderResult.error);
@@ -1756,40 +1565,29 @@ class MTMV4Strategy extends BaseStrategy {
             this.strategyUtils.logStrategyInfo('Orders placed successfully for MTM strategy');
             this.strategyUtils.logStrategyInfo(`Total investment: ${(boughtInstrument.last + oppInstrument.last) * (this.globalDict.quantity || 75)}`);
 
+            // Emit prebought instruments data
+            const preboughtData = {
+                type: 'prebought',
+                ceInstrument: {
+                    symbol: boughtInstrument.symbol.includes('CE') ? boughtInstrument.symbol : oppInstrument.symbol,
+                    price: boughtInstrument.symbol.includes('CE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
+                    quantity: this.globalDict.quantity || 75,
+                    token: boughtInstrument.symbol.includes('CE') ? this.boughtToken : this.oppBoughtToken
+                },
+                peInstrument: {
+                    symbol: boughtInstrument.symbol.includes('PE') ? boughtInstrument.symbol : oppInstrument.symbol,
+                    price: boughtInstrument.symbol.includes('PE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
+                    quantity: this.globalDict.quantity || 75,
+                    token: boughtInstrument.symbol.includes('PE') ? this.boughtToken : this.oppBoughtToken
+                },
+                timestamp: this.formatTime24(new Date()),
+                cycle: this.universalDict.cycles || 0
+            };
+
+            this.emitToUser('strategy_prebought_instruments', preboughtData);
+
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while placing orders: ${error.message}`);
-        }
-
-        if(this.universalDict.usePrebuy){
-            this.prebuyFullData["preBoughtInstruments"] = {
-                    "call": {
-                        "instrument": boughtInstrument.symbol.includes('CE') ? boughtInstrument : oppInstrument,
-                        "price": boughtInstrument.symbol.includes('CE') ? boughtInstrument.last : oppInstrument.last,
-                        "quantity": this.globalDict.quantity || 75
-                    },
-                    "put": {
-                        "instrument": boughtInstrument.symbol.includes('CE') ? oppInstrument : boughtInstrument,
-                        "price": boughtInstrument.symbol.includes('CE') ? oppInstrument.last : boughtInstrument.last,
-                        "quantity": this.globalDict.quantity || 75
-                    },
-                    "timestamp": this.formatTime24(new Date())
-            }
-            this.emitPrebuyDataUpdate();
-        }
-        else{
-            this.mtmFullData["boughtInstruments"] = {
-                "call": {
-                    "instrument": boughtInstrument.symbol.includes('CE') ? boughtInstrument : oppInstrument,
-                    "price": boughtInstrument.symbol.includes('CE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
-                    "quantity": this.globalDict.quantity || 75
-                },
-                "put": {
-                    "instrument": boughtInstrument.symbol.includes('CE') ? oppInstrument : boughtInstrument,
-                    "price": boughtInstrument.symbol.includes('CE') ? oppInstrument.buyPrice : boughtInstrument.buyPrice,
-                    "quantity": this.globalDict.quantity || 75
-                },
-                "timestamp": this.formatTime24(new Date())
-            }
         }
     }
 
@@ -1879,6 +1677,8 @@ class MTMV4Strategy extends BaseStrategy {
         this.reachedHalfTarget = false;
         this.savedState = {};
         this.realBuyStoplossHit = false;
+        this.targetNet = false;
+        this.secondBought = false;
         
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -2049,12 +1849,12 @@ class MTMV4Strategy extends BaseStrategy {
             },
             prebuyStoploss: {
                 type: 'number',
-                default: -7,
+                default: -10,
                 description: 'Stoploss for pre-buy'
             },
             realBuyStoploss: {
                 type: 'number',
-                default: -11,
+                default: -5,
                 description: 'Stoploss for real buy'
             },
             prebuySignificantThreshold: {
@@ -2079,7 +1879,7 @@ class MTMV4Strategy extends BaseStrategy {
         return {
             expiry: {
                 type: 'number',
-                default: 1,
+                default: 0,
                 description: 'Expiry day (0=Monday, 3=Thursday)'
             },
             cycles: {
@@ -2140,13 +1940,6 @@ class MTMV4Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument1.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument1.symbol,
-                        price: instrument1.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price
                     try {
                         const orderId1 = await sellResult1.orderId;
@@ -2166,13 +1959,6 @@ class MTMV4Strategy extends BaseStrategy {
                 if (sellResult2.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument2.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
-                    
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument2.symbol,
-                        price: instrument2.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
                     
                     // Get order history for executed price
                     try {
@@ -2195,18 +1981,6 @@ class MTMV4Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument2.symbol} @ ${instrument2.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                 this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
-                
-                // Emit trade actions for dashboard (paper trading)
-                this.emitTradeAction('sell', {
-                    symbol: instrument1.symbol,
-                    price: instrument1.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                this.emitTradeAction('sell', {
-                    symbol: instrument2.symbol,
-                    price: instrument2.last,
-                    quantity: this.globalDict.quantity || 75
-                });
                 
                 executedPrices.instrument1 = instrument1.last;
                 executedPrices.instrument2 = instrument2.last;
@@ -2248,13 +2022,6 @@ class MTMV4Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument.symbol,
-                        price: instrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price
                     try {
                         const orderId = await sellResult.orderId;
@@ -2276,15 +2043,11 @@ class MTMV4Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 
-                // Emit trade action for dashboard (paper trading)
-                this.emitTradeAction('sell', {
-                    symbol: instrument.symbol,
-                    price: instrument.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                
                 executedPrice = instrument.last;
             }
+            
+            // Emit simplified trade event after determining executed price
+            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice, this.globalDict.quantity || 75);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -2322,13 +2085,6 @@ class MTMV4Strategy extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('buy', {
-                        symbol: instrument.symbol,
-                        price: instrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price and update buy price
                     try {
                         const orderId = await buyResult.orderId;
@@ -2355,17 +2111,13 @@ class MTMV4Strategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 
-                // Emit trade action for dashboard (paper trading)
-                this.emitTradeAction('buy', {
-                    symbol: instrument.symbol,
-                    price: instrument.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                
                 // Update buy price for paper trading
                 executedPrice = instrument.last;
                 instrument.buyPrice = instrument.last;
             }
+            
+            // Emit simplified trade event after determining executed price
+            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice, this.globalDict.quantity || 75);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -2405,32 +2157,6 @@ class MTMV4Strategy extends BaseStrategy {
                         this.globalDict.quantity = this.globalDict.quantity / 2;
                         this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                     }
-    
-                    this.prebuyFullData['realSell'] = {
-                        "sellInstrument": instrument,
-                        "sellPrice": sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
-                        "sellQuantity": this.globalDict.quantity || 75,
-                        "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'],
-                        "sellTimestamp": this.formatTime24(new Date()),
-                        "sellReason": "REBUY_PRICE"
-                    }
-    
-                    // Update the final low tracking price and time in realBuy data
-                    this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
-                    this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
-    
-                    // Calculate correct quantities for P&L
-                    const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
-                    const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
-                    
-                    this.prebuyFullData['summary'] = {
-                        "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
-                        "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
-                        "originalQuantity": originalQuantity,
-                        "sellQuantity": sellQuantity,
-                        "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
-                    }
-                    this.emitPrebuyDataUpdate();
 
                     this.boughtSold = true;
                 }
@@ -2457,32 +2183,6 @@ class MTMV4Strategy extends BaseStrategy {
                         this.globalDict.quantity = this.globalDict.quantity / 2;
                         this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                     }
-    
-                    this.prebuyFullData['realSell'] = {
-                        "sellInstrument": instrument,
-                        "sellPrice": sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
-                        "sellQuantity": this.globalDict.quantity || 75,
-                        "originalQuantity": this.prebuyFullData['realBuy']['originalQuantity'],
-                        "sellTimestamp": this.formatTime24(new Date()),
-                        "sellReason": "AVG_PRICE"
-                    }
-    
-                    // Update the final low tracking price and time in realBuy data
-                    this.prebuyFullData['realBuy']['lowTrackingPrice'] = this.prebuyLowTrackingPrice;
-                    this.prebuyFullData['realBuy']['lowTrackingTime'] = this.prebuyLowTrackingTime;
-    
-                    // Calculate correct quantities for P&L
-                    const originalQuantity = this.prebuyFullData['realBuy']['originalQuantity'];
-                    const sellQuantity = this.prebuyFullData['realBuy']['secondBuy'] ? originalQuantity * 2 : originalQuantity;
-                    
-                    this.prebuyFullData['summary'] = {
-                        "pnlInPoints": this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice'],
-                        "pnlActual": (this.prebuyFullData['realSell']['sellPrice'] - this.prebuyFullData['realBuy']['averageBuyPrice']) * sellQuantity,
-                        "originalQuantity": originalQuantity,
-                        "sellQuantity": sellQuantity,
-                        "rebuyOccurred": this.prebuyFullData['realBuy']['secondBuy']
-                    }
-                    this.emitPrebuyDataUpdate();
                     this.boughtSold = true;
                 }
             }
@@ -2965,20 +2665,6 @@ class MTMV4Strategy extends BaseStrategy {
                (this.entry_36_second_stage && this.who_hit_36 && this.who_hit_36 !== instrument);
     }
 
-    emitTradeAction(action, tradeData) {
-        // Enhanced trade action emission for dashboard
-        const enhancedTradeData = {
-            action,
-            symbol: tradeData.symbol || tradeData.instrument?.symbol,
-            price: tradeData.price || tradeData.instrument?.last,
-            quantity: tradeData.quantity || this.globalDict.quantity || 75,
-            timestamp: new Date().toISOString(),
-            ...tradeData
-        };
-
-        this.emitToUser('strategy_trade_action', enhancedTradeData);
-    }
-
     emitBlockTransition(fromBlock, toBlock, additionalData = {}) {
         this.emitStatusUpdate('Block transition', {
             fromBlock,
@@ -3004,32 +2690,6 @@ class MTMV4Strategy extends BaseStrategy {
         });
     }
 
-    emitPrebuyDataUpdate() {
-        if (this.universalDict.usePrebuy && Object.keys(this.prebuyFullData).length > 0) {
-            // Structure the data for frontend consumption with cycle information
-            const structuredPrebuyData = {
-                cycle: this.universalDict.cycles || 0,
-                data: { ...this.prebuyFullData }, // Deep copy to avoid reference issues
-                timestamp: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                completed: !!this.prebuyFullData.summary, // Mark as completed if summary exists
-                // Additional metadata for frontend
-                metadata: {
-                    strategyName: this.name,
-                    usePrebuy: this.universalDict.usePrebuy,
-                    enableTrading: this.globalDict.enableTrading,
-                    currentBlock: this.getCurrentBlockName(),
-                    hasActivePosition: this.hasActivePosition
-                }
-            };
-            
-            this.emitToUser('strategy_prebuy_data', structuredPrebuyData);
-            
-            // Log the emission for debugging
-            this.strategyUtils.logStrategyInfo(`Prebuy data emitted for cycle ${structuredPrebuyData.cycle}: ${Object.keys(this.prebuyFullData).join(', ')}`);                                                    
-        }
-    }
-
     getCurrentBlockName() {
         if (this.blockInit) return 'INIT';
         if (this.blockUpdate) return 'UPDATE';
@@ -3038,6 +2698,21 @@ class MTMV4Strategy extends BaseStrategy {
         if (this.blockDiff10) return 'DIFF10';
         if (this.blockNextCycle) return 'NEXT_CYCLE';
         return 'UNKNOWN';
+    }
+
+    // Simplified trade event emission
+    emitSimpleTradeEvent(action, symbol, price, quantity) {
+        const tradeEvent = {
+            action, // 'buy' or 'sell'
+            symbol,
+            price,
+            quantity,
+            timestamp: this.formatTime24(new Date()),
+            cycle: this.universalDict.cycles || 0
+        };
+        
+        this.emitToUser('strategy_trade_event', tradeEvent);
+        this.strategyUtils.logStrategyInfo(`Trade event emitted: ${action.toUpperCase()} ${symbol} @ ${price} x ${quantity}`);
     }
 
     formatTime24(date) {
