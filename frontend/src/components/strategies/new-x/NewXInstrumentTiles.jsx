@@ -170,14 +170,14 @@ const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold })
 
       {/* Instrument Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Call Option Tile */}
-        <div className="relative">
-          {renderInstrumentTile(ceInstrument, 'CALL (CE)', 'CE')}
-        </div>
-
         {/* Put Option Tile */}
         <div className="relative">
           {renderInstrumentTile(peInstrument, 'PUT (PE)', 'PE')}
+        </div>
+
+        {/* Call Option Tile */}
+        <div className="relative">
+          {renderInstrumentTile(ceInstrument, 'CALL (CE)', 'CE')}
         </div>
       </div>
 

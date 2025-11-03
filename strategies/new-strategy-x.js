@@ -34,6 +34,7 @@ class NewXStrategy extends BaseStrategy {
         this.other_bought = false;
         this.other_sold = false;
         this.boughtSold = false;
+        this.dropObserved = false;
 
         // Strategy counters (missing properties)
         this.tickCount = 0;
@@ -115,6 +116,7 @@ class NewXStrategy extends BaseStrategy {
         this.other_bought = false;
         this.other_sold = false;
         this.boughtSold = false;
+        this.dropObserved = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -401,8 +403,16 @@ class NewXStrategy extends BaseStrategy {
             this.other_instrument = this.universalDict.instrumentMap[this.oppToken];
         }
 
+        // PERCENTAGE DROP OBSERVER
+        if(!this.dropObserved){
+            if(this.halfdrop_instrument.last <= this.halfdrop_instrument.firstPrice * (1 - this.globalDict.dropThreshold) || this.other_instrument.last <= this.other_instrument.firstPrice * (1 - this.globalDict.dropThreshold)){
+                this.dropObserved = true;
+                this.strategyUtils.logStrategyInfo('Drop observed');
+            }
+        }
+
         // BUY BOTH
-        if(!this.halfdrop_bought) {
+        if(!this.halfdrop_bought && this.dropObserved) {
             this.halfdrop_bought = true;
             try {
                 const first_instrument_result = await this.buyInstrument(this.halfdrop_instrument);
@@ -857,6 +867,7 @@ class NewXStrategy extends BaseStrategy {
         this.other_bought = false;
         this.other_sold = false;
         this.boughtSold = false;
+        this.dropObserved = false;
         
         // Reset instruments
         this.halfdrop_instrument = null;
@@ -1080,6 +1091,11 @@ class NewXStrategy extends BaseStrategy {
                 default: false,
                 description: 'Enable/disable actual trading'
             },
+            dropThreshold: {
+                type: 'number',
+                default: 0.25,
+                description: 'Drop threshold in percentage points'
+            },
             secondBuyThreshold: {
                 type: 'number',
                 default: 19,
@@ -1087,12 +1103,12 @@ class NewXStrategy extends BaseStrategy {
             },
             secondTarget: {
                 type: 'number',
-                default: 25,
+                default: 16,
                 description: 'Second target in points'
             },
             quantity: {
                 type: 'number',
-                default: 75,
+                default: 225,
                 description: 'Quantity to trade'
             }
         };
