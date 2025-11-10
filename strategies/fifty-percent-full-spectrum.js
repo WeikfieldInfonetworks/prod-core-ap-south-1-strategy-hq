@@ -1552,7 +1552,7 @@ class FiftyPercentFullSpectrum extends BaseStrategy {
         return {
             expiry: {
                 type: 'number',
-                default: 1,
+                default: 2,
                 description: 'Expiry day (0=Monday, 3=Thursday)'
             },
             skipAfterCycles: {

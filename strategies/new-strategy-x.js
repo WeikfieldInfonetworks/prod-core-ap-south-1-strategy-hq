@@ -1,6 +1,7 @@
 const BaseStrategy = require('./base');
 const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
+const fs = require('fs');
 
 class NewXStrategy extends BaseStrategy {
 
@@ -35,6 +36,8 @@ class NewXStrategy extends BaseStrategy {
         this.other_sold = false;
         this.boughtSold = false;
         this.dropObserved = false;
+        this.mtmHit = false;
+        this.mtmCheck = false;
 
         // Strategy counters (missing properties)
         this.tickCount = 0;
@@ -117,6 +120,8 @@ class NewXStrategy extends BaseStrategy {
         this.other_sold = false;
         this.boughtSold = false;
         this.dropObserved = false;
+        this.mtmHit = false;
+        this.mtmCheck = false;
 
         console.log('=== Initialization Complete ===');
     }
@@ -184,7 +189,7 @@ class NewXStrategy extends BaseStrategy {
         
         // Skip buy after first cycle
         if (this.universalDict.cycles >= 1) {
-            this.universalDict.skipBuy = true;
+            this.globalDict.enableTrading = false;
         }
 
         // Set strike base and diff based on weekday
@@ -394,8 +399,8 @@ class NewXStrategy extends BaseStrategy {
             this.oppToken = this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 20, 20).token.toString();
         }
 
-        this.halfdrop_instrument = this.universalDict.instrumentMap[this.mainToken];
-        this.other_instrument = this.universalDict.instrumentMap[this.oppToken];
+        // this.halfdrop_instrument = this.universalDict.instrumentMap[this.mainToken];
+        // this.other_instrument = this.universalDict.instrumentMap[this.oppToken];
         if(!this.halfdrop_instrument) {
             this.halfdrop_instrument = this.universalDict.instrumentMap[this.mainToken];
         }
@@ -408,6 +413,23 @@ class NewXStrategy extends BaseStrategy {
             if(this.halfdrop_instrument.last <= this.halfdrop_instrument.firstPrice * (1 - this.globalDict.dropThreshold) || this.other_instrument.last <= this.other_instrument.firstPrice * (1 - this.globalDict.dropThreshold)){
                 this.dropObserved = true;
                 this.strategyUtils.logStrategyInfo('Drop observed');
+            }
+        }
+
+        // GLOBAL OUTPUT OBSERVER
+        const globalOutput = this.readFromGlobalOutput();
+        if(!this.mtmHit && this.halfdrop_bought && globalOutput.includes("MTM HIT") && !this.mtmCheck && this.halfdrop_instrument && this.other_instrument){
+            this.mtmCheck = true;
+            let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
+            let instrument_2_change = this.other_instrument.changeFromBuy;
+            let mtm = instrument_1_change + instrument_2_change;
+
+            // Reset Global Output
+            this.writeToGlobalOutput("");
+            
+            if (mtm > 0){
+                this.mtmHit = true;
+                this.strategyUtils.logStrategyInfo('MTM HIT WITH +ve PAIR. Selling both.');
             }
         }
 
@@ -440,7 +462,7 @@ class NewXStrategy extends BaseStrategy {
             }
         }
 
-        if(this.halfdrop_bought && !this.halfdrop_sold && !this.other_bought) {
+        if(this.halfdrop_bought && !this.halfdrop_sold && !this.other_bought && !this.boughtSold) {
             let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
             let instrument_2_change = this.other_instrument.changeFromBuy;
 
@@ -475,7 +497,7 @@ class NewXStrategy extends BaseStrategy {
             }
         }
 
-        if(this.halfdrop_sold) {
+        if(this.halfdrop_sold && !this.boughtSold) {
 
             let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
             let instrument_2_change = this.other_instrument.changeFromBuy;
@@ -509,10 +531,10 @@ class NewXStrategy extends BaseStrategy {
             }
 
             if(this.other_bought && !this.other_sold) {
-                let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
-                let instrument_2_change = this.other_instrument.changeFromBuy;
+                instrument_1_change = this.halfdrop_instrument.changeFromBuy;
+                instrument_2_change = this.other_instrument.changeFromBuy;
 
-                let mtm = instrument_1_change + instrument_2_change;
+                mtm = instrument_1_change + instrument_2_change;
                 console.log(`SECOND BUY PHASE MTM: ${mtm} Target: ${this.globalDict.secondTarget}`);
                 
                 if(mtm >= this.globalDict.secondTarget) {
@@ -541,6 +563,28 @@ class NewXStrategy extends BaseStrategy {
                         this.strategyUtils.logStrategyError(`Error selling second instrument: ${error.message}`);
                     }
                 }
+            }
+        }
+
+        if(this.mtmHit && !this.boughtSold){
+            this.boughtSold = true;
+
+            try {
+                const first_instrument_result = await this.sellInstrument(this.halfdrop_instrument);
+                if (first_instrument_result.success) {
+                    this.strategyUtils.logStrategyInfo(`First instrument sold - Executed price: ${first_instrument_result.executedPrice}`);
+                }
+            } catch (error) {
+                this.strategyUtils.logStrategyError(`Error selling first instrument: ${error.message}`);
+            }
+
+            try {
+                const second_instrument_result = await this.sellInstrument(this.other_instrument);
+                if (second_instrument_result.success) {
+                    this.strategyUtils.logStrategyInfo(`Second instrument sold - Executed price: ${second_instrument_result.executedPrice}`);
+                }
+            } catch (error) {
+                this.strategyUtils.logStrategyError(`Error selling second instrument: ${error.message}`);
             }
         }
 
@@ -868,7 +912,7 @@ class NewXStrategy extends BaseStrategy {
         this.other_sold = false;
         this.boughtSold = false;
         this.dropObserved = false;
-        
+        this.mtmHit = false;
         // Reset instruments
         this.halfdrop_instrument = null;
         this.other_instrument = null;
@@ -1093,7 +1137,7 @@ class NewXStrategy extends BaseStrategy {
             },
             dropThreshold: {
                 type: 'number',
-                default: 0.25,
+                default: 0,
                 description: 'Drop threshold in percentage points'
             },
             secondBuyThreshold: {
@@ -1118,10 +1162,20 @@ class NewXStrategy extends BaseStrategy {
         return {
             expiry: {
                 type: 'number',
-                default: 3,
+                default: 2,
                 description: 'Expiry day (0=Monday, 3=Thursday)'
             }
         };
+    }
+
+    readFromGlobalOutput() {
+        const data = fs.readFileSync("output/global.txt", "utf8");
+        return data;
+    }
+
+    writeToGlobalOutput(data) {
+        let formatted_data = `${data}`;
+        fs.writeFileSync("output/global.txt", formatted_data);
     }
 }
 
