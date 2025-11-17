@@ -1004,40 +1004,10 @@ class MTMV4Strategy extends BaseStrategy {
             }
             else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss && !this.boughtSold && !this.secondBought && !this.finalStoplossHit && !this.plus7reached){
                 this.secondBought = true;
-                // this.rebuyDone = false;
-                // this.realBuyStoplossHit = false;
-                // this.reachedHalfTarget = false;
-                // this.boughtSold = true;
-                
-                //SELL existing instrument
-                // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-                // let sellResult = null;
-                // let diff = 0;
-                // try {
-                //     sellResult = await this.sellInstrument(instrument_1);
-                //     diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                //     if(!this.savedState['target']){
-                //         this.savedState['target'] = this.globalDict.target;
-                //         this.savedState['stoploss'] = this.globalDict.stoploss;
-                //         this.savedState['quantity'] = this.globalDict.quantity;
-                //     }
-                //     this.globalDict.target = this.globalDict.target + Math.abs(diff);
-                //     // this.globalDict.target = this.savedState['target'];
-                //     // this.globalDict.stoploss = this.savedState['stoploss'];
-                //     // this.globalDict.quantity = this.savedState['quantity'];
-                //     // this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
-                // }
-                // catch (error) {
-                //     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-                // }
-
-                // instrument_1 = instrument_1.symbol.includes('CE')
-                // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-                // : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
                 this.prebuyBoughtToken = instrument_1.token;
 
-                // BUY opposite instrument
+                // BUY same instrument
                 this.prebuyBuyPriceOnce = instrument_1.buyPrice;
                 instrument_1.buyPrice = instrument_1.last;
                 let buyResult = null;
@@ -1240,9 +1210,9 @@ class MTMV4Strategy extends BaseStrategy {
 
         if(this.entry_7){
             this.boughtSold = true;
-            if (this.universalDict.cycles == 0){
-                this.writeToGlobalOutput("MTM HIT");
-            }
+            // if (this.universalDict.cycles == 0){
+            //     this.writeToGlobalOutput("MTM HIT");
+            // }
             let sellResult = null;
             // SELL LOGIC - Sell both instruments at target or stoploss
             if(!this.universalDict.usePrebuy){

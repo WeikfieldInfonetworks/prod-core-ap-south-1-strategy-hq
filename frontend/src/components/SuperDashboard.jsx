@@ -60,6 +60,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
       case 'New X Strategy':
         return <NewXDashboard strategy={currentStrategy} />;
+      case 'New X 2 Strategy':
+        return <NewXDashboard strategy={currentStrategy} />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center">

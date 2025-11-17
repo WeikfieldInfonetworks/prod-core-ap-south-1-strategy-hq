@@ -10,6 +10,8 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
   const { socket } = useSocket();
   const [instrumentData, setInstrumentData] = useState(null);
   const [tradingActions, setTradingActions] = useState([]);
+  const [tradeEvents, setTradeEvents] = useState([]);
+  const [socketEventQueue, setSocketEventQueue] = useState([]);
   const [allInstrumentsData, setAllInstrumentsData] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [fadingNotifications, setFadingNotifications] = useState(new Set());
@@ -146,8 +148,34 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
       });
     };
 
-    // Listen for trading actions
-    const handleTradingAction = (data) => {
+    // Listen for trade events (from emitSimpleTradeEvent)
+    const handleTradeEvent = (data) => {
+      console.log('FiftyPercentFullSpectrumDashboard: Trade event received', data);
+      
+      // Extract trade event data
+      if (data.action && data.symbol && data.price) {
+        const tradeEvent = {
+          action: data.action, // 'buy' or 'sell'
+          symbol: data.symbol,
+          price: data.price,
+          quantity: data.quantity || 0,
+          timestamp: data.timestamp || new Date().toISOString(),
+          cycle: data.cycle || (strategy.universalDict?.cycles || 0)
+        };
+
+        // Add to trade events
+        setTradeEvents(prev => [...prev, tradeEvent]);
+
+        // Add to socket event queue for trading table
+        setSocketEventQueue(prev => [...prev, {
+          type: 'trade_event',
+          tradeEvent: tradeEvent,
+          cycle: tradeEvent.cycle,
+          timestamp: tradeEvent.timestamp
+        }]);
+      }
+      
+      // Add to trading actions for backward compatibility
       setTradingActions(prev => [data, ...prev].slice(0, 50)); // Keep last 50 actions
       
       addNotification({
@@ -174,19 +202,32 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
     socket.on('strategy_status_update', handleStrategyStatusUpdate);
     socket.on('strategy_parameter_updated', handleParameterUpdated);
     socket.on('strategy_parameter_error', handleParameterError);
-    socket.on('strategy_trade_action', handleTradingAction);
+    socket.on('strategy_trade_event', handleTradeEvent);
     socket.on('instrument_data_update', handleInstrumentUpdate);
-    socket.on('trading_action', handleTradingAction);
 
     return () => {
       socket.off('strategy_status_update', handleStrategyStatusUpdate);
       socket.off('strategy_parameter_updated', handleParameterUpdated);
       socket.off('strategy_parameter_error', handleParameterError);
-      socket.off('strategy_trade_action', handleTradingAction);
+      socket.off('strategy_trade_event', handleTradeEvent);
       socket.off('instrument_data_update', handleInstrumentUpdate);
-      socket.off('trading_action', handleTradingAction);
     };
   }, [socket, strategy]);
+
+  // Clear socket event queue periodically to prevent memory buildup
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSocketEventQueue(prev => {
+        // Keep only the last 50 events
+        if (prev.length > 50) {
+          return prev.slice(-50);
+        }
+        return prev;
+      });
+    }, 10000); // Clear every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   if (!strategy) {
     return (
@@ -495,6 +536,8 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
         strategy={strategy} 
         instrumentData={instrumentData}
         tradingActions={tradingActions}
+        tradeEvents={tradeEvents}
+        socketEvents={socketEventQueue}
         currentDropThreshold={currentDropThreshold}
       />
     </div>

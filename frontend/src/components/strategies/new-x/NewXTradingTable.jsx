@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Activity, Clock, CheckCircle, XCircle, AlertTriangle, Target, RotateCcw, TrendingDown, TrendingUp, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
-const NewXTradingTable = ({ strategy, instrumentData, tradingActions, currentDropThreshold }) => {
+const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => {
   const [historyData, setHistoryData] = useState([]);
   const [expandedCycles, setExpandedCycles] = useState(new Set());
 
-  if (!strategy) return null;
-
   // Session storage key for this strategy
-  const getStorageKey = useCallback(() => `new-x-strategy-cycles`, []);
+  const getStorageKey = useCallback(() => `new_x_trading_history_${strategy.name || 'new_x'}`, [strategy.name]);
 
   // Load history from session storage on mount
   useEffect(() => {
@@ -16,24 +14,87 @@ const NewXTradingTable = ({ strategy, instrumentData, tradingActions, currentDro
     if (savedHistory) {
       try {
         const parsed = JSON.parse(savedHistory);
-        
-        // Ensure parsed data is an array
-        if (Array.isArray(parsed)) {
-          setHistoryData(parsed);
-          console.log('📂 NewXTradingTable: Loaded cycle history', { cycles: parsed.length });
-        } else {
-          console.warn('📂 NewXTradingTable: Invalid data format in session storage, initializing empty array');
-          setHistoryData([]);
-        }
+        setHistoryData(parsed);
       } catch (error) {
-        console.error('Error loading cycle history from session storage:', error);
-        setHistoryData([]);
+        console.error('Error loading trading history from session storage:', error);
       }
-    } else {
-      console.log('📂 NewXTradingTable: No saved history found, initializing empty array');
-      setHistoryData([]);
     }
   }, [getStorageKey]);
+
+  // Auto-expand current cycle when it gets updated
+  useEffect(() => {
+    if (historyData.length > 0) {
+      const currentCycle = historyData[0].cycle;
+      setExpandedCycles(prev => {
+        const newExpanded = new Set(prev);
+        newExpanded.add(currentCycle);
+        return newExpanded;
+      });
+    }
+  }, [historyData]);
+
+  // Process incoming socket events for real-time updates
+  useEffect(() => {
+    if (!socketEvents || socketEvents.length === 0) return;
+
+    setHistoryData(prevHistoryData => {
+      let newHistoryData = [...prevHistoryData];
+      let processedCount = 0;
+      
+      // Process each event in the queue
+      socketEvents.forEach(eventData => {
+        const cycleNumber = eventData.cycle || 0;
+        const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
+
+        if (existingIndex >= 0) {
+          // Update existing cycle
+          const existingCycle = newHistoryData[existingIndex];
+          
+          if (eventData.type === 'trade_event' && eventData.tradeEvent) {
+            // Add trade event to the cycle's tradeEvents array
+            const currentTradeEvents = existingCycle.tradeEvents || [];
+            const newTradeEvent = eventData.tradeEvent;
+            
+            // Check if this trade event already exists (avoid duplicates)
+            const eventExists = currentTradeEvents.some(evt => 
+              evt.symbol === newTradeEvent.symbol &&
+              evt.action === newTradeEvent.action &&
+              evt.timestamp === newTradeEvent.timestamp
+            );
+            
+            if (!eventExists) {
+              newHistoryData[existingIndex] = {
+                ...existingCycle,
+                tradeEvents: [newTradeEvent, ...currentTradeEvents],
+                lastUpdated: new Date().toISOString()
+              };
+              processedCount++;
+            }
+          }
+        } else {
+          // Add new cycle
+          const newCycleData = {
+            cycle: cycleNumber,
+            tradeEvents: eventData.type === 'trade_event' && eventData.tradeEvent ? [eventData.tradeEvent] : [],
+            timestamp: eventData.timestamp || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            completed: false
+          };
+          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          processedCount++;
+        }
+      });
+
+      // Save to session storage
+      try {
+        sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
+      } catch (error) {
+        console.error('Error saving trading history to session storage:', error);
+      }
+
+      return newHistoryData;
+    });
+  }, [socketEvents, getStorageKey]);
 
   // Cleanup session storage on tab close and component unmount
   useEffect(() => {
@@ -68,295 +129,273 @@ const NewXTradingTable = ({ strategy, instrumentData, tradingActions, currentDro
     };
   }, [getStorageKey]);
 
-  // Update cycle history when strategy data changes
-  const updateCycleHistory = useCallback((newCycleData) => {
+  // Process trade events and update history
+  useEffect(() => {
+    if (!tradeEvents || tradeEvents.length === 0) return;
+
     setHistoryData(prevHistoryData => {
-      const historyArray = Array.isArray(prevHistoryData) ? prevHistoryData : [];
-      const updatedHistory = [...historyArray, newCycleData];
-      
+      // Group trade events by cycle
+      const eventsByCycle = {};
+      tradeEvents.forEach(event => {
+        if (!eventsByCycle[event.cycle]) {
+          eventsByCycle[event.cycle] = [];
+        }
+        eventsByCycle[event.cycle].push(event);
+      });
+
+      let newHistoryData = [...prevHistoryData];
+
+      // Process each cycle's events
+      Object.entries(eventsByCycle).forEach(([cycleNum, events]) => {
+        const cycleNumber = parseInt(cycleNum);
+        const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
+
+        if (existingIndex >= 0) {
+          // Update existing cycle - merge events and avoid duplicates
+          const existingEvents = newHistoryData[existingIndex].tradeEvents || [];
+          const mergedEvents = [...events];
+          
+          // Add existing events that aren't duplicates
+          existingEvents.forEach(existingEvent => {
+            const isDuplicate = events.some(newEvent => 
+              newEvent.symbol === existingEvent.symbol &&
+              newEvent.action === existingEvent.action &&
+              newEvent.timestamp === existingEvent.timestamp
+            );
+            if (!isDuplicate) {
+              mergedEvents.push(existingEvent);
+            }
+          });
+
+          newHistoryData[existingIndex] = {
+            ...newHistoryData[existingIndex],
+            lastUpdated: new Date().toISOString(),
+            tradeEvents: mergedEvents.sort((a, b) => {
+              // Sort by timestamp descending (newest first)
+              const timeA = new Date(a.timestamp || 0).getTime();
+              const timeB = new Date(b.timestamp || 0).getTime();
+              return timeB - timeA;
+            })
+          };
+        } else {
+          // Add new cycle
+          const newCycleData = {
+            cycle: cycleNumber,
+            tradeEvents: events,
+            timestamp: events[0].timestamp || new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            completed: false
+          };
+          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+        }
+      });
+
       // Save to session storage
       try {
-        sessionStorage.setItem(getStorageKey(), JSON.stringify(updatedHistory));
-        console.log('💾 NewXTradingTable: Cycle history saved to session storage');
+        sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
       } catch (error) {
-        console.error('Error saving cycle history to session storage:', error);
+        console.error('Error saving trading history to session storage:', error);
       }
-      
-      return updatedHistory;
+
+      return newHistoryData;
     });
-  }, [getStorageKey]);
+  }, [tradeEvents, getStorageKey]);
 
-  // Monitor strategy state changes to create cycle data
-  useEffect(() => {
-    const currentCycle = strategy.universalDict?.cycles || 0;
-    
-    // Check if we have trading data to create a cycle
-    if (strategy.halfdrop_instrument || strategy.other_instrument) {
-      const cycleData = {
-        cycle: currentCycle + 1, // Display cycle starts at 1
-        timestamp: new Date().toISOString(),
-        data: {
-          firstBuy: {
-            ceInstrument: strategy.halfdrop_instrument,
-            peInstrument: strategy.other_instrument,
-            timestamp: new Date().toISOString(),
-            target: strategy.globalDict?.target || 9
-          },
-          firstSell: strategy.halfdrop_sold ? {
-            ceInstrument: strategy.halfdrop_instrument,
-            peInstrument: strategy.other_instrument,
-            timestamp: new Date().toISOString(),
-            mtm: (strategy.halfdrop_instrument?.changeFromBuy || 0) + (strategy.other_instrument?.changeFromBuy || 0)
-          } : null,
-          secondBuy: strategy.other_bought ? {
-            ceInstrument: strategy.halfdrop_instrument,
-            peInstrument: strategy.other_instrument,
-            timestamp: new Date().toISOString(),
-            threshold: strategy.globalDict?.secondBuyThreshold || 19
-          } : null,
-          secondSell: strategy.other_sold ? {
-            ceInstrument: strategy.halfdrop_instrument,
-            peInstrument: strategy.other_instrument,
-            timestamp: new Date().toISOString(),
-            target: strategy.globalDict?.secondTarget || 25,
-            mtm: (strategy.halfdrop_instrument?.changeFromBuy || 0) + (strategy.other_instrument?.changeFromBuy || 0)
-          } : null
-        },
-        completed: strategy.boughtSold || false
-      };
-
-      // Check if this cycle already exists in history
-      const existingCycleIndex = historyData.findIndex(cycle => cycle.cycle === cycleData.cycle);
-      
-      if (existingCycleIndex >= 0) {
-        // Update existing cycle
-        setHistoryData(prev => {
-          const updated = [...prev];
-          updated[existingCycleIndex] = cycleData;
-          
-          // Save to session storage
-          try {
-            sessionStorage.setItem(getStorageKey(), JSON.stringify(updated));
-          } catch (error) {
-            console.error('Error updating cycle history:', error);
-          }
-          
-          return updated;
-        });
-      } else {
-        // Add new cycle
-        updateCycleHistory(cycleData);
-      }
-    }
-  }, [
-    strategy.halfdrop_instrument, 
-    strategy.other_instrument, 
-    strategy.halfdrop_sold, 
-    strategy.other_bought, 
-    strategy.other_sold, 
-    strategy.boughtSold,
-    strategy.universalDict?.cycles,
-    updateCycleHistory,
-    getStorageKey,
-    historyData
-  ]);
-
-  const toggleCycleExpansion = (cycleNumber) => {
-    setExpandedCycles(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(cycleNumber)) {
-        newSet.delete(cycleNumber);
-      } else {
-        newSet.add(cycleNumber);
-      }
-      return newSet;
-    });
+  const formatPrice = (price) => {
+    if (typeof price !== 'number' || price === 0) return '-';
+    return `₹${price.toFixed(2)}`;
   };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return '--:--:--';
-    try {
-      return new Date(timestamp).toLocaleTimeString('en-GB', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch (error) {
-      return '--:--:--';
+    if (!timestamp) return '-';
+    
+    // Check if it's already in HH:MM:SS format (from backend)
+    if (typeof timestamp === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(timestamp)) {
+      return timestamp; // Already formatted as HH:MM:SS
     }
+    
+    // Check if it's an ISO timestamp
+    try {
+      const date = new Date(timestamp);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleTimeString('en-GB', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        });
+      }
+    } catch {
+      // Fall through to return as-is
+    }
+    
+    // Return as-is if we can't parse it
+    return timestamp;
   };
 
-  const formatPrice = (price) => {
-    if (typeof price !== 'number') return '-.--';
-    return price.toFixed(2);
+  const toggleCycleExpansion = (cycle) => {
+    const newExpanded = new Set(expandedCycles);
+    if (newExpanded.has(cycle)) {
+      newExpanded.delete(cycle);
+    } else {
+      newExpanded.add(cycle);
+    }
+    setExpandedCycles(newExpanded);
   };
 
   const clearHistory = () => {
-    if (window.confirm('Are you sure you want to clear all cycle history? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to clear all trading history? This action cannot be undone.')) {
       setHistoryData([]);
       sessionStorage.removeItem(getStorageKey());
     }
   };
 
-  // Ensure historyData is always an array
-  const safeHistoryData = Array.isArray(historyData) ? historyData : [];
+  if (!strategy) return null;
 
   return (
-    <div className="bg-white rounded-lg shadow-sm">
+    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b bg-gray-50 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <Activity className="h-5 w-5 text-gray-600" />
-          <h3 className="text-lg font-medium text-gray-900">Trading History</h3>
-          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-            {safeHistoryData.length} cycles
-          </span>
+      <div className="bg-gray-50 px-6 py-4 border-b">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <History className="w-5 h-5 text-gray-600" />
+            <h3 className="text-lg font-semibold text-gray-900">Trading History</h3>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600">
+              {historyData.length} cycle{historyData.length !== 1 ? 's' : ''} recorded
+            </span>
+            {historyData.length > 0 && (
+              <button
+                onClick={clearHistory}
+                className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
+              >
+                Clear History
+              </button>
+            )}
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={clearHistory}
-            className="px-3 py-1 text-sm text-red-600 hover:text-red-800 flex items-center space-x-1"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Clear History</span>
-          </button>
-        </div>
+        <p className="text-sm text-gray-600 mt-1">
+          Live trading history for all cycles
+        </p>
       </div>
 
-      {/* Content */}
-      <div className="p-6">
-        {!Array.isArray(safeHistoryData) || safeHistoryData.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-gray-400 mb-2">No trading cycles yet</div>
-            <div className="text-sm text-gray-500">Trading history will appear here as cycles complete</div>
+      {/* History Table */}
+      <div className="overflow-x-auto">
+        {historyData.length === 0 ? (
+          <div className="text-center py-12">
+            <History className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No trading history available</p>
+            <p className="text-sm text-gray-500 mt-1">Trades will appear here as they occur</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {safeHistoryData.map((cycleData, index) => {
-              const isExpanded = expandedCycles.has(cycleData.cycle);
-              const hasActions = cycleData.data.firstBuy || cycleData.data.firstSell || cycleData.data.secondBuy || cycleData.data.secondSell;
-              
+          <div className="divide-y divide-gray-200">
+            {historyData.map((cycleData, index) => {
+              const isCurrentCycle = index === 0; // First item is most recent (current cycle)
               return (
-                <div key={cycleData.cycle} className="border border-gray-200 rounded-lg">
-                  {/* Cycle Header */}
-                  <div 
-                    className="px-4 py-3 bg-gray-50 cursor-pointer flex items-center justify-between hover:bg-gray-100"
-                    onClick={() => toggleCycleExpansion(cycleData.cycle)}
-                  >
-                    <div className="flex items-center space-x-3">
+              <div key={cycleData.cycle} className={`bg-white ${isCurrentCycle ? 'border-l-4 border-blue-600' : ''}`}>
+                {/* Cycle Summary Row */}
+                <div 
+                  className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
+                  onClick={() => toggleCycleExpansion(cycleData.cycle)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-gray-700">
+                        {expandedCycles.has(cycleData.cycle) ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        )}
+                        <span className={`font-semibold ${isCurrentCycle ? 'text-blue-600' : 'text-gray-900'}`}>
                           Cycle {cycleData.cycle}
                         </span>
-                        {cycleData.completed && (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        {isCurrentCycle && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 animate-pulse">
+                            LIVE
+                          </span>
                         )}
                       </div>
                       
-                      <div className="text-xs text-gray-500">
-                        {formatTime(cycleData.timestamp)}
+                      <div className="flex items-center space-x-1 text-sm text-gray-500">
+                        <Clock className="w-3 h-3" />
+                        <span className="font-semibold">Started: {formatTime(cycleData.timestamp)}</span>
+                        {cycleData.lastUpdated && cycleData.lastUpdated !== cycleData.timestamp && (
+                          <span className="ml-2 text-blue-600 font-semibold">
+                            • Updated: {formatTime(cycleData.lastUpdated)}
+                          </span>
+                        )}
                       </div>
                       
-                      {!hasActions && (
-                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                          Waiting for Cycle Data
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {isExpanded ? (
-                        <ChevronUp className="h-4 w-4 text-gray-600" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-600" />
-                      )}
+                      <div className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {cycleData.tradeEvents?.length || 0} trade{cycleData.tradeEvents?.length !== 1 ? 's' : ''}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Cycle Details */}
-                  {isExpanded && (
-                    <div className="p-4 border-t border-gray-200">
-                      {!hasActions ? (
-                        <div className="text-center py-4 text-gray-500">
-                          <div className="text-sm">Waiting for trading data...</div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {/* First Buy */}
-                          {cycleData.data.firstBuy && (
-                            <div className="bg-blue-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-blue-800">First Buy (Both Instruments)</span>
-                                <span className="text-sm font-semibold text-blue-600">
-                                  {formatTime(cycleData.data.firstBuy.timestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>CE: <span className="font-medium">{cycleData.data.firstBuy.ceInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.firstBuy.ceInstrument?.buyPrice)}</div>
-                                <div>PE: <span className="font-medium">{cycleData.data.firstBuy.peInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.firstBuy.peInstrument?.buyPrice)}</div>
-                                <div>Target: <span className="font-medium">{cycleData.data.firstBuy.target} pts</span></div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* First Sell */}
-                          {cycleData.data.firstSell && (
-                            <div className="bg-green-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-green-800">First Sell (Target Hit)</span>
-                                <span className="text-sm font-semibold text-green-600">
-                                  {formatTime(cycleData.data.firstSell.timestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>CE: <span className="font-medium">{cycleData.data.firstSell.ceInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.firstSell.ceInstrument?.last)}</div>
-                                <div>PE: <span className="font-medium">{cycleData.data.firstSell.peInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.firstSell.peInstrument?.last)}</div>
-                                <div>MTM: <span className="font-medium text-green-600">₹{formatPrice(cycleData.data.firstSell.mtm)}</span></div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Second Buy */}
-                          {cycleData.data.secondBuy && (
-                            <div className="bg-purple-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-purple-800">Second Buy (Threshold Hit)</span>
-                                <span className="text-sm font-semibold text-purple-600">
-                                  {formatTime(cycleData.data.secondBuy.timestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>CE: <span className="font-medium">{cycleData.data.secondBuy.ceInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.secondBuy.ceInstrument?.buyPrice)}</div>
-                                <div>PE: <span className="font-medium">{cycleData.data.secondBuy.peInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.secondBuy.peInstrument?.buyPrice)}</div>
-                                <div>Threshold: <span className="font-medium">{cycleData.data.secondBuy.threshold} pts</span></div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Second Sell */}
-                          {cycleData.data.secondSell && (
-                            <div className="bg-orange-50 rounded-lg p-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-orange-800">Second Sell (Final Target)</span>
-                                <span className="text-sm font-semibold text-orange-600">
-                                  {formatTime(cycleData.data.secondSell.timestamp)}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700 space-y-1">
-                                <div>CE: <span className="font-medium">{cycleData.data.secondSell.ceInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.secondSell.ceInstrument?.last)}</div>
-                                <div>PE: <span className="font-medium">{cycleData.data.secondSell.peInstrument?.symbol}</span> @ ₹{formatPrice(cycleData.data.secondSell.peInstrument?.last)}</div>
-                                <div>Target: <span className="font-medium">{cycleData.data.secondSell.target} pts</span></div>
-                                <div>Final MTM: <span className="font-medium text-orange-600">₹{formatPrice(cycleData.data.secondSell.mtm)}</span></div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
+
+                {/* Expanded Details - Trading Events */}
+                {expandedCycles.has(cycleData.cycle) && (
+                  <div className="px-6 pb-4 bg-gray-50">
+                    {cycleData.tradeEvents && cycleData.tradeEvents.length > 0 ? (
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                          <span className="text-green-600 mr-2">📊</span>
+                          Trading Events
+                        </h4>
+                        <div className={`space-y-3 ${cycleData.tradeEvents.length > 5 ? 'max-h-96 overflow-y-auto' : ''}`}>
+                          {cycleData.tradeEvents.map((event, index) => (
+                            <div 
+                              key={index}
+                              className={`p-3 rounded-lg border transition-all duration-300 ${
+                                event.action === 'buy' 
+                                  ? 'bg-green-50 border-green-200' 
+                                  : 'bg-red-50 border-red-200'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  {event.action === 'buy' ? (
+                                    <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                                  ) : (
+                                    <ArrowDownCircle className="w-5 h-5 text-red-600" />
+                                  )}
+                                  <div>
+                                    <div className={`text-sm font-semibold ${
+                                      event.action === 'buy' ? 'text-green-800' : 'text-red-800'
+                                    }`}>
+                                      {event.action === 'buy' ? 'BUY' : 'SELL'}
+                                    </div>
+                                    <div className="text-xs text-gray-600 font-mono">{event.symbol}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className={`text-sm font-semibold ${
+                                    event.action === 'buy' ? 'text-green-800' : 'text-red-800'
+                                  }`}>
+                                    {formatPrice(event.price)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Qty: {event.quantity || 0}
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-1 text-sm text-gray-500">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{formatTime(event.timestamp)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-500">
+                        <p className="text-sm">No trading events for this cycle yet</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
               );
             })}
           </div>
@@ -367,4 +406,3 @@ const NewXTradingTable = ({ strategy, instrumentData, tradingActions, currentDro
 };
 
 export default NewXTradingTable;
-

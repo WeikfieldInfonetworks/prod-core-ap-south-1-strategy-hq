@@ -9,6 +9,8 @@ const NewXDashboard = ({ strategy }) => {
   const { socket } = useSocket();
   const [instrumentData, setInstrumentData] = useState({});
   const [tradingActions, setTradingActions] = useState([]);
+  const [tradeEvents, setTradeEvents] = useState([]);
+  const [socketEventQueue, setSocketEventQueue] = useState([]);
   const [currentDropThreshold, setCurrentDropThreshold] = useState(0.5);
 
   // Helper function to get drop threshold dynamically
@@ -75,12 +77,56 @@ const NewXDashboard = ({ strategy }) => {
       handleStrategyStatusUpdate(data);
     };
 
+    const handleTradeEvent = (data) => {
+      console.log('NewXDashboard: Trade event received', data);
+      
+      // Extract trade event data
+      if (data.action && data.symbol && data.price) {
+        const tradeEvent = {
+          action: data.action, // 'buy' or 'sell'
+          symbol: data.symbol,
+          price: data.price,
+          quantity: data.quantity || 0,
+          timestamp: data.timestamp || new Date().toISOString(),
+          cycle: data.cycle || (strategy.universalDict?.cycles || 0)
+        };
+
+        // Add to trade events
+        setTradeEvents(prev => [...prev, tradeEvent]);
+
+        // Add to socket event queue for trading table
+        setSocketEventQueue(prev => [...prev, {
+          type: 'trade_event',
+          tradeEvent: tradeEvent,
+          cycle: tradeEvent.cycle,
+          timestamp: tradeEvent.timestamp
+        }]);
+      }
+    };
+
     socket.on('strategy_update', handleStrategyUpdate);
+    socket.on('strategy_trade_event', handleTradeEvent);
 
     return () => {
       socket.off('strategy_update', handleStrategyUpdate);
+      socket.off('strategy_trade_event', handleTradeEvent);
     };
-  }, [socket, handleStrategyStatusUpdate]);
+  }, [socket, handleStrategyStatusUpdate, strategy.universalDict?.cycles]);
+
+  // Clear socket event queue periodically to prevent memory buildup
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSocketEventQueue(prev => {
+        // Keep only the last 50 events
+        if (prev.length > 50) {
+          return prev.slice(-50);
+        }
+        return prev;
+      });
+    }, 10000); // Clear every 10 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle parameter updates from ConfigurationBar
   const handleParameterUpdate = useCallback((parameter, value) => {
@@ -168,9 +214,8 @@ const NewXDashboard = ({ strategy }) => {
       {/* Trading Table */}
       <NewXTradingTable 
         strategy={strategy}
-        instrumentData={instrumentData}
-        tradingActions={tradingActions}
-        currentDropThreshold={currentDropThreshold}
+        tradeEvents={tradeEvents}
+        socketEvents={socketEventQueue}
       />
     </div>
   );

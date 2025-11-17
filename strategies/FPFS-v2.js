@@ -1,6 +1,7 @@
 const BaseStrategy = require('./base');
 const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
+const fs = require('fs');
 
 class FPFSV2 extends BaseStrategy {
 
@@ -40,7 +41,8 @@ class FPFSV2 extends BaseStrategy {
         this.finalStoplossHit = false;
         this.finalBought = false;
         this.isExpiryDay = false;
-        
+        this.targetNet = false;
+        // this.plus7reached = false;
         // Timestamp storage for trading actions
         this.buyTimestamp = null;
         this.rebuyTimestamp = null;
@@ -156,6 +158,8 @@ class FPFSV2 extends BaseStrategy {
         this.finalBought = false;
         this.finalStoplossHit = false;
         this.isExpiryDay = false;
+        this.targetNet = false;
+        // this.plus7reached = false;
         console.log('=== Initialization Complete ===');
     }
 
@@ -523,6 +527,9 @@ class FPFSV2 extends BaseStrategy {
                 if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag) {
                     this.halfdrop_flag = true;
                     this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
+
+                    
+                    this.writeToGlobalOutput("HALF DROP")
                     
                     // Emit half drop detection notification
                     this.emitStatusUpdate('Half drop detected - 50% price drop reached', {
@@ -692,31 +699,32 @@ class FPFSV2 extends BaseStrategy {
                         this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
                     }
 
-                    // Emit current cycle data update with buy timestamp
-                    this.emitStatusUpdate('current_cycle_data', {
-                        cycle: this.universalDict.cycles || 0,
-                        data: {
-                            halfDropInstrument: {
-                                symbol: this.halfdrop_instrument?.symbol,
-                                price: this.halfdrop_instrument?.lowAtRef,
-                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                firstPrice: this.halfdrop_instrument?.firstPrice,
-                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                            },
-                            instrumentBought: {
-                                symbol: instrument.symbol,
-                                price: this.buyPriceOnce || instrument.buyPrice,
-                                timestamp: buyTimestamp,
-                                quantity: 75 // Always show original quantity
-                            },
-                            rebuyData: null, // Will be updated when rebuy happens
-                            sellData: null, // Will be updated when sell happens
-                            summary: null // Will be updated when cycle completes
-                        },
-                        completed: false,
-                        timestamp: buyTimestamp
-                    });
+                    // Removed: current_cycle_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                    // InstrumentTiles will continue to work using strategy object properties as fallback
+                    // this.emitStatusUpdate('current_cycle_data', {
+                    //     cycle: this.universalDict.cycles || 0,
+                    //     data: {
+                    //         halfDropInstrument: {
+                    //             symbol: this.halfdrop_instrument?.symbol,
+                    //             price: this.halfdrop_instrument?.lowAtRef,
+                    //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                    //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                    //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                    //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                    //         },
+                    //         instrumentBought: {
+                    //             symbol: instrument.symbol,
+                    //             price: this.buyPriceOnce || instrument.buyPrice,
+                    //             timestamp: buyTimestamp,
+                    //             quantity: 75 // Always show original quantity
+                    //         },
+                    //         rebuyData: null, // Will be updated when rebuy happens
+                    //         sellData: null, // Will be updated when sell happens
+                    //         summary: null // Will be updated when cycle completes
+                    //     },
+                    //     completed: false,
+                    //     timestamp: buyTimestamp
+                    // });
                 }
 
             }
@@ -739,16 +747,24 @@ class FPFSV2 extends BaseStrategy {
                     }
                 }
 
+                // HALF TARGET
                 if(change >= this.globalDict.target/2 && !this.reachedHalfTarget && !this.realBuyStoplossHit){
                     this.reachedHalfTarget = true;
                 }
 
+                // FINAL STOPLOSS
                 if(change <= this.globalDict.stoploss && !this.finalStoplossHit && this.rebuyDone){
                     this.finalStoplossHit = true;
                 }
 
+                // TARGET NET
+                if(change > this.globalDict.target - 1 && !this.targetNet && !this.boughtSold){
+                    this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument.symbol}`);
+                    this.targetNet = true;
+                }
+
                 // TARGET
-                if(change >= this.globalDict.target && !this.boughtSold) {
+                if((change >= this.globalDict.target && !this.boughtSold) || (this.targetNet && !this.boughtSold && change <= this.globalDict.target - 1)) {
                     this.boughtSold = true;
 
                     // SELLING LOGIC - Sell the instrument
@@ -778,47 +794,49 @@ class FPFSV2 extends BaseStrategy {
                         // Store quantities correctly
                         const originalQuantity = 75; // Base quantity
                         const sellQuantity = this.rebuyDone && !this.realBuyStoplossHit ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
-                        this.emitStatusUpdate('cycle_completion_data', {
-                            cycle: this.universalDict.cycles || 0,
-                            data: {
-                                halfDropInstrument: {
-                                    symbol: this.halfdrop_instrument?.symbol,
-                                    price: this.halfdrop_instrument?.lowAtRef,
-                                    timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                    firstPrice: this.halfdrop_instrument?.firstPrice,
-                                    dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                        ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                },
-                                instrumentBought: {
-                                    symbol: instrument.symbol,
-                                    price: this.buyPriceOnce || instrument.buyPrice,
-                                    timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
-                                    quantity: originalQuantity // Always show original quantity
-                                },
-                                rebuyData: this.rebuyDone && !this.realBuyStoplossHit ? {
-                                    firstBuyPrice: this.buyPriceOnce,
-                                    secondBuyPrice: this.buyPriceTwice,
-                                    averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
-                                    timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
-                                    quantity: originalQuantity // Show original quantity for rebuy
-                                } : null,
-                                sellData: {
-                                    symbol: instrument.symbol,
-                                    price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
-                                    timestamp: sellTimestamp, // Only sell action uses sell timestamp
-                                    quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
-                                    pnl: instrument.buyPrice !== -1 ? 
-                                        ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
-                                },
-                                summary: {
-                                    pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
-                                    pnlActual: instrument.buyPrice !== -1 ? 
-                                        ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
-                                }
-                            },
-                            completed: true,
-                            timestamp: sellTimestamp
-                        });
+                        // Removed: cycle_completion_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                        // InstrumentTiles will continue to work using strategy object properties as fallback
+                        // this.emitStatusUpdate('cycle_completion_data', {
+                        //     cycle: this.universalDict.cycles || 0,
+                        //     data: {
+                        //         halfDropInstrument: {
+                        //             symbol: this.halfdrop_instrument?.symbol,
+                        //             price: this.halfdrop_instrument?.lowAtRef,
+                        //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                        //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                        //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                        //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                        //         },
+                        //         instrumentBought: {
+                        //             symbol: instrument.symbol,
+                        //             price: this.buyPriceOnce || instrument.buyPrice,
+                        //             timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                        //             quantity: originalQuantity // Always show original quantity
+                        //         },
+                        //         rebuyData: this.rebuyDone && !this.realBuyStoplossHit ? {
+                        //             firstBuyPrice: this.buyPriceOnce,
+                        //             secondBuyPrice: this.buyPriceTwice,
+                        //             averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                        //             timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                        //             quantity: originalQuantity // Show original quantity for rebuy
+                        //         } : null,
+                        //         sellData: {
+                        //             symbol: instrument.symbol,
+                        //             price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                        //             timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                        //             quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                        //             pnl: instrument.buyPrice !== -1 ? 
+                        //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                        //         },
+                        //         summary: {
+                        //             pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
+                        //             pnlActual: instrument.buyPrice !== -1 ? 
+                        //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                        //         }
+                        //     },
+                        //     completed: true,
+                        //     timestamp: sellTimestamp
+                        // });
                     }
                 }
 
@@ -881,30 +899,32 @@ class FPFSV2 extends BaseStrategy {
                                 //     message: `Target changed to ${this.globalDict.target} points due to opp buy.`
                                 // });
 
-                                this.emitStatusUpdate('current_cycle_data', {
-                                    cycle: this.universalDict.cycles || 0,
-                                    data: {
-                                        halfDropInstrument: {
-                                            symbol: this.halfdrop_instrument?.symbol,
-                                            price: this.halfdrop_instrument?.lowAtRef,
-                                            timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                            firstPrice: this.halfdrop_instrument?.firstPrice,
-                                            dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                                ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                        },
-                                        instrumentBought: {
-                                            symbol: instrument.symbol,
-                                            price: this.buyPriceOnce || instrument.buyPrice,
-                                            timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
-                                            quantity: 75 // Always show original quantity
-                                        },
-                                        rebuyData: null,
-                                        sellData: null, // Will be updated when sell happens
-                                        summary: null // Will be updated when cycle completes
-                                    },
-                                    completed: false,
-                                    timestamp: rebuyTimestamp
-                                });
+                                // Removed: current_cycle_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                                // InstrumentTiles will continue to work using strategy object properties as fallback
+                                // this.emitStatusUpdate('current_cycle_data', {
+                                //     cycle: this.universalDict.cycles || 0,
+                                //     data: {
+                                //         halfDropInstrument: {
+                                //             symbol: this.halfdrop_instrument?.symbol,
+                                //             price: this.halfdrop_instrument?.lowAtRef,
+                                //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                                //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                                //         },
+                                //         instrumentBought: {
+                                //             symbol: instrument.symbol,
+                                //             price: this.buyPriceOnce || instrument.buyPrice,
+                                //             timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                                //             quantity: 75 // Always show original quantity
+                                //         },
+                                //         rebuyData: null,
+                                //         sellData: null, // Will be updated when sell happens
+                                //         summary: null // Will be updated when cycle completes
+                                //     },
+                                //     completed: false,
+                                //     timestamp: rebuyTimestamp
+                                // });
                             }
                         }
                         catch (error) {
@@ -945,37 +965,38 @@ class FPFSV2 extends BaseStrategy {
                                     newTarget: this.globalDict.target,
                                 });
 
-                                // Emit rebuy data update with proper timestamp
-                                this.emitStatusUpdate('current_cycle_data', {
-                                    cycle: this.universalDict.cycles || 0,
-                                    data: {
-                                        halfDropInstrument: {
-                                            symbol: this.halfdrop_instrument?.symbol,
-                                            price: this.halfdrop_instrument?.lowAtRef,
-                                            timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                            firstPrice: this.halfdrop_instrument?.firstPrice,
-                                            dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                                ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                        },
-                                        instrumentBought: {
-                                            symbol: instrument.symbol,
-                                            price: this.buyPriceOnce || instrument.buyPrice,
-                                            timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
-                                            quantity: 75 // Always show original quantity
-                                        },
-                                        rebuyData: {
-                                            firstBuyPrice: this.buyPriceOnce,
-                                            secondBuyPrice: this.buyPriceTwice,
-                                            averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
-                                            timestamp: rebuyTimestamp,
-                                            quantity: 75 // Show original quantity for rebuy
-                                        },
-                                        sellData: null, // Will be updated when sell happens
-                                        summary: null // Will be updated when cycle completes
-                                    },
-                                    completed: false,
-                                    timestamp: rebuyTimestamp
-                                });
+                                // Removed: current_cycle_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                                // InstrumentTiles will continue to work using strategy object properties as fallback
+                                // this.emitStatusUpdate('current_cycle_data', {
+                                //     cycle: this.universalDict.cycles || 0,
+                                //     data: {
+                                //         halfDropInstrument: {
+                                //             symbol: this.halfdrop_instrument?.symbol,
+                                //             price: this.halfdrop_instrument?.lowAtRef,
+                                //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                                //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                                //         },
+                                //         instrumentBought: {
+                                //             symbol: instrument.symbol,
+                                //             price: this.buyPriceOnce || instrument.buyPrice,
+                                //             timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                                //             quantity: 75 // Always show original quantity
+                                //         },
+                                //         rebuyData: {
+                                //             firstBuyPrice: this.buyPriceOnce,
+                                //             secondBuyPrice: this.buyPriceTwice,
+                                //             averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                //             timestamp: rebuyTimestamp,
+                                //             quantity: 75 // Show original quantity for rebuy
+                                //         },
+                                //         sellData: null, // Will be updated when sell happens
+                                //         summary: null // Will be updated when cycle completes
+                                //     },
+                                //     completed: false,
+                                //     timestamp: rebuyTimestamp
+                                // });
                             }
                         }
                         catch (error) {
@@ -1025,37 +1046,38 @@ class FPFSV2 extends BaseStrategy {
                                 //     message: `Target reduced to ${this.globalDict.target} points due to rebuy at ${this.buyPriceTwice}`
                                 // });
 
-                                // Emit rebuy data update with proper timestamp
-                                this.emitStatusUpdate('current_cycle_data', {
-                                    cycle: this.universalDict.cycles || 0,
-                                    data: {
-                                        halfDropInstrument: {
-                                            symbol: this.halfdrop_instrument?.symbol,
-                                            price: this.halfdrop_instrument?.lowAtRef,
-                                            timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                            firstPrice: this.halfdrop_instrument?.firstPrice,
-                                            dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                                ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                        },
-                                        instrumentBought: {
-                                            symbol: instrument.symbol,
-                                            price: this.buyPriceOnce || instrument.buyPrice,
-                                            timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
-                                            quantity: 75 // Always show original quantity
-                                        },
-                                        rebuyData: {
-                                            firstBuyPrice: this.buyPriceOnce,
-                                            secondBuyPrice: this.buyPriceTwice,
-                                            averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
-                                            timestamp: rebuyTimestamp,
-                                            quantity: 75 // Show original quantity for rebuy
-                                        },
-                                        sellData: null, // Will be updated when sell happens
-                                        summary: null // Will be updated when cycle completes
-                                    },
-                                    completed: false,
-                                    timestamp: rebuyTimestamp
-                                });
+                                // Removed: current_cycle_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                                // InstrumentTiles will continue to work using strategy object properties as fallback
+                                // this.emitStatusUpdate('current_cycle_data', {
+                                //     cycle: this.universalDict.cycles || 0,
+                                //     data: {
+                                //         halfDropInstrument: {
+                                //             symbol: this.halfdrop_instrument?.symbol,
+                                //             price: this.halfdrop_instrument?.lowAtRef,
+                                //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                                //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                                //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                                //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                                //         },
+                                //         instrumentBought: {
+                                //             symbol: instrument.symbol,
+                                //             price: this.buyPriceOnce || instrument.buyPrice,
+                                //             timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                                //             quantity: 75 // Always show original quantity
+                                //         },
+                                //         rebuyData: {
+                                //             firstBuyPrice: this.buyPriceOnce,
+                                //             secondBuyPrice: this.buyPriceTwice,
+                                //             averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                                //             timestamp: rebuyTimestamp,
+                                //             quantity: 75 // Show original quantity for rebuy
+                                //         },
+                                //         sellData: null, // Will be updated when sell happens
+                                //         summary: null // Will be updated when cycle completes
+                                //     },
+                                //     completed: false,
+                                //     timestamp: rebuyTimestamp
+                                // });
                             }
                         }
                     }
@@ -1103,36 +1125,38 @@ class FPFSV2 extends BaseStrategy {
                                 message: `Target changed to ${this.globalDict.target} points due to opp buy.`
                             });
 
-                            this.emitStatusUpdate('current_cycle_data', {
-                                cycle: this.universalDict.cycles || 0,
-                                data: {
-                                    halfDropInstrument: {
-                                        symbol: this.halfdrop_instrument?.symbol,
-                                        price: this.halfdrop_instrument?.lowAtRef,
-                                        timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                        firstPrice: this.halfdrop_instrument?.firstPrice,
-                                        dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                            ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                                    },
-                                    instrumentBought: {
-                                        symbol: instrument.symbol,
-                                        price: this.buyPriceOnce || instrument.buyPrice,
-                                        timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
-                                        quantity: 75 // Always show original quantity
-                                    },
-                                    rebuyData: {
-                                        firstBuyPrice: this.buyPriceOnce,
-                                        secondBuyPrice: this.buyPriceTwice,
-                                        averagePrice: this.buyPriceTwice,
-                                        timestamp: rebuyTimestamp,
-                                        quantity: 75 // Show original quantity for rebuy
-                                    },
-                                    sellData: null, // Will be updated when sell happens
-                                    summary: null // Will be updated when cycle completes
-                                },
-                                completed: false,
-                                timestamp: rebuyTimestamp
-                            });
+                            // Removed: current_cycle_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                            // InstrumentTiles will continue to work using strategy object properties as fallback
+                            // this.emitStatusUpdate('current_cycle_data', {
+                            //     cycle: this.universalDict.cycles || 0,
+                            //     data: {
+                            //         halfDropInstrument: {
+                            //             symbol: this.halfdrop_instrument?.symbol,
+                            //             price: this.halfdrop_instrument?.lowAtRef,
+                            //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                            //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                            //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                            //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                            //         },
+                            //         instrumentBought: {
+                            //             symbol: instrument.symbol,
+                            //             price: this.buyPriceOnce || instrument.buyPrice,
+                            //             timestamp: this.buyTimestamp || rebuyTimestamp, // Preserve original buy timestamp
+                            //             quantity: 75 // Always show original quantity
+                            //         },
+                            //         rebuyData: {
+                            //             firstBuyPrice: this.buyPriceOnce,
+                            //             secondBuyPrice: this.buyPriceTwice,
+                            //             averagePrice: this.buyPriceTwice,
+                            //             timestamp: rebuyTimestamp,
+                            //             quantity: 75 // Show original quantity for rebuy
+                            //         },
+                            //         sellData: null, // Will be updated when sell happens
+                            //         summary: null // Will be updated when cycle completes
+                            //     },
+                            //     completed: false,
+                            //     timestamp: rebuyTimestamp
+                            // });
                         }
                     }
                     catch (error) {
@@ -1230,6 +1254,8 @@ class FPFSV2 extends BaseStrategy {
         this.finalStoplossHit = false;
         this.isExpiryDay = false;
         this.finalBought = false;
+        this.targetNet = false;
+        //this.plus7reached = false;
         // Reset additional Full Spectrum properties
         this.halfdrop_bought = false;
         this.buyToken = null;
@@ -1301,13 +1327,6 @@ class FPFSV2 extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument1.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument1.symbol,
-                        price: instrument1.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price
                     try {
                         const orderId1 = await sellResult1.orderId;
@@ -1327,13 +1346,6 @@ class FPFSV2 extends BaseStrategy {
                 if (sellResult2.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument2.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
-                    
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument2.symbol,
-                        price: instrument2.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
                     
                     // Get order history for executed price
                     try {
@@ -1357,21 +1369,13 @@ class FPFSV2 extends BaseStrategy {
                 this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 75, instrument1.token);
                 this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 75, instrument2.token);
                 
-                // Emit trade actions for dashboard (paper trading)
-                this.emitTradeAction('sell', {
-                    symbol: instrument1.symbol,
-                    price: instrument1.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                this.emitTradeAction('sell', {
-                    symbol: instrument2.symbol,
-                    price: instrument2.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                
                 executedPrices.instrument1 = instrument1.last;
                 executedPrices.instrument2 = instrument2.last;
             }
+            
+            // Emit simplified trade events after determining executed prices
+            this.emitSimpleTradeEvent('sell', instrument1.symbol, executedPrices.instrument1 != 0 ? executedPrices.instrument1 : instrument1.last, this.globalDict.quantity || 75);
+            this.emitSimpleTradeEvent('sell', instrument2.symbol, executedPrices.instrument2 != 0 ? executedPrices.instrument2 : instrument2.last, this.globalDict.quantity || 75);
             
             return { success: true, executedPrices };
         } catch (error) {
@@ -1409,13 +1413,6 @@ class FPFSV2 extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('sell', {
-                        symbol: instrument.symbol,
-                        price: instrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price
                     try {
                         const orderId = await sellResult.orderId;
@@ -1437,15 +1434,11 @@ class FPFSV2 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 
-                // Emit trade action for dashboard (paper trading)
-                this.emitTradeAction('sell', {
-                    symbol: instrument.symbol,
-                    price: instrument.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                
                 executedPrice = instrument.last;
             }
+            
+            // Emit simplified trade event after determining executed price
+            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.globalDict.quantity || 75);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -1483,13 +1476,6 @@ class FPFSV2 extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
                     this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                     
-                    // Emit trade action for dashboard
-                    this.emitTradeAction('buy', {
-                        symbol: instrument.symbol,
-                        price: instrument.last,
-                        quantity: this.globalDict.quantity || 75
-                    });
-                    
                     // Get order history for executed price and update buy price
                     try {
                         const orderId = await buyResult.orderId;
@@ -1516,17 +1502,13 @@ class FPFSV2 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
                 this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 75, instrument.token);
                 
-                // Emit trade action for dashboard (paper trading)
-                this.emitTradeAction('buy', {
-                    symbol: instrument.symbol,
-                    price: instrument.last,
-                    quantity: this.globalDict.quantity || 75
-                });
-                
                 // Update buy price for paper trading
                 executedPrice = instrument.last;
                 instrument.buyPrice = instrument.last;
             }
+            
+            // Emit simplified trade event after determining executed price
+            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.globalDict.quantity || 75);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -1596,48 +1578,50 @@ class FPFSV2 extends BaseStrategy {
                     // Store quantities correctly
                     const originalQuantity = 75; // Base quantity
                     const sellQuantity = this.rebuyDone ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
-                    this.emitStatusUpdate('cycle_completion_data', {
-                        cycle: this.universalDict.cycles || 0,
-                        data: {
-                            halfDropInstrument: {
-                                symbol: this.halfdrop_instrument?.symbol,
-                                price: this.halfdrop_instrument?.lowAtRef,
-                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                firstPrice: this.halfdrop_instrument?.firstPrice,
-                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                            },
-                            instrumentBought: {
-                                symbol: instrument.symbol,
-                                price: this.buyPriceOnce || instrument.buyPrice,
-                                timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
-                                quantity: originalQuantity // Always show original quantity
-                            },
-                            rebuyData: this.rebuyDone ? {
-                                firstBuyPrice: this.buyPriceOnce,
-                                secondBuyPrice: this.buyPriceTwice,
-                                averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
-                                timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
-                                quantity: originalQuantity // Show original quantity for rebuy
-                            } : null,
-                            sellData: {
-                                symbol: instrument.symbol,
-                                price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
-                                timestamp: sellTimestamp, // Only sell action uses sell timestamp
-                                quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
-                                pnl: instrument.buyPrice !== -1 ? 
-                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
-                                sellReason: "REBUY_PRICE" // Add sell reason for TradingTable badges
-                            },
-                            summary: {
-                                pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
-                                pnlActual: instrument.buyPrice !== -1 ? 
-                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
-                            }
-                        },
-                        completed: true,
-                        timestamp: sellTimestamp
-                    });
+                    // Removed: cycle_completion_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                    // InstrumentTiles will continue to work using strategy object properties as fallback
+                    // this.emitStatusUpdate('cycle_completion_data', {
+                    //     cycle: this.universalDict.cycles || 0,
+                    //     data: {
+                    //         halfDropInstrument: {
+                    //             symbol: this.halfdrop_instrument?.symbol,
+                    //             price: this.halfdrop_instrument?.lowAtRef,
+                    //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                    //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                    //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                    //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                    //         },
+                    //         instrumentBought: {
+                    //             symbol: instrument.symbol,
+                    //             price: this.buyPriceOnce || instrument.buyPrice,
+                    //             timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                    //             quantity: originalQuantity // Always show original quantity
+                    //         },
+                    //         rebuyData: this.rebuyDone ? {
+                    //             firstBuyPrice: this.buyPriceOnce,
+                    //             secondBuyPrice: this.buyPriceTwice,
+                    //             averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                    //             timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                    //             quantity: originalQuantity // Show original quantity for rebuy
+                    //         } : null,
+                    //         sellData: {
+                    //             symbol: instrument.symbol,
+                    //             price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                    //             timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                    //             quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                    //             pnl: instrument.buyPrice !== -1 ? 
+                    //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
+                    //             sellReason: "REBUY_PRICE" // Add sell reason for TradingTable badges
+                    //         },
+                    //         summary: {
+                    //             pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
+                    //             pnlActual: instrument.buyPrice !== -1 ? 
+                    //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                    //         }
+                    //     },
+                    //     completed: true,
+                    //     timestamp: sellTimestamp
+                    // });
 
                     this.boughtSold = true;
                 }
@@ -1694,48 +1678,50 @@ class FPFSV2 extends BaseStrategy {
                     // Store quantities correctly
                     const originalQuantity = 75; // Base quantity
                     const sellQuantity = this.rebuyDone ? originalQuantity * 2 : originalQuantity; // Doubled if rebuy occurred
-                    this.emitStatusUpdate('cycle_completion_data', {
-                        cycle: this.universalDict.cycles || 0,
-                        data: {
-                            halfDropInstrument: {
-                                symbol: this.halfdrop_instrument?.symbol,
-                                price: this.halfdrop_instrument?.lowAtRef,
-                                timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
-                                firstPrice: this.halfdrop_instrument?.firstPrice,
-                                dropPercentage: this.halfdrop_instrument?.firstPrice ? 
-                                    ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
-                            },
-                            instrumentBought: {
-                                symbol: instrument.symbol,
-                                price: this.buyPriceOnce || instrument.buyPrice,
-                                timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
-                                quantity: originalQuantity // Always show original quantity
-                            },
-                            rebuyData: this.rebuyDone ? {
-                                firstBuyPrice: this.buyPriceOnce,
-                                secondBuyPrice: this.buyPriceTwice,
-                                averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
-                                timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
-                                quantity: originalQuantity // Show original quantity for rebuy
-                            } : null,
-                            sellData: {
-                                symbol: instrument.symbol,
-                                price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
-                                timestamp: sellTimestamp, // Only sell action uses sell timestamp
-                                quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
-                                pnl: instrument.buyPrice !== -1 ? 
-                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
-                                sellReason: "AVG_PRICE" // Add sell reason for TradingTable badges
-                            },
-                            summary: {
-                                pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
-                                pnlActual: instrument.buyPrice !== -1 ? 
-                                    ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
-                            }
-                        },
-                        completed: true,
-                        timestamp: sellTimestamp
-                    });
+                    // Removed: cycle_completion_data emit - TradingTable now only uses simple buy/sell trade events from emitSimpleTradeEvent
+                    // InstrumentTiles will continue to work using strategy object properties as fallback
+                    // this.emitStatusUpdate('cycle_completion_data', {
+                    //     cycle: this.universalDict.cycles || 0,
+                    //     data: {
+                    //         halfDropInstrument: {
+                    //             symbol: this.halfdrop_instrument?.symbol,
+                    //             price: this.halfdrop_instrument?.lowAtRef,
+                    //             timestamp: this.halfdrop_instrument?.peakTime || new Date().toISOString(),
+                    //             firstPrice: this.halfdrop_instrument?.firstPrice,
+                    //             dropPercentage: this.halfdrop_instrument?.firstPrice ? 
+                    //                 ((this.halfdrop_instrument.lowAtRef / this.halfdrop_instrument.firstPrice) * 100).toFixed(2) : 'N/A'
+                    //         },
+                    //         instrumentBought: {
+                    //             symbol: instrument.symbol,
+                    //             price: this.buyPriceOnce || instrument.buyPrice,
+                    //             timestamp: this.buyTimestamp || sellTimestamp, // Preserve original buy timestamp
+                    //             quantity: originalQuantity // Always show original quantity
+                    //         },
+                    //         rebuyData: this.rebuyDone ? {
+                    //             firstBuyPrice: this.buyPriceOnce,
+                    //             secondBuyPrice: this.buyPriceTwice,
+                    //             averagePrice: (this.buyPriceOnce + this.buyPriceTwice) / 2,
+                    //             timestamp: this.rebuyTimestamp || sellTimestamp, // Preserve original rebuy timestamp
+                    //             quantity: originalQuantity // Show original quantity for rebuy
+                    //         } : null,
+                    //         sellData: {
+                    //             symbol: instrument.symbol,
+                    //             price: sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice,
+                    //             timestamp: sellTimestamp, // Only sell action uses sell timestamp
+                    //             quantity: sellQuantity, // Use the stored quantity (doubled if rebuy occurred)
+                    //             pnl: instrument.buyPrice !== -1 ? 
+                    //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0,
+                    //             sellReason: "AVG_PRICE" // Add sell reason for TradingTable badges
+                    //         },
+                    //         summary: {
+                    //             pnlInPoints: instrument.buyPrice !== -1 ? ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) : 0,
+                    //             pnlActual: instrument.buyPrice !== -1 ? 
+                    //                 ((sellResult.executedPrice == 0 ? instrument.last : sellResult.executedPrice) - instrument.buyPrice) * sellQuantity : 0
+                    //         }
+                    //     },
+                    //     completed: true,
+                    //     timestamp: sellTimestamp
+                    // });
 
                     this.boughtSold = true;
                 }
@@ -1744,6 +1730,34 @@ class FPFSV2 extends BaseStrategy {
         }
 
 
+    }
+
+    // Simplified trade event emission
+    emitSimpleTradeEvent(action, symbol, price, quantity) {
+        const tradeEvent = {
+            action, // 'buy' or 'sell'
+            symbol,
+            price,
+            quantity,
+            timestamp: this.formatTime24(new Date()),
+            cycle: this.universalDict.cycles || 0
+        };
+        
+        this.emitToUser('strategy_trade_event', tradeEvent);
+        this.strategyUtils.logStrategyInfo(`Trade event emitted: ${action.toUpperCase()} ${symbol} @ ${price} x ${quantity}`);
+    }
+
+    formatTime24(date) {
+        let hours = date.getHours();     // 0–23
+        let minutes = date.getMinutes(); // 0–59
+        let seconds = date.getSeconds(); // 0–59
+      
+        // add leading zeros if needed
+        hours = hours < 10 ? "0" + hours : hours;
+        minutes = minutes < 10 ? "0" + minutes : minutes;
+        seconds = seconds < 10 ? "0" + seconds : seconds;
+      
+        return `${hours}:${minutes}:${seconds}`;
     }
 
     getConfig() {
@@ -1833,7 +1847,7 @@ class FPFSV2 extends BaseStrategy {
             },
             quantity: {
                 type: 'number',
-                default: 225,
+                default: 75,
                 description: 'Quantity to trade'
             }
         };
@@ -1857,6 +1871,11 @@ class FPFSV2 extends BaseStrategy {
                 description: 'Use prebuy or not'
             }
         };
+    }
+
+    writeToGlobalOutput(data) {
+        let formatted_data = `${data}`;
+        fs.writeFileSync("output/global.txt", formatted_data);
     }
 }
 
