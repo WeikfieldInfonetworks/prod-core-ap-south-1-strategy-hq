@@ -959,7 +959,7 @@ class FPFSV2 extends BaseStrategy {
                                 this.globalDict.target = this.globalDict.target / 2;
                                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
                                 this.globalDict.quantity = this.globalDict.quantity * 2;
-
+                                change = instrument.last - instrument.buyPrice;
                                 //NEEDS CHANGE.
                                 {
                                 
@@ -1064,6 +1064,7 @@ class FPFSV2 extends BaseStrategy {
                                 this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = instrument.buyPrice;
                                 this.rebuyPrice = this.buyPriceTwice;
                                 this.rebuyAveragePrice = (this.buyPriceOnce + this.buyPriceTwice) / 2;
+                                change = instrument.last - instrument.buyPrice;
 
                                 // Modify target, stoploss, and quantity
                                 this.globalDict.target = this.globalDict.target / 2;
