@@ -1239,7 +1239,7 @@ class NewXStrategy extends BaseStrategy {
             },
             enableTrading: {
                 type: 'boolean',
-                default: true,
+                default: false,
                 description: 'Enable/disable actual trading'
             },
             dropThreshold: {

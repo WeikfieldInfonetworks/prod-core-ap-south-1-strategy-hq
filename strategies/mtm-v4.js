@@ -74,6 +74,9 @@ class MTMV4Strategy extends BaseStrategy {
         this.finalStoplossHit = false;
         this.prebuyHit = false;
         this.plus7reached = false;
+        this.firstCycleRebuyHit = false;
+        this.firstCycleStoplossHit = false;
+        this.secondCycleRebuyHit = false;
         
         // Block states
         this.blockInit = true;
@@ -268,6 +271,9 @@ class MTMV4Strategy extends BaseStrategy {
         this.finalStoplossHit = false;
         this.prebuyHit = false;
         this.plus7reached = false;
+        this.firstCycleRebuyHit = false;
+        this.firstCycleStoplossHit = false;
+        this.secondCycleRebuyHit = false;
         // Reset entry stage variables
         this.entry_24_first_stage = false;
         this.entry_24_second_stage = false;
@@ -943,33 +949,113 @@ class MTMV4Strategy extends BaseStrategy {
                     this.emitInstrumentDataUpdate();
                 }
                 else {
-                    this.secondBought = true;
-                    // REBUY LOGIC - Buy the same real instrument again
-                    this.prebuyBuyPriceTwice = instrument_1.last;
-                    let buyResult = null;
-                    try {
-                        buyResult = await this.buyInstrument(instrument_1);
-                        if (buyResult && buyResult.success) {
-                            this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
-                        }
-                        this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-                        this.rebuyDone = true;
-                        this.rebuyPrice = this.prebuyBuyPriceTwice;
-                        this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                    if(!this.firstCycleRebuyHit){
+                        this.secondBought = true;
+                        this.firstCycleRebuyHit = true;
+                        // REBUY LOGIC - Buy the same real instrument again
+                        this.prebuyBuyPriceTwice = instrument_1.last;
+                        let buyResult = null;
+                        try {
+                            buyResult = await this.buyInstrument(instrument_1);
+                            if (buyResult && buyResult.success) {
+                                this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
+                            }
+                            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                            this.rebuyDone = true;
+                            this.rebuyPrice = this.prebuyBuyPriceTwice;
+                            this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
 
-                        // Update the real instrument's buy price to average of both buys
-                        instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-                        this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-                        this.globalDict.target = this.globalDict.target / 2;
-                        this.globalDict.stoploss = this.globalDict.stoploss / 2;
-                        this.globalDict.quantity = this.globalDict.quantity * 2;
-                    }
-                    catch (error) {
-                        this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                            // Update the real instrument's buy price to average of both buys
+                            instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
+                            this.globalDict.target = this.globalDict.target / 2;
+                            this.globalDict.stoploss = this.globalDict.stoploss / 2;
+                            this.globalDict.quantity = this.globalDict.quantity * 2;
+                        }
+                        catch (error) {
+                            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                        }
+                        
+                        this.strategyUtils.logStrategyInfo(`FIRST CYCLE REBUY HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
+                        // Emit instrument data update after second buy
+                        this.emitInstrumentDataUpdate();
                     }
                     
-                    // Emit instrument data update after second buy
-                    this.emitInstrumentDataUpdate();
+                    if (this.firstCycleRebuyHit && !this.firstCycleStoplossHit && instrument_1_original_change <= -10){
+                        this.firstCycleStoplossHit = true;
+                        
+                        // SELL LOGIC - Sell the instrument
+                        let sellResult = null;
+                        try {
+                            sellResult = await this.sellInstrument(instrument_1);
+                            if (sellResult && sellResult.success) {
+                                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+                            }
+                            let diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                            this.globalDict.target = this.globalDict.target + Math.abs(diff)*2;
+                            this.globalDict.stoploss *= 2;
+                            this.globalDict.quantity /= 2;
+                            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
+                        }
+                        catch (error) {
+                            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+                        }
+
+                        // Select opposite instrument
+                        instrument_1 = instrument_1.symbol.includes('CE') 
+                        ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()] 
+                        : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+                        this.prebuyBoughtToken = instrument_1.token;
+
+                        // BUY opposite instrument
+                        instrument_1.buyPrice = instrument_1.last;
+                        let buyResult = null;
+                        try {
+                            buyResult = await this.buyInstrument(instrument_1);
+                            if (buyResult && buyResult.success) {
+                                this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+                            }
+                            this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                            instrument_1.buyPrice = this.prebuyBuyPriceOnce;
+                            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
+                        }
+                        catch (error) {
+                            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                        }
+                        
+                        this.strategyUtils.logStrategyInfo(`FIRST CYCLE STOPLOSS HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
+                        // Emit instrument data update after second buy
+                        this.emitInstrumentDataUpdate();
+                    }
+
+                    if (this.firstCycleStoplossHit && !this.secondCycleRebuyHit && (instrument_1_original_change <= -10 || instrument_1_original_change >= 10)){
+                        this.secondCycleRebuyHit = true;
+
+                        // REBUY LOGIC - Buy the same instrument again
+                        this.prebuyBuyPriceTwice = instrument_1.last;
+                        let buyResult = null;
+                        try {
+                            buyResult = await this.buyInstrument(instrument_1);
+                            if (buyResult && buyResult.success) {
+                                this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
+                            }
+
+                            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                            this.rebuyDone = true;
+                            instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+                            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
+                            this.globalDict.target = this.globalDict.target / 2;
+                            this.globalDict.stoploss = this.globalDict.stoploss / 2;
+                            this.globalDict.quantity = this.globalDict.quantity * 2;
+                        }
+                        catch (error) {
+                            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                        }
+                        
+                        this.strategyUtils.logStrategyInfo(`SECOND CYCLE REBUY HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
+                        // Emit instrument data update after second buy
+                        this.emitInstrumentDataUpdate();
+                    }
                 }
             }
             else if(this.reachedHalfTarget && this.prebuyBuyPriceTwice == 0 && instrument_1_original_change <= -10 && !this.realBuyStoplossHit && !this.boughtSold && !this.finalStoplossHit && !this.plus7reached){
@@ -1037,7 +1123,7 @@ class MTMV4Strategy extends BaseStrategy {
                 // Emit instrument data update after second buy
                 this.emitInstrumentDataUpdate();
             }
-            else if(instrument_1_original_change <= this.globalDict.stoploss && !this.boughtSold && !this.finalStoplossHit && !this.plus7reached){
+            else if(instrument_1_original_change <= this.globalDict.stoploss && !this.boughtSold && !this.finalStoplossHit && !this.plus7reached && !this.secondCycleRebuyHit){
                 this.finalStoplossHit = true;
                 this.strategyUtils.logStrategyInfo(`Stoploss hit for ${instrument_1.symbol}`);
                 this.strategyUtils.logStrategyInfo(`${instrument_1.symbol} sold at stoploss - Last price: ${instrument_1.last}`);
@@ -1113,7 +1199,7 @@ class MTMV4Strategy extends BaseStrategy {
         }
 
         // PREBUY PLUS 7 OBSERVER.
-        if(!this.plus7reached && this.universalDict.usePrebuy){
+        if(!this.plus7reached && this.universalDict.usePrebuy && !this.realBuyStoplossHit){
             this.plus7reached = (instrument_1.last - instrument_1.buyPrice) >= 7;
             if(this.plus7reached){
                 this.strategyUtils.logStrategyInfo(`Plus 7 reached for ${instrument_1.symbol}`);
@@ -1849,6 +1935,9 @@ class MTMV4Strategy extends BaseStrategy {
         this.isExpiryDay = false;
         this.prebuyHit = false;
         this.plus7reached = false;
+        this.firstCycleRebuyHit = false;
+        this.firstCycleStoplossHit = false;
+        this.secondCycleRebuyHit = false;
 
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
