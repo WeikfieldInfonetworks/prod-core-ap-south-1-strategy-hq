@@ -900,7 +900,7 @@ class MTMV4Strategy extends BaseStrategy {
         // PREBUY SELL LOGIC.
         if(this.universalDict.usePrebuy && !this.entry_7){
             console.log(`🔍 Checking real buy stoploss - Current: ${instrument_1_original_change}, Stoploss: ${this.globalDict.realBuyStoploss}, Real buy stoploss hit: ${this.realBuyStoplossHit}, Reached half target: ${this.reachedHalfTarget}`);
-            if((instrument_1_original_change <= this.globalDict.realBuyStoploss) && !this.realBuyStoplossHit && !this.reachedHalfTarget && !this.boughtSold && !this.finalStoplossHit && !this.secondBought && !this.plus7reached){
+            if((instrument_1_original_change <= this.globalDict.realBuyStoploss) && !this.realBuyStoplossHit && !this.reachedHalfTarget && !this.boughtSold && !this.finalStoplossHit && (!this.secondBought || !this.firstCycleRebuyHit || !this.firstCycleStoplossHit || !this.secondCycleRebuyHit) && !this.plus7reached){
                 if(!this.isExpiryDay){
                     // SELL existing instrument
                     this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
@@ -981,7 +981,7 @@ class MTMV4Strategy extends BaseStrategy {
                         this.emitInstrumentDataUpdate();
                     }
                     
-                    if (this.firstCycleRebuyHit && !this.firstCycleStoplossHit && instrument_1_original_change <= -10){
+                    if (this.firstCycleRebuyHit && !this.firstCycleStoplossHit && (instrument_1.last - instrument_1.buyPrice <= -10)){
                         this.firstCycleStoplossHit = true;
                         
                         // SELL LOGIC - Sell the instrument
@@ -1028,7 +1028,7 @@ class MTMV4Strategy extends BaseStrategy {
                         this.emitInstrumentDataUpdate();
                     }
 
-                    if (this.firstCycleStoplossHit && !this.secondCycleRebuyHit && (instrument_1_original_change <= -10 || instrument_1_original_change >= 10)){
+                    if (this.firstCycleStoplossHit && !this.secondCycleRebuyHit && (instrument_1.last - instrument_1.buyPrice <= -10 || instrument_1.last - instrument_1.buyPrice >= 10)){
                         this.secondCycleRebuyHit = true;
 
                         // REBUY LOGIC - Buy the same instrument again

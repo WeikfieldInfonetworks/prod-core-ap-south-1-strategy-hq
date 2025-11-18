@@ -737,7 +737,7 @@ class FPFSV2 extends BaseStrategy {
 
             if(this.instrument_bought) {
                 let instrument = this.universalDict.instrumentMap[this.instrument_bought.token];
-                const change = instrument.last - instrument.buyPrice;
+                let change = instrument.last - instrument.buyPrice;
                 let threshold_change = instrument.last - this.rebuyPrice;
                 
                 console.log(`CHANGE: ${change} TARGET: ${this.globalDict.target}`);
@@ -847,7 +847,7 @@ class FPFSV2 extends BaseStrategy {
                 }
 
                 // PURE STOPLOSS
-                else if(change <= this.globalDict.realBuyStoploss && !this.rebuyDone && !this.reachedHalfTarget && !this.realBuyStoplossHit && !this.finalStoplossHit) {
+                else if(change <= this.globalDict.realBuyStoploss && !this.reachedHalfTarget && (!this.realBuyStoplossHit || !this.firstCycleRebuyHit || !this.firstCycleStoplossHit || !this.secondCycleRebuyHit) && !this.finalStoplossHit) {
                     this.realBuyStoplossHit = true;
                     // this.rebuyDone = true;
                     const rebuyTimestamp = new Date().toISOString();
@@ -1013,7 +1013,7 @@ class FPFSV2 extends BaseStrategy {
                             this.strategyUtils.logStrategyInfo(`FIRST CYCLE REBUY HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
                         }
 
-                        if(this.firstCycleRebuyHit && !this.firstCycleStoplossHit && (change <=-10)){
+                        if(this.firstCycleRebuyHit && !this.firstCycleStoplossHit && (change <= -10)){
                             this.firstCycleStoplossHit = true;
                             // SELL LOGIC - Sell the instrument
                             let sellResult = null;
