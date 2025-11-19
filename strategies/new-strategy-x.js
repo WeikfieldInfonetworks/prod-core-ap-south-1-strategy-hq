@@ -438,8 +438,7 @@ class NewXStrategy extends BaseStrategy {
             let instrument_2_change = this.other_instrument.changeFromBuy;
             let mtm = instrument_1_change + instrument_2_change;
             this.strategyUtils.logStrategyInfo(`HALF DROP OBSERVED with MTM: ${mtm}`);
-            // Reset Global Output
-            this.writeToGlobalOutput("");
+
             
             if (mtm >= 0){
                 this.mtmHit = true;
@@ -483,7 +482,7 @@ class NewXStrategy extends BaseStrategy {
                 this.halfdrop_instrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.halfdrop_instrument.last : first_instrument_result.executedPrice;
                 this.universalDict.instrumentMap[this.halfdrop_instrument.token].buyPrice = this.halfdrop_instrument.buyPrice;
                 this.strategyUtils.logStrategyInfo(`Halfdrop Instrument Buy Price: ${this.universalDict.instrumentMap[this.halfdrop_instrument.token].buyPrice}`);
-                this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
 
             } catch (error) {
                 this.strategyUtils.logStrategyError(`Error buying first instrument: ${error.message}`);
@@ -497,7 +496,7 @@ class NewXStrategy extends BaseStrategy {
                 this.other_instrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.other_instrument.last : second_instrument_result.executedPrice;
                 this.universalDict.instrumentMap[this.other_instrument.token].buyPrice = this.other_instrument.buyPrice;
                 this.strategyUtils.logStrategyInfo(`Other Instrument Buy Price: ${this.universalDict.instrumentMap[this.other_instrument.token].buyPrice}`);
-                this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
             } catch (error) {
                 this.strategyUtils.logStrategyError(`Error buying second instrument: ${error.message}`);
             }
@@ -555,7 +554,7 @@ class NewXStrategy extends BaseStrategy {
                     }
                     this.halfdrop_instrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.halfdrop_instrument.last : first_instrument_result.executedPrice;
                     this.universalDict.instrumentMap[this.halfdrop_instrument.token].buyPrice = this.halfdrop_instrument.buyPrice;
-                    this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                    // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
                 } catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying first instrument: ${error.message}`);
                 }
@@ -567,7 +566,7 @@ class NewXStrategy extends BaseStrategy {
                     }
                     this.other_instrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.other_instrument.last : second_instrument_result.executedPrice;
                     this.universalDict.instrumentMap[this.other_instrument.token].buyPrice = this.other_instrument.buyPrice;
-                    this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                    // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
                 } catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying second instrument: ${error.message}`);
                 }
@@ -622,7 +621,7 @@ class NewXStrategy extends BaseStrategy {
                             this.strategyUtils.logStrategyInfo(`First instrument bought - Executed price: ${first_instrument_result.executedPrice}`);
                             this.halfdrop_instrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.halfdrop_instrument.last : first_instrument_result.executedPrice;
                             this.universalDict.instrumentMap[this.halfdrop_instrument.token].buyPrice = this.halfdrop_instrument.buyPrice;
-                            this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                            // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error buying first instrument: ${error.message}`);
@@ -633,7 +632,7 @@ class NewXStrategy extends BaseStrategy {
                             this.strategyUtils.logStrategyInfo(`Second instrument bought - Executed price: ${second_instrument_result.executedPrice}`);
                             this.other_instrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.other_instrument.last : second_instrument_result.executedPrice;
                             this.universalDict.instrumentMap[this.other_instrument.token].buyPrice = this.other_instrument.buyPrice;
-                            this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
+                            // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error buying second instrument: ${error.message}`);
@@ -652,6 +651,7 @@ class NewXStrategy extends BaseStrategy {
                         const first_instrument_result = await this.sellInstrument(this.halfdrop_instrument);
                         if (first_instrument_result.success) {
                             this.strategyUtils.logStrategyInfo(`First instrument sold - Executed price: ${first_instrument_result.executedPrice}`);
+                            this.strategyUtils.logStrategyInfo(`SELL PRICE: ${first_instrument_result.executedPrice == 0 ? this.halfdrop_instrument.last : first_instrument_result.executedPrice}`);
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling first instrument: ${error.message}`);
@@ -660,6 +660,7 @@ class NewXStrategy extends BaseStrategy {
                         const second_instrument_result = await this.sellInstrument(this.other_instrument);
                         if (second_instrument_result.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold - Executed price: ${second_instrument_result.executedPrice}`);
+                            this.strategyUtils.logStrategyInfo(`SELL PRICE: ${second_instrument_result.executedPrice == 0 ? this.other_instrument.last : second_instrument_result.executedPrice}`);
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling second instrument: ${error.message}`);
@@ -1036,6 +1037,9 @@ class NewXStrategy extends BaseStrategy {
         this.universalDict.ceTokens = [];
         this.universalDict.peTokens = [];
         this.universalDict.observedTicks = [];
+
+        // Reset Global Output
+        this.writeToGlobalOutput("");
         
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
     }

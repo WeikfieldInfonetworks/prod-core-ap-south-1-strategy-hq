@@ -646,6 +646,7 @@ class NewX2Strategy extends BaseStrategy {
                         const first_instrument_result = await this.sellInstrument(this.halfdrop_instrument);
                         if (first_instrument_result.success) {
                             this.strategyUtils.logStrategyInfo(`First instrument sold - Executed price: ${first_instrument_result.executedPrice}`);
+                            this.strategyUtils.logStrategyInfo(`SELL PRICE: ${first_instrument_result.executedPrice == 0 ? this.halfdrop_instrument.last : first_instrument_result.executedPrice}`);
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling first instrument: ${error.message}`);
@@ -654,6 +655,7 @@ class NewX2Strategy extends BaseStrategy {
                         const second_instrument_result = await this.sellInstrument(this.other_instrument);
                         if (second_instrument_result.success) {
                             this.strategyUtils.logStrategyInfo(`Second instrument sold - Executed price: ${second_instrument_result.executedPrice}`);
+                            this.strategyUtils.logStrategyInfo(`SELL PRICE: ${second_instrument_result.executedPrice == 0 ? this.other_instrument.last : second_instrument_result.executedPrice}`);
                         }
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error selling second instrument: ${error.message}`);
@@ -662,7 +664,7 @@ class NewX2Strategy extends BaseStrategy {
             }
         }
 
-        if(this.mtmHit && !this.boughtSold){
+        if(this.mtmHit && !this.boughtSold && false){
             
             try {
                 const first_instrument_result = await this.sellInstrument(this.halfdrop_instrument);
