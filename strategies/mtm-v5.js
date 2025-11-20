@@ -1215,7 +1215,7 @@ class MTMV5Strategy extends BaseStrategy {
                 await this.scenarioSL();
             }
 
-            if(this.secondBought && !this.thirdBought){
+            if(this.secondBought){
                 this.resetFilters();
             }
         }
@@ -1729,7 +1729,7 @@ class MTMV5Strategy extends BaseStrategy {
 
     async scenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        this.thirdBought = this.secondBought;
+        // this.thirdBought = this.secondBought;
         this.secondBought = true;
         this.scenario1Adone = true;
 
@@ -1787,7 +1787,7 @@ class MTMV5Strategy extends BaseStrategy {
     async scenario1B(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenario1Bdone = true;
-        this.thirdBought = this.secondBought;
+        // this.thirdBought = this.secondBought;
         this.secondBought = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1B in action.`)
 
@@ -1879,80 +1879,60 @@ class MTMV5Strategy extends BaseStrategy {
         this.scenario1CAdone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1CA in action.`)
 
-        if(!this.secondBought){
-            this.thirdBought = this.secondBought;
-            this.secondBought = true;
-            //SELL
-            this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-            // this.realBuyStoplossHit = true;
-            let sellResult = null;
-            let diff = 0;
-            try {
-                sellResult = await this.sellInstrument(instrument_1);
-                if (sellResult && sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-                    diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                    this.globalDict.target = this.globalDict.target + Math.abs(diff);
-                }
-                this.globalDict.target = this.globalDict.target * 2;
-                this.globalDict.stoploss = this.globalDict.stoploss * 2;
-                this.globalDict.quantity = this.globalDict.quantity / 2;
-
+        
+        // this.thirdBought = this.secondBought;
+        this.secondBought = true;
+        //SELL
+        this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
+        let diff = 0;
+        try {
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+                diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                this.globalDict.target = this.globalDict.target + Math.abs(diff);
             }
-            catch (error) {
-                this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            }
-
-            // Select opposite instrument
-            instrument_1 = instrument_1.symbol.includes('CE')
-            ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-            : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-
-            this.prebuyBoughtToken = instrument_1.token;
-
-            // BUY opposite instrument
-            instrument_1.buyPrice = instrument_1.last;
-            let buyResult = null;
-            try {
-                buyResult = await this.buyInstrument(instrument_1);
-                if (buyResult && buyResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-                }
-                this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-                this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-                instrument_1.buyPrice = this.prebuyBuyPriceTwice;
-                this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceTwice;
-                this.rebuyDone = true;
-                this.rebuyPrice = this.prebuyBuyPriceTwice;
-                this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
-            }
-            catch (error) {
-                this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            }
-
-            // Emit instrument data update after second buy
-            this.emitInstrumentDataUpdate();
+            this.globalDict.target = this.globalDict.target * 2;
+            this.globalDict.stoploss = this.globalDict.stoploss * 2;
+            this.globalDict.quantity = this.globalDict.quantity / 2;
 
         }
-        else {
-            this.boughtSold = true;
-            //SELL
-            this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-            // this.realBuyStoplossHit = true;
-            let sellResult = null;
-            let diff = 0;
-            try {
-                sellResult = await this.sellInstrument(instrument_1);
-                if (sellResult && sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-                    // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                    // this.globalDict.target = this.globalDict.target + Math.abs(diff);
-                }
-            }
-            catch (error) {
-                this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
+
+        // Select opposite instrument
+        instrument_1 = instrument_1.symbol.includes('CE')
+        ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+        : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+
+        this.prebuyBoughtToken = instrument_1.token;
+
+        // BUY opposite instrument
+        instrument_1.buyPrice = instrument_1.last;
+        let buyResult = null;
+        try {
+            buyResult = await this.buyInstrument(instrument_1);
+            if (buyResult && buyResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+            }
+            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+            this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+            instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyDone = true;
+            this.rebuyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+        }
+
+        // Emit instrument data update after second buy
+        this.emitInstrumentDataUpdate();
+
     }
 
     async scenarioSL(){
@@ -2009,6 +1989,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.reachedHalfTarget = false;
+        this.secondBought = false;
     }
 
     shouldTransitionToFinalRef() {
