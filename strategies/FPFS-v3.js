@@ -1341,7 +1341,7 @@ class FPFSV3 extends BaseStrategy {
     async scenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
         // this.thirdBought = this.secondBought;
-        this.secondBought = true;
+        this.boughtSold = true;
         this.scenario1Adone = true;
 
         this.strategyUtils.logStrategyInfo(`Scenario 1A in action.`)
@@ -1364,31 +1364,31 @@ class FPFSV3 extends BaseStrategy {
         }
 
         // Select opposite instrument
-        instrument_1 = instrument_1.symbol.includes('CE')
-        ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-        : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+        // instrument_1 = instrument_1.symbol.includes('CE')
+        // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+        // : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
 
-        this.instrument_bought = instrument_1;
+        // this.instrument_bought = instrument_1;
 
-        // BUY opposite instrument
-        instrument_1.buyPrice = instrument_1.last;
-        let buyResult = null;
-        try {
-            buyResult = await this.buyInstrument(instrument_1);
-            if (buyResult && buyResult.success) {
-                this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-            }
-            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-            instrument_1.buyPrice = this.prebuyBuyPriceTwice;
-            this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = this.prebuyBuyPriceTwice;
-            this.rebuyDone = true;
-            this.rebuyPrice = this.prebuyBuyPriceTwice;
-            this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
-        }
-        catch (error) {
-            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-        }
+        // // BUY opposite instrument
+        // instrument_1.buyPrice = instrument_1.last;
+        // let buyResult = null;
+        // try {
+        //     buyResult = await this.buyInstrument(instrument_1);
+        //     if (buyResult && buyResult.success) {
+        //         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+        //     }
+        //     this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+        //     this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+        //     instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+        //     this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = this.prebuyBuyPriceTwice;
+        //     this.rebuyDone = true;
+        //     this.rebuyPrice = this.prebuyBuyPriceTwice;
+        //     this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+        // }
+        // catch (error) {
+        //     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+        // }
 
         // Emit instrument data update after second buy
         this.emitInstrumentDataUpdate();
@@ -2267,6 +2267,10 @@ class FPFSV3 extends BaseStrategy {
     writeToGlobalOutput(data) {
         let formatted_data = `${data}`;
         fs.writeFileSync("output/global.txt", formatted_data);
+    }
+
+    emitInstrumentDataUpdate(){
+        return null;
     }
 }
 
