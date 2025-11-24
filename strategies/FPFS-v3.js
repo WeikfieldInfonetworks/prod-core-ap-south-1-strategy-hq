@@ -1385,6 +1385,7 @@ class FPFSV3 extends BaseStrategy {
         //     this.rebuyDone = true;
         //     this.rebuyPrice = this.prebuyBuyPriceTwice;
         //     this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+        //     this.buyPriceOnce = this.prebuyBuyPriceTwice;
         // }
         // catch (error) {
         //     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
@@ -1441,6 +1442,7 @@ class FPFSV3 extends BaseStrategy {
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
             this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.buyPriceOnce = this.prebuyBuyPriceTwice;
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
@@ -1538,6 +1540,7 @@ class FPFSV3 extends BaseStrategy {
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
             this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.buyPriceOnce = this.prebuyBuyPriceTwice;
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);

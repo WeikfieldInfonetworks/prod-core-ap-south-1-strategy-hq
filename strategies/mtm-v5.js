@@ -1774,6 +1774,7 @@ class MTMV5Strategy extends BaseStrategy {
         //     this.rebuyDone = true;
         //     this.rebuyPrice = this.prebuyBuyPriceTwice;
         //     this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+        //     this.prebuyBuyPriceOnce = this.prebuyBuyPriceTwice;
         // }
         // catch (error) {
         //     this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
@@ -1830,6 +1831,7 @@ class MTMV5Strategy extends BaseStrategy {
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
             this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.prebuyBuyPriceOnce = this.prebuyBuyPriceTwice;
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
@@ -1927,6 +1929,7 @@ class MTMV5Strategy extends BaseStrategy {
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
             this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.prebuyBuyPriceOnce = this.prebuyBuyPriceTwice;
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
