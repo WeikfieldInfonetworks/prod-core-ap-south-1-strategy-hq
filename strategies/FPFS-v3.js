@@ -784,7 +784,7 @@ class FPFSV3 extends BaseStrategy {
                 }
 
                 // TARGET
-                if((change >= this.globalDict.target && !this.boughtSold) || (this.targetNet && !this.boughtSold && change <= this.globalDict.target - 1)) {
+                if((this.targetNet && (change >= this.globalDict.target) && !this.boughtSold) || (this.targetNet && !this.boughtSold && change <= this.globalDict.target - 1)) {
                     this.boughtSold = true;
 
                     // SELLING LOGIC - Sell the instrument

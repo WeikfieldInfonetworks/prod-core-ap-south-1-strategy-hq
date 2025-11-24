@@ -1327,7 +1327,7 @@ class MTMV5Strategy extends BaseStrategy {
 
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = mtm >= this.globalDict.target || (this.targetNet && mtm <= this.globalDict.target - 1);
+        const hit_7 = (this.targetNet && mtm >= this.globalDict.target) || (this.targetNet && mtm <= this.globalDict.target - 1);
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1866,6 +1866,7 @@ class MTMV5Strategy extends BaseStrategy {
             // Update the real instrument's buy price to average of both buys
             instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
             this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+            this.strategyUtils.logStrategyInfo(`New Target is ${instrument_1.buyPrice}.`)
             this.globalDict.target = this.globalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.globalDict.quantity = this.globalDict.quantity * 2;
