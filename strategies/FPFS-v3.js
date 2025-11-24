@@ -1356,7 +1356,7 @@ class FPFSV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
             }
         }
         catch (error) {
