@@ -1586,7 +1586,7 @@ class FPFSV3 extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
-        return (instrument_1.last - instrument_1.buyPrice >= 8) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
+        return (instrument_1.last - instrument_1.buyPrice >= this.globalDict.rebuyAt) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
     shouldPlayScenario1CA(){
@@ -2213,6 +2213,11 @@ class FPFSV3 extends BaseStrategy {
                 type: 'number',
                 default: -10,
                 description: 'Stoploss to activate second buy.'
+            },
+            rebuyAt: {
+                type: 'number',
+                default: 8,
+                description: 'Rebuy Threshold.'
             },
             prebuySignificantThreshold: {
                 type: 'number',

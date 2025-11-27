@@ -1976,7 +1976,7 @@ class MTMV5Strategy extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice >= 8) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
+        return (instrument_1.last - instrument_1.buyPrice >= this.globalDict.rebuyAt) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
     shouldPlayScenario1CA(){
@@ -2431,6 +2431,11 @@ class MTMV5Strategy extends BaseStrategy {
                 type: 'number',
                 default: -10,
                 description: 'Stoploss for real buy'
+            },
+            rebuyAt: {
+                type: 'number',
+                default: 6,
+                description: 'Rebuy Threshold.'
             },
             prebuySignificantThreshold: {
                 type: 'number',
