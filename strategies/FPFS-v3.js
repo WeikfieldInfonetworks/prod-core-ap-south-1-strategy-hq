@@ -2191,7 +2191,7 @@ class FPFSV3 extends BaseStrategy {
             },
             stoploss: {
                 type: 'number',
-                default: -30,
+                default: -50,
                 description: 'Stop loss in points'
             },
             enableTrading: {
