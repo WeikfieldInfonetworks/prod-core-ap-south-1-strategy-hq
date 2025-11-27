@@ -549,7 +549,7 @@ class FPFSV3 extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
 
                     
-                    this.writeToGlobalOutput("HALF DROP")
+                    // this.writeToGlobalOutput("HALF DROP")
                     
                     // Emit half drop detection notification
                     this.emitStatusUpdate('Half drop detected - 50% price drop reached', {

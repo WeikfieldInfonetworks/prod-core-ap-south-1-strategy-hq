@@ -432,7 +432,7 @@ class NewXStrategy extends BaseStrategy {
 
         // GLOBAL OUTPUT OBSERVER
         const globalOutput = this.readFromGlobalOutput();
-        if(!this.mtmHit && this.halfdrop_bought && globalOutput.includes("HALF DROP") && !this.mtmCheck && this.halfdrop_instrument && this.other_instrument){
+        if(!this.mtmHit && this.halfdrop_bought && globalOutput.includes("HALF DROP") && !this.mtmCheck && this.halfdrop_instrument && this.other_instrument && false){
             this.mtmCheck = true;
             let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
             let instrument_2_change = this.other_instrument.changeFromBuy;
