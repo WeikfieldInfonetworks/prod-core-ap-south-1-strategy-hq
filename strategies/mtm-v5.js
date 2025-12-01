@@ -758,7 +758,7 @@ class MTMV5Strategy extends BaseStrategy {
             let pe_change = pe_instrument.last - pe_instrument.buyPrice;
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
-            if (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss && !this.prebuyHit){
+            if ((ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss) && !this.prebuyHit){
                 this.prebuyHit = true;
                 // let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
                 // let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
