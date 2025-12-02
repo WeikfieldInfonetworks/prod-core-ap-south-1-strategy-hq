@@ -1752,6 +1752,11 @@ class MTMV5Strategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
+        this.globalDict.target = this.savedState['target'];
+        this.globalDict.stoploss = this.savedState['stoploss'];
+        this.globalDict.quantity = this.savedState['quantity'];
+        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+
         // // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
         // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
