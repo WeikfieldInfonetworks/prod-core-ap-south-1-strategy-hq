@@ -1353,7 +1353,7 @@ class MTMV5Strategy extends BaseStrategy {
                 }
             }
             else {
-                this.targetHitByTypeArray.push(instrument_1.symbol.includes('CE') ? 'CE' : 'PE');
+                // this.targetHitByTypeArray.push(instrument_1.symbol.includes('CE') ? 'CE' : 'PE');
                 try {
                     sellResult = await this.sellInstrument(instrument_1);
                     if (sellResult && sellResult.success) {
@@ -1373,7 +1373,7 @@ class MTMV5Strategy extends BaseStrategy {
 
                 // PREBUY REPETITION OBSERVER.
 
-                if(this.targetHitByTypeArray.length > 1){
+                if(this.targetHitByTypeArray.length > 1 && false){
                     let repeated = this.targetHitByTypeArray.at(-1) == this.targetHitByTypeArray.at(-2) ? true : false;
                     if(repeated){
                         this.repetition.observed = true;
