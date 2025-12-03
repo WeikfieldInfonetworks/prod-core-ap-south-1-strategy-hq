@@ -24,6 +24,52 @@ const TickProcessor = require('./utils/tickProcessor');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+const tickQueue = [];
+let isProcessingTicks = false;
+
+const processTickQueue = async () => {
+    if (isProcessingTicks) return;
+    isProcessingTicks = true;
+    while (tickQueue.length > 0) {
+        const tick = tickQueue.shift();
+        await processTick(tick);
+    }
+    isProcessingTicks = false;
+};
+
+const processTick = async (tickData) => {
+    try {
+        // Process ticks for all active users using the tick processor
+        const activeUsers = userStrategyManager.getActiveUsers();
+        
+        if (activeUsers.length === 0) {
+            console.log('No active users to process ticks for');
+            return;
+        }
+        
+        // Use the tick processor for controlled asynchronous processing
+        await tickProcessor.processMultipleUsers(
+            activeUsers,
+            tickData,
+            userStrategyManager.processTicksForUser.bind(userStrategyManager),
+            (room, event, data) => {
+                try {
+                    // Emit on the /live namespace to match frontend connection
+                    const ioTarget = ioServer.of('/live');
+                    ioTarget.to(room).emit(event, data);
+                } catch (emitError) {
+                    console.error(`Error emitting to room ${room}:`, emitError);
+                    throw emitError; // Re-throw to be caught by tick processor
+                }
+            }
+        ).catch(error => {
+            console.error('Error in batch tick processing:', error);
+        });
+        
+    } catch (error) {
+        console.error("Error in tick processing loop:", error);
+    }
+};
 
 // Define CORS origins for both Express and Socket.IO
 const corsOrigins = process.env.CORS_ORIGINS 
@@ -117,37 +163,8 @@ centralSocket.on("connect_error", (error) => {
 
 // Handle incoming ticks from central server
 centralSocket.on("ticks", (tickData) => { // User manually changed from "tick" to "ticks"
-    try {
-        // Process ticks for all active users using the tick processor
-        const activeUsers = userStrategyManager.getActiveUsers();
-        
-        if (activeUsers.length === 0) {
-            console.log('No active users to process ticks for');
-            return;
-        }
-        
-        // Use the tick processor for controlled asynchronous processing
-        tickProcessor.processMultipleUsers(
-            activeUsers,
-            tickData,
-            userStrategyManager.processTicksForUser.bind(userStrategyManager),
-            (room, event, data) => {
-                try {
-                    // Emit on the /live namespace to match frontend connection
-                    const ioTarget = ioServer.of('/live');
-                    ioTarget.to(room).emit(event, data);
-                } catch (emitError) {
-                    console.error(`Error emitting to room ${room}:`, emitError);
-                    throw emitError; // Re-throw to be caught by tick processor
-                }
-            }
-        ).catch(error => {
-            console.error('Error in batch tick processing:', error);
-        });
-        
-    } catch (error) {
-        console.error("Error in tick processing loop:", error);
-    }
+    tickQueue.push(tickData);
+    processTickQueue();
 });
 
 // Routes
