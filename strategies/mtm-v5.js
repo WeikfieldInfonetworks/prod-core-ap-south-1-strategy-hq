@@ -906,294 +906,89 @@ class MTMV5Strategy extends BaseStrategy {
                 this.prebuyLowTrackingPrice = instrument_1.last;
             }
         }
+        
+        // PREBUY HALF TARGET OBSERVER.
+        if(!this.reachedHalfTarget && this.universalDict.usePrebuy){
+            this.reachedHalfTarget = (instrument_1.last - instrument_1.buyPrice) >= this.globalDict.target / 2;
+        }
 
+        // PREBUY TARGET NET OBSERVER.
+        if(!this.targetNet && this.universalDict.usePrebuy){
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) > (this.globalDict.target - 1); // Casting net if price within 1 point of target
+            if(this.targetNet){
+                this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
+            }
+        }
+        
+        
+        // TARGET OBSERVER.
+        // ================================
+        const hit_7 = (this.targetNet && mtm >= this.globalDict.target) || (this.targetNet && mtm <= this.globalDict.target - 1);
+        const reached_stoploss = mtm <= this.globalDict.stoploss && false;
+        if(!this.entry_7){
+            this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
+        }
 
+        if(this.entry_7){
+            this.boughtSold = true;
+            // if (this.universalDict.cycles == 0){
+            //     this.writeToGlobalOutput("MTM HIT");
+            // }
+            let sellResult = null;
+            // SELL LOGIC - Sell both instruments at target or stoploss
+            if(!this.universalDict.usePrebuy){
+                try {
+                    sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
+                    if (sellResult && sellResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
+                    } else {
+                        this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
+                    }
+                } catch (error) {
+                    this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
+                }
+            }
+            else {
+                // this.targetHitByTypeArray.push(instrument_1.symbol.includes('CE') ? 'CE' : 'PE');
+                try {
+                    sellResult = await this.sellInstrument(instrument_1);
+                    if (sellResult && sellResult.success) {
+                        this.strategyUtils.logStrategyInfo(`First instrument sold at target/stoploss - Executed price: ${sellResult.executedPrice}`);
+                    } else {
+                        this.strategyUtils.logStrategyError('Failed to sell first instrument at target/stoploss');
+                    }
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
+                }
 
+                this.globalDict.target = this.savedState['target'];
+                this.globalDict.stoploss = this.savedState['stoploss'];
+                this.globalDict.quantity = this.savedState['quantity'];
+                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+
+                // PREBUY REPETITION OBSERVER.
+
+                if(this.targetHitByTypeArray.length > 1 && false){
+                    let repeated = this.targetHitByTypeArray.at(-1) == this.targetHitByTypeArray.at(-2) ? true : false;
+                    if(repeated){
+                        this.repetition.observed = true;
+                        this.repetition.type = this.targetHitByTypeArray.at(-1);
+                        this.strategyUtils.logStrategyInfo(`Repetition observed: ${this.repetition.type}`);
+                    }
+                    else {
+                        this.repetition.observed = false;
+                        this.repetition.type = null;
+                        this.strategyUtils.logStrategyInfo(`Repetition not observed: ${this.repetition.type}`);
+                    }
+                }
+                
+            }
+        }
+        
         // PREBUY SELL LOGIC.
         if(this.universalDict.usePrebuy && !this.entry_7){
             console.log(`🔍 Checking real buy stoploss - Current: ${instrument_1_original_change}, Stoploss: ${this.globalDict.realBuyStoploss}, Real buy stoploss hit: ${this.realBuyStoplossHit}, Reached half target: ${this.reachedHalfTarget}`);
-            // if((instrument_1_original_change <= this.globalDict.realBuyStoploss) && !this.realBuyStoplossHit && !this.reachedHalfTarget && !this.boughtSold && !this.finalStoplossHit && (!this.secondBought || !this.firstCycleRebuyHit || !this.firstCycleStoplossHit || !this.secondCycleRebuyHit) && !this.plus7reached){
-            //     if(!this.isExpiryDay){
-            //         // SELL existing instrument
-            //         this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-            //         this.realBuyStoplossHit = true;
-            //         let sellResult = null;
-            //         let diff = 0;
-            //         try {
-            //             sellResult = await this.sellInstrument(instrument_1);
-            //             if (sellResult && sellResult.success) {
-            //                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-            //                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-            //                 this.globalDict.target = this.globalDict.target + Math.abs(diff);
-            //             }
-            //         }
-            //         catch (error) {
-            //             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            //         }
-
-            //         // Select opposite instrument
-            //         instrument_1 = instrument_1.symbol.includes('CE')
-            //         ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-            //         : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-
-            //         this.prebuyBoughtToken = instrument_1.token;
-
-            //         // BUY opposite instrument
-            //         instrument_1.buyPrice = instrument_1.last;
-            //         let buyResult = null;
-            //         try {
-            //             buyResult = await this.buyInstrument(instrument_1);
-            //             if (buyResult && buyResult.success) {
-            //                 this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-            //             }
-            //             this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //             this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-            //             instrument_1.buyPrice = this.prebuyBuyPriceTwice;
-            //             this.rebuyDone = true;
-            //             this.rebuyPrice = this.prebuyBuyPriceTwice;
-            //             this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
-            //         }
-            //         catch (error) {
-            //             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //         }
-
-            //         // Emit instrument data update after second buy
-            //         this.emitInstrumentDataUpdate();
-            //     }
-            //     else {
-            //         if(!this.firstCycleRebuyHit){
-            //             this.secondBought = true;
-            //             this.firstCycleRebuyHit = true;
-            //             // REBUY LOGIC - Buy the same real instrument again
-            //             this.prebuyBuyPriceTwice = instrument_1.last;
-            //             let buyResult = null;
-            //             try {
-            //                 buyResult = await this.buyInstrument(instrument_1);
-            //                 if (buyResult && buyResult.success) {
-            //                     this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
-            //                 }
-            //                 this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //                 this.rebuyDone = true;
-            //                 this.rebuyPrice = this.prebuyBuyPriceTwice;
-            //                 this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-
-            //                 // Update the real instrument's buy price to average of both buys
-            //                 instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //                 this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //                 this.globalDict.target = this.globalDict.target / 2;
-            //                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
-            //                 this.globalDict.quantity = this.globalDict.quantity * 2;
-            //             }
-            //             catch (error) {
-            //                 this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //             }
-                        
-            //             this.strategyUtils.logStrategyInfo(`FIRST CYCLE REBUY HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
-            //             // Emit instrument data update after second buy
-            //             this.emitInstrumentDataUpdate();
-            //         }
-                    
-            //         if (this.firstCycleRebuyHit && !this.firstCycleStoplossHit && (instrument_1.last - instrument_1.buyPrice <= -10)){
-            //             this.firstCycleStoplossHit = true;
-                        
-            //             // SELL LOGIC - Sell the instrument
-            //             let sellResult = null;
-            //             try {
-            //                 sellResult = await this.sellInstrument(instrument_1);
-            //                 if (sellResult && sellResult.success) {
-            //                     this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-            //                 }
-            //                 let diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-            //                 this.globalDict.target = this.globalDict.target + Math.abs(diff)*2;
-            //                 this.globalDict.stoploss *= 2;
-            //                 this.globalDict.quantity /= 2;
-            //                 this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
-            //             }
-            //             catch (error) {
-            //                 this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            //             }
-
-            //             // Select opposite instrument
-            //             instrument_1 = instrument_1.symbol.includes('CE') 
-            //             ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()] 
-            //             : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-            //             this.prebuyBoughtToken = instrument_1.token;
-
-            //             // BUY opposite instrument
-            //             instrument_1.buyPrice = instrument_1.last;
-            //             let buyResult = null;
-            //             try {
-            //                 buyResult = await this.buyInstrument(instrument_1);
-            //                 if (buyResult && buyResult.success) {
-            //                     this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-            //                 }
-            //                 this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //                 instrument_1.buyPrice = this.prebuyBuyPriceOnce;
-            //                 this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //             }
-            //             catch (error) {
-            //                 this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //             }
-                        
-            //             this.strategyUtils.logStrategyInfo(`FIRST CYCLE STOPLOSS HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
-            //             // Emit instrument data update after second buy
-            //             this.emitInstrumentDataUpdate();
-            //         }
-
-            //         if (this.firstCycleStoplossHit && !this.secondCycleRebuyHit && (instrument_1.last - instrument_1.buyPrice <= -10 || instrument_1.last - instrument_1.buyPrice >= 10)){
-            //             this.secondCycleRebuyHit = true;
-
-            //             // REBUY LOGIC - Buy the same instrument again
-            //             this.prebuyBuyPriceTwice = instrument_1.last;
-            //             let buyResult = null;
-            //             try {
-            //                 buyResult = await this.buyInstrument(instrument_1);
-            //                 if (buyResult && buyResult.success) {
-            //                     this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
-            //                 }
-
-            //                 this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //                 this.rebuyDone = true;
-            //                 instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //                 this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //                 this.globalDict.target = this.globalDict.target / 2;
-            //                 this.globalDict.stoploss = this.globalDict.stoploss / 2;
-            //                 this.globalDict.quantity = this.globalDict.quantity * 2;
-            //             }
-            //             catch (error) {
-            //                 this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //             }
-                        
-            //             this.strategyUtils.logStrategyInfo(`SECOND CYCLE REBUY HIT: Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}`);
-            //             // Emit instrument data update after second buy
-            //             this.emitInstrumentDataUpdate();
-            //         }
-            //     }
-            // }
-            // else if(this.reachedHalfTarget && this.prebuyBuyPriceTwice == 0 && instrument_1_original_change <= -10 && !this.realBuyStoplossHit && !this.boughtSold && !this.finalStoplossHit && !this.plus7reached){
-            //     this.prebuyBuyPriceTwice = instrument_1.last;
-            //     let buyResult = null;
-            //     try {
-            //         buyResult = await this.buyInstrument(instrument_1);
-            //         if (buyResult && buyResult.success) {
-            //             this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
-            //         }
-            //         this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //         this.rebuyDone = true;
-            //         this.rebuyPrice = this.prebuyBuyPriceTwice;
-            //         this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //     }
-            //     catch (error) {
-            //         this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //     }
-
-            //     // Update the real instrument's buy price to average of both buys
-            //     this.strategyUtils.logStrategyInfo(`PREBUY BUY PRICE TWICE: ${this.prebuyBuyPriceTwice}`);
-            //     instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //     this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //     this.strategyUtils.logStrategyInfo(`BUY PRICE: ${instrument_1.buyPrice}`);
-
-            //     this.globalDict.target = this.globalDict.target / 2;
-            //     this.globalDict.stoploss = this.globalDict.stoploss / 2;
-            //     this.globalDict.quantity = this.globalDict.quantity * 2;
-
-            //     // Emit instrument data update after second buy
-            //     this.emitInstrumentDataUpdate();
-            // }
-            // else if (this.realBuyStoplossHit && this.rebuyDone && !this.reachedHalfTarget && instrument_1_original_change <= this.globalDict.realBuyStoploss && !this.boughtSold && !this.secondBought && !this.finalStoplossHit && !this.plus7reached){
-            //     this.secondBought = true;
-
-            //     this.prebuyBoughtToken = instrument_1.token;
-
-            //     // BUY same instrument
-            //     this.prebuyBuyPriceOnce = instrument_1.buyPrice;
-            //     instrument_1.buyPrice = instrument_1.last;
-            //     let buyResult = null;
-            //     try {
-            //         buyResult = await this.buyInstrument(instrument_1);
-            //         if (buyResult && buyResult.success) {
-            //             this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-            //         }
-
-            //         this.globalDict.target /= 2;
-            //         this.globalDict.stoploss /= 2;
-            //         this.globalDict.quantity *= 2;
-
-            //         this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //         this.strategyUtils.logStrategyInfo(`PREBUY BUY PRICE TWICE: ${this.prebuyBuyPriceTwice}`);
-            //         instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //         this.strategyUtils.logStrategyInfo(`BUY PRICE: ${instrument_1.buyPrice}`);
-            //         this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
-            //         this.rebuyPrice = this.prebuyBuyPriceTwice;
-            //         this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            //     }
-            //     catch (error) {
-            //         this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //     }
-
-            //     // Emit instrument data update after second buy
-            //     this.emitInstrumentDataUpdate();
-            // }
-            // else if(instrument_1_original_change <= this.globalDict.stoploss && !this.boughtSold && !this.finalStoplossHit && !this.plus7reached && !this.secondCycleRebuyHit){
-            //     this.finalStoplossHit = true;
-            //     this.strategyUtils.logStrategyInfo(`Stoploss hit for ${instrument_1.symbol}`);
-            //     this.strategyUtils.logStrategyInfo(`${instrument_1.symbol} sold at stoploss - Last price: ${instrument_1.last}`);
-            //     let sellResult = null;
-            //     try {
-            //         sellResult = await this.sellInstrument(instrument_1);
-            //         if (sellResult && sellResult.success) {
-            //             this.strategyUtils.logStrategyInfo(`Real instrument sold at stoploss - Executed price: ${sellResult.executedPrice}`);
-            //             let diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-            //             this.globalDict.target = this.globalDict.target + Math.abs(diff);
-            //         }
-            //     }
-            //     catch (error) {
-            //         this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            //     }
-
-            //     // Select opposite instrument
-            //     instrument_1 = instrument_1.symbol.includes('CE')
-            //     ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
-            //     : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-
-            //     this.prebuyBoughtToken = instrument_1.token;
-
-            //     // BUY opposite instrument
-            //     instrument_1.buyPrice = instrument_1.last;
-            //     let buyResult = null;
-            //     try {
-            //         buyResult = await this.buyInstrument(instrument_1);
-            //         if (buyResult && buyResult.success) {
-            //             this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
-            //             instrument_1.buyPrice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            //             this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = instrument_1.buyPrice;
-            //         }
-            //     }
-            //     catch (error) {
-            //         this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
-            //     }
-
-            //     // Emit instrument data update after second buy
-            //     this.emitInstrumentDataUpdate();
-            // }
-            // else if(this.plus7reached && !this.boughtSold && instrument_1_original_change <= 0 && !this.realBuyStoplossHit && !this.finalStoplossHit && !this.secondBought){
-            //     this.boughtSold = true;
-            //     this.strategyUtils.logStrategyInfo(`Plus 7 reached and sold at cost for ${instrument_1.symbol}`);
-            //     let sellResult = null;
-            //     try {
-            //         sellResult = await this.sellInstrument(instrument_1);
-            //         if (sellResult && sellResult.success) {
-            //             this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-            //         }
-            //     }
-            //     catch (error) {
-            //         this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
-            //     }
-
-            //     // Emit instrument data update after second buy
-            //     this.emitInstrumentDataUpdate();
-            // }
 
             if(this.shouldPlayScenario1A()){
                 await this.scenario1A();
@@ -1224,18 +1019,6 @@ class MTMV5Strategy extends BaseStrategy {
 
 
 
-        // PREBUY HALF TARGET OBSERVER.
-        if(!this.reachedHalfTarget && this.universalDict.usePrebuy){
-            this.reachedHalfTarget = (instrument_1.last - instrument_1.buyPrice) >= this.globalDict.target / 2;
-        }
-
-        // PREBUY TARGET NET OBSERVER.
-        if(!this.targetNet && this.universalDict.usePrebuy){
-            this.targetNet = (instrument_1.last - instrument_1.buyPrice) > (this.globalDict.target - 1); // Casting net if price within 1 point of target
-            if(this.targetNet){
-                this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
-            }
-        }
 
         // PREBUY PLUS 7 OBSERVER. (Not used)
         // if(!this.plus7reached && this.universalDict.usePrebuy && !this.realBuyStoplossHit){
@@ -1325,70 +1108,6 @@ class MTMV5Strategy extends BaseStrategy {
 
 
 
-        // TARGET OBSERVER.
-        // ================================
-        const hit_7 = (this.targetNet && mtm >= this.globalDict.target) || (this.targetNet && mtm <= this.globalDict.target - 1);
-        const reached_stoploss = mtm <= this.globalDict.stoploss && false;
-        if(!this.entry_7){
-            this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
-        }
-
-        if(this.entry_7){
-            this.boughtSold = true;
-            // if (this.universalDict.cycles == 0){
-            //     this.writeToGlobalOutput("MTM HIT");
-            // }
-            let sellResult = null;
-            // SELL LOGIC - Sell both instruments at target or stoploss
-            if(!this.universalDict.usePrebuy){
-                try {
-                    sellResult = await this.sellBothInstruments(instrument_1, instrument_2);
-                    if (sellResult && sellResult.success) {
-                        this.strategyUtils.logStrategyInfo(`Both instruments sold - Executed prices: ${JSON.stringify(sellResult.executedPrices)}`);
-                    } else {
-                        this.strategyUtils.logStrategyError('Failed to sell both instruments at target/stoploss');
-                    }
-                } catch (error) {
-                    this.strategyUtils.logStrategyError(`Error selling both instruments: ${error.message}`);
-                }
-            }
-            else {
-                // this.targetHitByTypeArray.push(instrument_1.symbol.includes('CE') ? 'CE' : 'PE');
-                try {
-                    sellResult = await this.sellInstrument(instrument_1);
-                    if (sellResult && sellResult.success) {
-                        this.strategyUtils.logStrategyInfo(`First instrument sold at target/stoploss - Executed price: ${sellResult.executedPrice}`);
-                    } else {
-                        this.strategyUtils.logStrategyError('Failed to sell first instrument at target/stoploss');
-                    }
-                }
-                catch (error) {
-                    this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
-                }
-
-                this.globalDict.target = this.savedState['target'];
-                this.globalDict.stoploss = this.savedState['stoploss'];
-                this.globalDict.quantity = this.savedState['quantity'];
-                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
-
-                // PREBUY REPETITION OBSERVER.
-
-                if(this.targetHitByTypeArray.length > 1 && false){
-                    let repeated = this.targetHitByTypeArray.at(-1) == this.targetHitByTypeArray.at(-2) ? true : false;
-                    if(repeated){
-                        this.repetition.observed = true;
-                        this.repetition.type = this.targetHitByTypeArray.at(-1);
-                        this.strategyUtils.logStrategyInfo(`Repetition observed: ${this.repetition.type}`);
-                    }
-                    else {
-                        this.repetition.observed = false;
-                        this.repetition.type = null;
-                        this.strategyUtils.logStrategyInfo(`Repetition not observed: ${this.repetition.type}`);
-                    }
-                }
-                
-            }
-        }
         // ================================
 
 
