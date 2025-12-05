@@ -336,7 +336,11 @@ class MTMV5Strategy extends BaseStrategy {
                     criticalUpdate: true
                 });
             }
-            
+
+            else {
+                this.strategyUtils.logStrategyInfo(`🔧 ${parameter} updated : ${value}`)
+            }
+
             // Emit MTM-specific parameter update notifications
             if (['target', 'stoploss', 'sellAt24Limit', 'sellAt10Limit', 'buyBackTrigger'].includes(parameter)) {
                 this.emitStatusUpdate(`MTM Strategy parameter updated`, {
