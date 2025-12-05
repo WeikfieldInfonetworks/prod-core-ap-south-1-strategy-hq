@@ -18,7 +18,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.tickCount = 0;
         this.selectedInstrument = null;
         this.instrumentSelectionComplete = false;
-        this.cycleCount = 0;
+        this.cycleCount = 1;
         this.lastSellTime = null;
         this.buyCompleted = false;
         this.sellCompleted = false;
@@ -1421,7 +1421,7 @@ class MTMV5Strategy extends BaseStrategy {
             // Emit real-time cycle completion notification
             this.emitBlockTransition('DIFF10', 'NEXT_CYCLE', {
                 cycleCompleted: true,
-                currentCycle: this.universalDict.cycles || 0
+                currentCycle: this.universalDict.cycles || 1
             });
         }
         
@@ -1444,9 +1444,9 @@ class MTMV5Strategy extends BaseStrategy {
         
         // Emit cycle restart notification
         this.emitBlockTransition('NEXT_CYCLE', 'INIT', {
-            cycleNumber: this.universalDict.cycles || 0,
+            cycleNumber: this.universalDict.cycles || 1,
             cycleReset: true,
-            message: `Starting cycle ${this.universalDict.cycles || 0}`
+            message: `Starting cycle ${this.universalDict.cycles || 1}`
         });
     }
 
@@ -1878,7 +1878,7 @@ class MTMV5Strategy extends BaseStrategy {
                     token: boughtInstrument.symbol.includes('PE') ? this.boughtToken : this.oppBoughtToken
                 },
                 timestamp: this.formatTime24(new Date()),
-                cycle: this.universalDict.cycles || 0
+                cycle: this.universalDict.cycles || 1
             };
 
             this.emitToUser('strategy_prebought_instruments', preboughtData);
@@ -1912,7 +1912,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo('Resetting for next cycle');
         
         // Increment cycle count
-        this.universalDict.cycles = (this.universalDict.cycles || 0) + 1;
+        this.universalDict.cycles = (this.universalDict.cycles || 1) + 1;
         
         // Reset all flags and state
         this.cePlus3 = false;
@@ -2189,7 +2189,7 @@ class MTMV5Strategy extends BaseStrategy {
             },
             skipAfterCycles: {
                 type: 'number',
-                default: 1,
+                default: 2,
                 description: 'Skip live trading after this many cycles'
             }
         };
@@ -2204,7 +2204,7 @@ class MTMV5Strategy extends BaseStrategy {
             },
             cycles: {
                 type: 'number',
-                default: 0,
+                default: 1,
                 description: 'Number of cycles completed'
             },
             skipBuy: {
@@ -3028,7 +3028,7 @@ class MTMV5Strategy extends BaseStrategy {
             price,
             quantity,
             timestamp: this.formatTime24(new Date()),
-            cycle: this.universalDict.cycles || 0
+            cycle: this.universalDict.cycles || 1
         };
         
         this.emitToUser('strategy_trade_event', tradeEvent);

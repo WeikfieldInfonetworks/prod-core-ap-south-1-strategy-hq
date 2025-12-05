@@ -11,7 +11,7 @@ class NewXStrategy extends BaseStrategy {
         this.description = 'New X strategy with interim low detection and dual option trading';
         this.strategyUtils = new StrategyUtils();
         this.tickCount = 0;
-        this.cycleCount = 0;
+        this.cycleCount = 1;
         
         //State Variables
         this.acceptedTokens = null;
@@ -44,7 +44,7 @@ class NewXStrategy extends BaseStrategy {
 
         // Strategy counters (missing properties)
         this.tickCount = 0;
-        this.cycleCount = 0;
+        this.cycleCount = 1;
     }
     
     
@@ -193,7 +193,7 @@ class NewXStrategy extends BaseStrategy {
         // })))}`);
         
         // Skip buy after first cycle
-        if (this.universalDict.cycles >= 1) {
+        if (this.universalDict.cycles >= 2) {
             this.globalDict.enableTrading = false;
         }
 
@@ -1004,7 +1004,7 @@ class NewXStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo('Resetting for next cycle');
         
         // Increment cycle count
-        this.universalDict.cycles = (this.universalDict.cycles || 0) + 1;
+        this.universalDict.cycles = (this.universalDict.cycles || 1) + 1;
         this.cycleCount = this.universalDict.cycles;  // Keep cycleCount in sync
         
         // Reset all flags and state
@@ -1181,7 +1181,7 @@ class NewXStrategy extends BaseStrategy {
             price,
             quantity,
             timestamp: this.formatTime24(new Date()),
-            cycle: this.universalDict.cycles || 0
+            cycle: this.universalDict.cycles || 1
         };
         
         this.emitToUser('strategy_trade_event', tradeEvent);
