@@ -424,7 +424,7 @@ class NewXStrategy extends BaseStrategy {
             let instrument_1_change = this.halfdrop_instrument.changeFromBuy;
             let instrument_2_change = this.other_instrument.changeFromBuy;
             let mtm = instrument_1_change + instrument_2_change;
-            if(mtm > this.globalDict.target - 1){
+            if(mtm > this.globalDict.target - 0.5){
                 this.targetNet = true;
                 this.strategyUtils.logStrategyInfo('Target net casted');
             }
@@ -509,7 +509,7 @@ class NewXStrategy extends BaseStrategy {
             let mtm = instrument_1_change + instrument_2_change;
             console.log(`FIRST BUY PHASE MTM: ${mtm} Target: ${this.globalDict.target}`);
 
-            if(mtm >= this.globalDict.target || (this.targetNet && mtm <= this.globalDict.target - 1)) {
+            if(mtm >= this.globalDict.target || (this.targetNet && mtm <= this.globalDict.target - 0.5)) {
                 this.halfdrop_sold = true;
                 // SELL BOTH
                 try {
