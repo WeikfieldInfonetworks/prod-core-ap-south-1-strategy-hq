@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
 
 const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments = null, currentPrebuyData = null, socketEvents = [] }) => {
   const [historyData, setHistoryData] = useState([]);
@@ -7,6 +8,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
   const [socketEventQueue, setSocketEventQueue] = useState([]);
   const [niftyPrices, setNiftyPrices] = useState({}); // Track NIFTY prices per cycle
   const fetchingNiftyRef = useRef(new Set()); // Track cycles we're currently fetching NIFTY for
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Session storage key for this strategy
   const getStorageKey = useCallback(() => `prebuy_history_${strategy.name || 'mtm_v2'}`, [strategy.name]);
@@ -570,6 +572,489 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
     sessionStorage.removeItem(getStorageKey());
   };
 
+  // Generate PDF content HTML
+  const generatePDFContent = () => {
+    const timestamp = new Date().toLocaleString('en-GB', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            * { 
+              margin: 0; 
+              padding: 0; 
+              box-sizing: border-box; 
+            }
+            body { 
+              font-family: Arial, sans-serif;
+              padding: 15px;
+              background: #ffffff;
+              color: #000000;
+              font-size: 12px;
+            }
+            .pdf-header {
+              margin-bottom: 25px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #000000;
+            }
+            .pdf-title {
+              font-size: 20px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .pdf-meta {
+              font-size: 10px;
+              color: #666666;
+            }
+            .cycle-section {
+              margin-bottom: 30px;
+              page-break-inside: avoid;
+              border: 2px solid #000000;
+              padding: 15px;
+              background: #f9f9f9;
+            }
+            .cycle-header {
+              margin-bottom: 15px;
+              padding-bottom: 10px;
+              border-bottom: 1px solid #cccccc;
+            }
+            .cycle-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 5px;
+              color: #0000ff;
+            }
+            .cycle-meta {
+              font-size: 10px;
+              color: #666666;
+            }
+            .cycle-badge {
+              display: inline-block;
+              padding: 2px 6px;
+              background: #0000ff;
+              color: #ffffff;
+              font-size: 9px;
+              font-weight: bold;
+              margin-left: 8px;
+            }
+            .containers-wrapper {
+              display: table;
+              width: 100%;
+              border-collapse: separate;
+              border-spacing: 15px;
+            }
+            .container-box {
+              display: table-cell;
+              width: 50%;
+              vertical-align: top;
+              border: 2px solid #000000;
+              padding: 12px;
+              background: #ffffff;
+            }
+            .container-title {
+              font-size: 13px;
+              font-weight: bold;
+              margin-bottom: 10px;
+              padding-bottom: 5px;
+              border-bottom: 1px solid #cccccc;
+            }
+            .item-row {
+              margin-bottom: 8px;
+              padding: 8px;
+              border: 1px solid #cccccc;
+              background: #ffffff;
+            }
+            .item-row.pe {
+              border-left: 4px solid #ff0000;
+            }
+            .item-row.ce {
+              border-left: 4px solid #00ff00;
+            }
+            .item-row.nifty {
+              border-left: 4px solid #ffaa00;
+              background: #fffacd;
+            }
+            .item-row.buy {
+              border-left: 4px solid #00ff00;
+              background: #f0fff0;
+            }
+            .item-row.sell {
+              border-left: 4px solid #ff0000;
+              background: #fff0f0;
+            }
+            .item-header {
+              font-weight: bold;
+              font-size: 11px;
+              margin-bottom: 4px;
+            }
+            .item-details {
+              font-size: 10px;
+              color: #333333;
+              margin-top: 4px;
+            }
+            .item-symbol {
+              font-family: monospace;
+              font-size: 10px;
+              color: #666666;
+            }
+            .item-price {
+              font-weight: bold;
+              font-size: 11px;
+            }
+            .item-time {
+              font-size: 9px;
+              color: #666666;
+              margin-top: 3px;
+            }
+            .no-data {
+              text-align: center;
+              padding: 20px;
+              color: #999999;
+              font-size: 11px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="pdf-header">
+            <div class="pdf-title">Prebuy Trading History</div>
+            <div class="pdf-meta">
+              Strategy: ${strategy.name || 'MTM V2'} | Generated: ${timestamp} | Total Cycles: ${historyData.length}
+            </div>
+          </div>
+    `;
+
+    if (historyData.length === 0) {
+      html += `<div class="no-data">No trading history available</div>`;
+    } else {
+      historyData.forEach((cycleData, index) => {
+        const isCurrentCycle = index === 0;
+        
+        html += `
+          <div class="cycle-section">
+            <div class="cycle-header">
+              <div class="cycle-title">
+                Cycle ${cycleData.cycle}${isCurrentCycle ? '<span class="cycle-badge">LIVE</span>' : ''}
+              </div>
+              <div class="cycle-meta">
+                Started: ${formatTime(cycleData.timestamp)}
+                ${cycleData.lastUpdated && cycleData.lastUpdated !== cycleData.timestamp 
+                  ? ` | Updated: ${formatTime(cycleData.lastUpdated)}` 
+                  : ''}
+                | ${cycleData.tradeEvents?.length || 0} trade${(cycleData.tradeEvents?.length || 0) !== 1 ? 's' : ''}
+              </div>
+            </div>
+            
+            <div class="containers-wrapper">
+              <!-- Container 1: Prebought Instruments + NIFTY -->
+              <div class="container-box">
+                <div class="container-title">Prebought Instruments & NIFTY</div>
+        `;
+
+        // PE Instrument
+        if (cycleData.preboughtInstruments?.peInstrument) {
+          const pe = cycleData.preboughtInstruments.peInstrument;
+          html += `
+            <div class="item-row pe">
+              <div class="item-header">PE - ${pe.symbol || 'N/A'}</div>
+              <div class="item-details">
+                <span class="item-price">${formatPrice(pe.price)}</span> | Qty: ${pe.quantity || 0}
+              </div>
+              ${cycleData.preboughtInstruments.timestamp ? `
+                <div class="item-time">Time: ${formatTime(cycleData.preboughtInstruments.timestamp)}</div>
+              ` : ''}
+            </div>
+          `;
+        }
+
+        // CE Instrument
+        if (cycleData.preboughtInstruments?.ceInstrument) {
+          const ce = cycleData.preboughtInstruments.ceInstrument;
+          html += `
+            <div class="item-row ce">
+              <div class="item-header">CE - ${ce.symbol || 'N/A'}</div>
+              <div class="item-details">
+                <span class="item-price">${formatPrice(ce.price)}</span> | Qty: ${ce.quantity || 0}
+              </div>
+              ${cycleData.preboughtInstruments.timestamp ? `
+                <div class="item-time">Time: ${formatTime(cycleData.preboughtInstruments.timestamp)}</div>
+              ` : ''}
+            </div>
+          `;
+        }
+
+        // NIFTY Price
+        if (cycleData.niftyPrice) {
+          html += `
+            <div class="item-row nifty">
+              <div class="item-header">NIFTY (NSEI)</div>
+              <div class="item-details">
+                <span class="item-price">${formatPrice(cycleData.niftyPrice)}</span>
+              </div>
+              <div class="item-time">At first buy</div>
+            </div>
+          `;
+        }
+
+        if (!cycleData.preboughtInstruments && !cycleData.niftyPrice) {
+          html += `<div class="no-data">No prebought instruments</div>`;
+        }
+
+        html += `
+              </div>
+              
+              <!-- Container 2: Trading Events (Buy/Sell in order) -->
+              <div class="container-box">
+                <div class="container-title">Trading Events (Chronological Order)</div>
+        `;
+
+        if (cycleData.tradeEvents && cycleData.tradeEvents.length > 0) {
+          // Sort events by timestamp to show in chronological order
+          const sortedEvents = [...cycleData.tradeEvents].sort((a, b) => {
+            const timeA = new Date(a.timestamp || 0).getTime();
+            const timeB = new Date(b.timestamp || 0).getTime();
+            return timeA - timeB;
+          });
+          
+          sortedEvents.forEach((event) => {
+            const isBuy = event.action === 'buy';
+            html += `
+              <div class="item-row ${isBuy ? 'buy' : 'sell'}">
+                <div class="item-header">
+                  ${isBuy ? 'BUY' : 'SELL'} - <span class="item-symbol">${event.symbol || 'N/A'}</span>
+                </div>
+                <div class="item-details">
+                  <span class="item-price">${formatPrice(event.price)}</span> | Qty: ${event.quantity || 0}
+                </div>
+                <div class="item-time">Time: ${formatTime(event.timestamp)}</div>
+              </div>
+            `;
+          });
+        } else {
+          html += `<div class="no-data">No trading events</div>`;
+        }
+
+        html += `
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    html += `
+        </body>
+      </html>
+    `;
+
+    return html;
+  };
+
+  // Download PDF function using jsPDF
+  const downloadPDF = async () => {
+    if (!historyData.length) {
+      alert("No history to export");
+      return;
+    }
+  
+    setIsGeneratingPDF(true);
+  
+    import("jspdf").then(({ default: jsPDF }) => {
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+  
+      const PAGE = {
+        width: 210,
+        height: 297,
+        margin: 12,
+        lineHeight: 5,
+        sectionSpacing: 6,
+      };
+  
+      let y = PAGE.margin;
+  
+      // ---- THEME ----
+      const COLORS = {
+        text: [30, 30, 30],
+        faint: [120, 120, 120],
+        line: [180, 180, 180],
+        box: [240, 240, 240],
+        green: [20, 120, 60],
+        red: [180, 50, 50],
+        yellow: [190, 140, 20],
+      };
+  
+      // ---- HELPERS ----
+      const ensureSpace = (needed = 15) => {
+        if (y + needed >= PAGE.height - PAGE.margin) {
+          pdf.addPage();
+          y = PAGE.margin;
+        }
+      };
+  
+      const line = () => {
+        pdf.setDrawColor(...COLORS.line);
+        pdf.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
+        y += PAGE.sectionSpacing;
+      };
+  
+      const text = (t, size = 11, bold = false, color = COLORS.text) => {
+        ensureSpace(size * 0.45);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setFontSize(size);
+        pdf.setTextColor(...color);
+        pdf.text(t, PAGE.margin, y);
+        y += PAGE.lineHeight;
+      };
+  
+      const chip = (label, bg = COLORS.box, color = COLORS.text) => {
+        const w = pdf.getTextWidth(label) + 6;
+        pdf.setFillColor(...bg);
+        pdf.setTextColor(...color);
+        pdf.roundedRect(PAGE.margin, y - 4, w, 6, 1, 1, "F");
+        pdf.text(label, PAGE.margin + 3, y);
+        y += PAGE.sectionSpacing;
+      };
+  
+      const box = (title, contentCallback) => {
+        ensureSpace(20);
+        const boxStartY = y;
+        const boxWidth = PAGE.width - PAGE.margin * 2;
+  
+        pdf.setDrawColor(...COLORS.line);
+        pdf.setFillColor(...COLORS.box);
+  
+        pdf.roundedRect(PAGE.margin, y, boxWidth, 6, 2, 2, "FD");
+        pdf.setFontSize(10);
+        pdf.text(title, PAGE.margin + 2, y + 4);
+  
+        y += 10;
+        contentCallback();
+        const boxEndY = y + 2;
+  
+        pdf.roundedRect(PAGE.margin, boxStartY, boxWidth, boxEndY - boxStartY, 2, 2);
+        y = boxEndY + PAGE.sectionSpacing;
+      };
+  
+      const format = {
+        time: (t) =>
+          typeof t === "string" && /^\d\d:\d\d:\d\d$/.test(t)
+            ? t
+            : new Date(t).toLocaleTimeString("en-GB"),
+        price: (p) => (p ? `${p.toFixed(2)}` : "-"),
+      };
+  
+      // ---- HEADER ----
+      text("Prebuy Trading History", 18, true);
+      text(
+        `Strategy: ${strategy.name}    |    Generated: ${new Date().toLocaleString()}`,
+        9,
+        false,
+        COLORS.faint
+      );
+      line();
+  
+      // ---- BODY: LOOP CYCLES ----
+      historyData.forEach((cycle, idx) => {
+        ensureSpace(20);
+  
+        text(`Cycle ${cycle.cycle}`, 14, true);
+  
+        if (idx === 0)
+          chip("LIVE", [220, 240, 255], [20, 80, 160]);
+  
+        text(
+          `Started: ${format.time(cycle.timestamp)}  | Updated: ${format.time(
+            cycle.lastUpdated
+          )}`,
+          9,
+          false,
+          COLORS.faint
+        );
+  
+        text(`${cycle.tradeEvents.length} trade(s)`);
+  
+        box("Prebought & NIFTY", () => {
+          const { peInstrument, ceInstrument } = cycle.preboughtInstruments || {};
+  
+          if (peInstrument) {
+            text(
+              `PE ${peInstrument.symbol} | ${format.price(
+                peInstrument.price
+              )} | Qty: ${peInstrument.quantity}`,
+              10,
+              false,
+              COLORS.red
+            );
+          }
+  
+          if (ceInstrument) {
+            text(
+              `CE ${ceInstrument.symbol} | ${format.price(
+                ceInstrument.price
+              )} | Qty: ${ceInstrument.quantity}`,
+              10,
+              false,
+              COLORS.green
+            );
+          }
+  
+          if (cycle.niftyPrice)
+            text(
+              `NIFTY: ${format.price(cycle.niftyPrice)} (first buy)`,
+              10,
+              true,
+              COLORS.yellow
+            );
+  
+          if (!peInstrument && !ceInstrument)
+            text("No prebought instruments", 10, false, COLORS.faint);
+        });
+  
+        box("Trade Events", () => {
+          if (!cycle.tradeEvents.length)
+            return text("No trades recorded", 10, false, COLORS.faint);
+  
+          cycle.tradeEvents
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+            .forEach((t) => {
+              const color = t.action === "buy" ? COLORS.green : COLORS.red;
+              text(
+                `${t.action.toUpperCase()} ${t.symbol} — ${format.price(
+                  t.price
+                )} | Qty: ${t.quantity} @ ${format.time(t.timestamp)}`,
+                10,
+                true,
+                color
+              );
+            });
+        });
+  
+        line();
+      });
+  
+      pdf.save(
+        `PrebuyHistory_${strategy.name}_${new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")}.pdf`
+      );
+  
+      setIsGeneratingPDF(false);
+    });
+  };
+  
+
   if (!strategy.universalDict?.usePrebuy) {
     return null;
   }
@@ -588,12 +1073,23 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
               {historyData.length} cycle{historyData.length !== 1 ? 's' : ''} recorded
             </span>
             {historyData.length > 0 && (
-              <button
-                onClick={clearHistory}
-                className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
-              >
-                Clear History
-              </button>
+              <>
+                <button
+                  onClick={downloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded border border-blue-200 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Download PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{isGeneratingPDF ? 'Generating...' : 'Download PDF'}</span>
+                </button>
+                <button
+                  onClick={clearHistory}
+                  className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
+                >
+                  Clear History
+                </button>
+              </>
             )}
           </div>
         </div>
