@@ -1,13 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments = null, currentPrebuyData = null, socketEvents = [] }) => {
   const [historyData, setHistoryData] = useState([]);
   const [expandedCycles, setExpandedCycles] = useState(new Set());
   const [socketEventQueue, setSocketEventQueue] = useState([]);
+  const [niftyPrices, setNiftyPrices] = useState({}); // Track NIFTY prices per cycle
+  const fetchingNiftyRef = useRef(new Set()); // Track cycles we're currently fetching NIFTY for
 
   // Session storage key for this strategy
   const getStorageKey = useCallback(() => `prebuy_history_${strategy.name || 'mtm_v2'}`, [strategy.name]);
+
+  // Function to fetch NIFTY price from backend API
+  const fetchNiftyPrice = useCallback(async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const endpoint = `${apiUrl}/api/nifty-price`;
+      
+      console.log('🌐 PrebuyHistoryTable: Fetching NIFTY price from backend API...');
+      const response = await fetch(endpoint);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.price && typeof data.price === 'number') {
+        console.log('✅ PrebuyHistoryTable: Successfully fetched NIFTY price:', data.price);
+        return data.price;
+      } else {
+        throw new Error(data.error || 'Invalid NIFTY price data received');
+      }
+    } catch (error) {
+      console.error('❌ PrebuyHistoryTable: Error fetching NIFTY price:', error);
+      console.error('Error details:', error.message, error.stack);
+      return null;
+    }
+  }, []);
 
   // Load history from session storage on mount
   useEffect(() => {
@@ -16,11 +46,20 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
       try {
         const parsed = JSON.parse(savedHistory);
         setHistoryData(parsed);
+        
+        // Restore NIFTY prices from saved history
+        const prices = {};
+        parsed.forEach(cycleData => {
+          if (cycleData.niftyPrice) {
+            prices[cycleData.cycle] = cycleData.niftyPrice;
+          }
+        });
+        setNiftyPrices(prices);
       } catch (error) {
         console.error('Error loading prebuy history from session storage:', error);
       }
     }
-  }, []);
+  }, [getStorageKey]);
 
   // Auto-expand current cycle when it gets updated
   useEffect(() => {
@@ -92,6 +131,124 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
         }
       });
 
+      // Check for buy events and fetch NIFTY price AFTER updating historyData
+      newHistoryData.forEach(cycleData => {
+        const cycleNum = cycleData.cycle;
+        
+        // Skip if we already have NIFTY price for this cycle OR if we're already fetching
+        if (cycleData.niftyPrice || fetchingNiftyRef.current.has(cycleNum)) {
+          return;
+        }
+        
+        // Check if there's a buy event in this cycle
+        const hasBuyEvent = cycleData.tradeEvents?.some(event => event.action === 'buy');
+        
+        if (hasBuyEvent) {
+          console.log('🔍 PrebuyHistoryTable: Buy event found in cycle', cycleNum, '- fetching NIFTY price');
+          fetchingNiftyRef.current.add(cycleNum); // Mark as fetching
+          
+          fetchNiftyPrice().then(price => {
+            console.log('📊 PrebuyHistoryTable: NIFTY price fetched for cycle', cycleNum, ':', price);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set
+            
+            if (price !== null) {
+              setNiftyPrices(prev => {
+                if (prev[cycleNum]) {
+                  console.log('⚠️ PrebuyHistoryTable: NIFTY price already exists for cycle', cycleNum);
+                  return prev;
+                }
+                return { ...prev, [cycleNum]: price };
+              });
+              
+              // Update the cycle data with NIFTY price
+              setHistoryData(prevHistoryData => {
+                const updated = prevHistoryData.map(item => {
+                  if (item.cycle === cycleNum && !item.niftyPrice) {
+                    console.log('✅ PrebuyHistoryTable: Adding NIFTY price to cycle', cycleNum);
+                    return { ...item, niftyPrice: price };
+                  }
+                  return item;
+                });
+                
+                // Save to session storage
+                try {
+                  sessionStorage.setItem(getStorageKey(), JSON.stringify(updated));
+                  console.log('💾 PrebuyHistoryTable: NIFTY price saved to session storage for cycle', cycleNum);
+                } catch (error) {
+                  console.error('Error saving NIFTY price to session storage:', error);
+                }
+                
+                return updated;
+              });
+            } else {
+              console.warn('⚠️ PrebuyHistoryTable: NIFTY price fetch returned null for cycle', cycleNum);
+            }
+          }).catch(error => {
+            console.error('❌ PrebuyHistoryTable: Error fetching NIFTY price for cycle', cycleNum, ':', error);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set on error
+          });
+        }
+      });
+
+      // Check for buy events and fetch NIFTY price AFTER updating historyData
+      newHistoryData.forEach(cycleData => {
+        const cycleNum = cycleData.cycle;
+        
+        // Skip if we already have NIFTY price for this cycle OR if we're already fetching
+        if (cycleData.niftyPrice || fetchingNiftyRef.current.has(cycleNum)) {
+          return;
+        }
+        
+        // Check if there's a buy event in this cycle
+        const hasBuyEvent = cycleData.tradeEvents?.some(event => event.action === 'buy');
+        
+        if (hasBuyEvent) {
+          console.log('🔍 PrebuyHistoryTable: Buy event found in cycle', cycleNum, '- fetching NIFTY price');
+          fetchingNiftyRef.current.add(cycleNum); // Mark as fetching
+          
+          fetchNiftyPrice().then(price => {
+            console.log('📊 PrebuyHistoryTable: NIFTY price fetched for cycle', cycleNum, ':', price);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set
+            
+            if (price !== null) {
+              setNiftyPrices(prev => {
+                if (prev[cycleNum]) {
+                  console.log('⚠️ PrebuyHistoryTable: NIFTY price already exists for cycle', cycleNum);
+                  return prev;
+                }
+                return { ...prev, [cycleNum]: price };
+              });
+              
+              // Update the cycle data with NIFTY price
+              setHistoryData(prevHistoryData => {
+                const updated = prevHistoryData.map(item => {
+                  if (item.cycle === cycleNum && !item.niftyPrice) {
+                    console.log('✅ PrebuyHistoryTable: Adding NIFTY price to cycle', cycleNum);
+                    return { ...item, niftyPrice: price };
+                  }
+                  return item;
+                });
+                
+                // Save to session storage
+                try {
+                  sessionStorage.setItem(getStorageKey(), JSON.stringify(updated));
+                  console.log('💾 PrebuyHistoryTable: NIFTY price saved to session storage for cycle', cycleNum);
+                } catch (error) {
+                  console.error('Error saving NIFTY price to session storage:', error);
+                }
+                
+                return updated;
+              });
+            } else {
+              console.warn('⚠️ PrebuyHistoryTable: NIFTY price fetch returned null for cycle', cycleNum);
+            }
+          }).catch(error => {
+            console.error('❌ PrebuyHistoryTable: Error fetching NIFTY price for cycle', cycleNum, ':', error);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set on error
+          });
+        }
+      });
+
       // Save to session storage
       try {
         sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
@@ -101,7 +258,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
 
       return newHistoryData;
     });
-  }, [socketEvents, getStorageKey]);
+  }, [socketEvents, getStorageKey, fetchNiftyPrice]);
 
   // Cleanup session storage on tab close and component unmount
   useEffect(() => {
@@ -153,14 +310,18 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
       let newHistoryData = [...prevHistoryData];
 
       // Process each cycle's events
+      // IMPORTANT: Each cycle gets its own NIFTY price (fetched at first buy of that cycle)
+      // The price persists for that cycle and does NOT update after being set
+      // For each new cycle, a fresh NIFTY price is fetched at the first buy event
       Object.entries(eventsByCycle).forEach(([cycleNum, events]) => {
         const cycleNumber = parseInt(cycleNum);
         const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
 
         if (existingIndex >= 0) {
           // Update existing cycle
+          const existingCycle = newHistoryData[existingIndex];
           newHistoryData[existingIndex] = {
-            ...newHistoryData[existingIndex],
+            ...existingCycle,
             lastUpdated: new Date().toISOString(),
             tradeEvents: events
           };
@@ -177,6 +338,69 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
         }
       });
 
+      // Check for buy events and fetch NIFTY price AFTER updating historyData
+      // IMPORTANT: Each cycle gets its own NIFTY price (fetched at first buy of that cycle)
+      // The price is persisted for that cycle and does NOT update after being set
+      // For each new cycle, a fresh NIFTY price is fetched at the first buy event
+      newHistoryData.forEach(cycleData => {
+        const cycleNum = cycleData.cycle;
+        
+        // Skip if we already have NIFTY price for this cycle OR if we're already fetching
+        // This ensures each cycle's NIFTY price is set once and persists
+        if (cycleData.niftyPrice || fetchingNiftyRef.current.has(cycleNum)) {
+          return;
+        }
+        
+        // Check if there's a buy event in this cycle
+        const hasBuyEvent = cycleData.tradeEvents?.some(event => event.action === 'buy');
+        
+        if (hasBuyEvent) {
+          console.log('🔍 PrebuyHistoryTable: First buy event found in tradeEvents for cycle', cycleNum, '- fetching fresh NIFTY price for this cycle');
+          fetchingNiftyRef.current.add(cycleNum); // Mark as fetching
+          
+          fetchNiftyPrice().then(price => {
+            console.log('📊 PrebuyHistoryTable: NIFTY price fetched from tradeEvents for cycle', cycleNum, ':', price);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set
+            
+            if (price !== null) {
+              setNiftyPrices(prev => {
+                if (prev[cycleNum]) {
+                  console.log('⚠️ PrebuyHistoryTable: NIFTY price already exists for cycle', cycleNum);
+                  return prev;
+                }
+                return { ...prev, [cycleNum]: price };
+              });
+              
+              // Update the cycle data with NIFTY price
+              setHistoryData(prevHistoryData => {
+                const updated = prevHistoryData.map(item => {
+                  if (item.cycle === cycleNum && !item.niftyPrice) {
+                    console.log('✅ PrebuyHistoryTable: Adding NIFTY price to cycle', cycleNum, 'from tradeEvents');
+                    return { ...item, niftyPrice: price };
+                  }
+                  return item;
+                });
+                
+                // Save to session storage
+                try {
+                  sessionStorage.setItem(getStorageKey(), JSON.stringify(updated));
+                  console.log('💾 PrebuyHistoryTable: NIFTY price saved from tradeEvents for cycle', cycleNum);
+                } catch (error) {
+                  console.error('Error saving NIFTY price to session storage:', error);
+                }
+                
+                return updated;
+              });
+            } else {
+              console.warn('⚠️ PrebuyHistoryTable: NIFTY price fetch returned null for cycle', cycleNum);
+            }
+          }).catch(error => {
+            console.error('❌ PrebuyHistoryTable: Error fetching NIFTY price from tradeEvents for cycle', cycleNum, ':', error);
+            fetchingNiftyRef.current.delete(cycleNum); // Remove from fetching set on error
+          });
+        }
+      });
+
       // Save to session storage
       try {
         sessionStorage.setItem(getStorageKey(), JSON.stringify(newHistoryData));
@@ -187,6 +411,76 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
       return newHistoryData;
     });
   }, [tradeEvents, getStorageKey]);
+
+  // Detect first buy event and fetch NIFTY price (fallback check)
+  // This ensures we catch any cycles that might have been missed in socketEvents/tradeEvents processing
+  useEffect(() => {
+    if (!historyData || historyData.length === 0) return;
+
+    historyData.forEach(cycleData => {
+      const cycleNumber = cycleData.cycle;
+      
+      // Skip if we already have NIFTY price for this cycle OR if we're already fetching
+      if (cycleData.niftyPrice || fetchingNiftyRef.current.has(cycleNumber)) {
+        return;
+      }
+      
+      // Check if there's a buy event in this cycle
+      const hasBuyEvent = cycleData.tradeEvents?.some(event => event.action === 'buy');
+      
+      if (hasBuyEvent) {
+        // Fetch NIFTY price for this cycle (only once per cycle)
+        // Each cycle gets its own NIFTY price (the price at the time of first buy)
+        console.log('🔍 PrebuyHistoryTable: First buy event detected in historyData check, fetching NIFTY price for cycle', cycleNumber);
+        fetchingNiftyRef.current.add(cycleNumber); // Mark as fetching
+        
+        fetchNiftyPrice().then(price => {
+          console.log('📊 PrebuyHistoryTable: NIFTY price fetched from historyData check for cycle', cycleNumber, ':', price);
+          fetchingNiftyRef.current.delete(cycleNumber); // Remove from fetching set
+          
+          if (price !== null) {
+            setNiftyPrices(prev => {
+              // Double-check we don't already have it (race condition protection)
+              if (prev[cycleNumber]) {
+                console.log('⚠️ PrebuyHistoryTable: NIFTY price already exists for cycle', cycleNumber);
+                return prev;
+              }
+              
+              const updated = { ...prev, [cycleNumber]: price };
+              
+              // Also update historyData to include NIFTY price
+              setHistoryData(prevHistoryData => {
+                const updatedHistory = prevHistoryData.map(item => {
+                  if (item.cycle === cycleNumber && !item.niftyPrice) {
+                    console.log('✅ PrebuyHistoryTable: Adding NIFTY price to cycle', cycleNumber, 'from historyData check');
+                    return { ...item, niftyPrice: price };
+                  }
+                  return item;
+                });
+                
+                // Save to session storage
+                try {
+                  sessionStorage.setItem(getStorageKey(), JSON.stringify(updatedHistory));
+                  console.log('💾 PrebuyHistoryTable: NIFTY price saved from historyData check for cycle', cycleNumber);
+                } catch (error) {
+                  console.error('Error saving NIFTY price to session storage:', error);
+                }
+                
+                return updatedHistory;
+              });
+              
+              return updated;
+            });
+          } else {
+            console.warn('⚠️ PrebuyHistoryTable: NIFTY price fetch returned null for cycle', cycleNumber);
+          }
+        }).catch(error => {
+          console.error('❌ PrebuyHistoryTable: Error fetching NIFTY price from historyData check for cycle', cycleNumber, ':', error);
+          fetchingNiftyRef.current.delete(cycleNumber); // Remove from fetching set on error
+        });
+      }
+    });
+  }, [historyData, fetchNiftyPrice, getStorageKey]);
 
   // Process prebought instruments data
   useEffect(() => {
@@ -367,59 +661,88 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                   <div className="px-6 pb-4 bg-gray-50">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       
-                      {/* Left Side - Prebought Instruments */}
-                      {cycleData.preboughtInstruments && (
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      {/* Left Side - Prebought Instruments and NIFTY */}
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        {cycleData.preboughtInstruments ? (
+                          <>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                              <span className="text-blue-600 mr-2">📋</span>
+                              Pre-bought Instruments
+                            </h4>
+                            <div className="space-y-3">
+                              {/* PE Instrument */}
+                              <div className="flex items-center justify-between p-2 border rounded">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                                  <span className="text-sm font-medium">PE</span>
+                                  <span className="text-xs text-gray-500 font-mono">
+                                    {cycleData.preboughtInstruments.peInstrument?.symbol || 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold">
+                                    {formatPrice(cycleData.preboughtInstruments.peInstrument?.price)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Qty: {cycleData.preboughtInstruments.peInstrument?.quantity || 0}
+                                  </div>
+                                </div>
+                              </div>
+                              {/* CE Instrument */}
+                              <div className="flex items-center justify-between p-2 border rounded">
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                                  <span className="text-sm font-medium">CE</span>
+                                  <span className="text-xs text-gray-500 font-mono">
+                                    {cycleData.preboughtInstruments.ceInstrument?.symbol || 'N/A'}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold">
+                                    {formatPrice(cycleData.preboughtInstruments.ceInstrument?.price)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Qty: {cycleData.preboughtInstruments.ceInstrument?.quantity || 0}
+                                  </div>
+                                </div>
+                              </div>
+                              {cycleData.preboughtInstruments.timestamp && (
+                                <div className="text-xs text-gray-500 mt-2 flex items-center">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {formatTime(cycleData.preboughtInstruments.timestamp)}
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        ) : (
                           <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
                             <span className="text-blue-600 mr-2">📋</span>
-                            Pre-bought Instruments
+                            Cycle Information
                           </h4>
-                          <div className="space-y-3">
-                            {/* PE Instrument */}
-                            <div className="flex items-center justify-between p-2 border rounded">
+                        )}
+                        {/* NIFTY Price - Always show if available */}
+                        {cycleData.niftyPrice && (
+                          <div className={`mt-3 ${cycleData.preboughtInstruments ? 'border-t pt-3' : ''}`}>
+                            <div className="flex items-center justify-between p-2 border rounded bg-yellow-50 border-yellow-200">
                               <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                                <span className="text-sm font-medium">PE</span>
+                                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                <span className="text-sm font-medium">NIFTY</span>
                                 <span className="text-xs text-gray-500 font-mono">
-                                  {cycleData.preboughtInstruments.peInstrument?.symbol || 'N/A'}
+                                  NSEI
                                 </span>
                               </div>
                               <div className="text-right">
-                                <div className="text-sm font-semibold">
-                                  {formatPrice(cycleData.preboughtInstruments.peInstrument?.price)}
+                                <div className="text-sm font-semibold text-yellow-800">
+                                  {formatPrice(cycleData.niftyPrice)}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  Qty: {cycleData.preboughtInstruments.peInstrument?.quantity || 0}
-                                </div>
-                              </div>
-                            </div>
-                            {/* CE Instrument */}
-                            <div className="flex items-center justify-between p-2 border rounded">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">CE</span>
-                                <span className="text-xs text-gray-500 font-mono">
-                                  {cycleData.preboughtInstruments.ceInstrument?.symbol || 'N/A'}
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-semibold">
-                                  {formatPrice(cycleData.preboughtInstruments.ceInstrument?.price)}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Qty: {cycleData.preboughtInstruments.ceInstrument?.quantity || 0}
+                                  At first buy
                                 </div>
                               </div>
                             </div>
                           </div>
-                          {cycleData.preboughtInstruments.timestamp && (
-                            <div className="text-xs text-gray-500 mt-2 flex items-center">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {formatTime(cycleData.preboughtInstruments.timestamp)}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        )}
+                      </div>
 
                       {/* Right Side - Event Blocks */}
                       {cycleData.tradeEvents && cycleData.tradeEvents.length > 0 && (
