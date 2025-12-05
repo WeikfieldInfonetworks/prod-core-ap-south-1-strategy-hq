@@ -124,7 +124,7 @@ const MTMv2Dashboard = ({ strategy }) => {
       console.log('🔍 Received prebought instruments:', data);
       setPrebuyEvents(prev => [{
         type: 'prebought_instruments',
-        cycle: data.cycle || 0,
+        cycle: data.cycle || 1,
         preboughtInstruments: data,
         timestamp: data.timestamp || new Date().toISOString()
       }, ...prev]);
@@ -133,7 +133,7 @@ const MTMv2Dashboard = ({ strategy }) => {
     // Listen for trade events
     socket.on('strategy_trade_event', (data) => {
       console.log('🔍 Received trade event:', data);
-      const cycleNumber = data.cycle || 0;
+      const cycleNumber = data.cycle || 1;
       
       // Update trade events for current cycle
       setTradeEvents(prev => {
@@ -142,7 +142,7 @@ const MTMv2Dashboard = ({ strategy }) => {
         
         // Add existing events
         prev.forEach(event => {
-          const cycle = event.cycle || 0;
+          const cycle = event.cycle || 1;
           if (!cyclesMap.has(cycle)) {
             cyclesMap.set(cycle, []);
           }

@@ -160,7 +160,7 @@ const FiftyPercentFullSpectrumDashboard = ({ strategy }) => {
           price: data.price,
           quantity: data.quantity || 0,
           timestamp: data.timestamp || new Date().toISOString(),
-          cycle: data.cycle || (strategy.universalDict?.cycles || 0)
+          cycle: data.cycle || (strategy.universalDict?.cycles || 1)
         };
 
         // Add to trade events

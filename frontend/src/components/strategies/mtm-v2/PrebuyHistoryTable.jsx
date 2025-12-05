@@ -43,7 +43,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
       
       // Process each event in the queue
       socketEvents.forEach(eventData => {
-        const cycleNumber = eventData.cycle || 0;
+        const cycleNumber = eventData.cycle || 1;
         const existingIndex = newHistoryData.findIndex(item => item.cycle === cycleNumber);
 
         if (existingIndex >= 0) {
