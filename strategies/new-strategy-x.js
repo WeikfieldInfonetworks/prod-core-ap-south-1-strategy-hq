@@ -1096,6 +1096,9 @@ class NewXStrategy extends BaseStrategy {
                 executedPrice = instrument.last;
             }
             
+            // Emit simplified trade event after determining executed price
+            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.globalDict.quantity || 75);
+            
             return { success: true, executedPrice };
         } catch (error) {
             this.strategyUtils.logStrategyError(`Exception while selling instrument: ${error.message}`);
