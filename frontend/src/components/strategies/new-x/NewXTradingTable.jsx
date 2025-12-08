@@ -80,7 +80,7 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
             lastUpdated: new Date().toISOString(),
             completed: false
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
           processedCount++;
         }
       });
@@ -186,7 +186,7 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
             lastUpdated: new Date().toISOString(),
             completed: false
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
         }
       });
 

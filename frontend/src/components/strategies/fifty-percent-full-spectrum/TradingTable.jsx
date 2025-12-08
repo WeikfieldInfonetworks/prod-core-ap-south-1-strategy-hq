@@ -124,7 +124,7 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
             timestamp: eventData.timestamp || new Date().toISOString(),
             lastUpdated: new Date().toISOString()
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
         }
       });
 
@@ -195,7 +195,7 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
             timestamp: events[0].timestamp || new Date().toISOString(),
             lastUpdated: new Date().toISOString()
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
         }
       });
 

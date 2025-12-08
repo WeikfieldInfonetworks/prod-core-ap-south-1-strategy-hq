@@ -129,7 +129,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
             lastUpdated: new Date().toISOString(),
             completed: false
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
         }
       });
 
@@ -336,7 +336,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
             lastUpdated: new Date().toISOString(),
             completed: false
           };
-          newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+          newHistoryData = [newCycleData, ...newHistoryData];
         }
       });
 
@@ -511,7 +511,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
           lastUpdated: new Date().toISOString(),
           completed: false
         };
-        newHistoryData = [newCycleData, ...newHistoryData].slice(0, 20);
+        newHistoryData = [newCycleData, ...newHistoryData];
       }
 
       // Save to session storage
