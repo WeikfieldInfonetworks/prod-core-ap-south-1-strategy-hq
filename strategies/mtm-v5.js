@@ -913,7 +913,7 @@ class MTMV5Strategy extends BaseStrategy {
         
         // PREBUY HALF TARGET OBSERVER.
         if(!this.reachedHalfTarget && this.universalDict.usePrebuy){
-            this.reachedHalfTarget = (instrument_1.last - instrument_1.buyPrice) >= this.globalDict.target / 2;
+            this.reachedHalfTarget = (instrument_1.last - instrument_1.buyPrice) >= this.globalDict.halfTargetThreshold;
         }
 
         // PREBUY TARGET NET OBSERVER.
@@ -2176,6 +2176,11 @@ class MTMV5Strategy extends BaseStrategy {
                 type: 'number',
                 default: 6,
                 description: 'Rebuy Threshold.'
+            },
+            halfTargetThreshold: {
+                type: 'number',
+                default: 5,
+                description: 'Half target threshold'
             },
             prebuySignificantThreshold: {
                 type: 'number',
