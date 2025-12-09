@@ -918,7 +918,7 @@ class MTMV5Strategy extends BaseStrategy {
 
         // PREBUY TARGET NET OBSERVER.
         if(!this.targetNet && this.universalDict.usePrebuy){
-            this.targetNet = (instrument_1.last - instrument_1.buyPrice) > (this.globalDict.target - 1); // Casting net if price within 1 point of target
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) > (this.globalDict.target - 0.5); // Casting net if price within 1 point of target
             if(this.targetNet){
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
             }
