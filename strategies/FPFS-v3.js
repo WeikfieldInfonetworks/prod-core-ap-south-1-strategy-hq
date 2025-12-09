@@ -2223,7 +2223,7 @@ class FPFSV3 extends BaseStrategy {
             },
             rebuyAt: {
                 type: 'number',
-                default: 8,
+                default: 7,
                 description: 'Rebuy Threshold.'
             },
             prebuySignificantThreshold: {

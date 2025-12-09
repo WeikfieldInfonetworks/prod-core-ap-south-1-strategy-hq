@@ -2174,7 +2174,7 @@ class MTMV5Strategy extends BaseStrategy {
             },
             rebuyAt: {
                 type: 'number',
-                default: 6,
+                default: 7,
                 description: 'Rebuy Threshold.'
             },
             halfTargetThreshold: {
