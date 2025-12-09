@@ -821,6 +821,14 @@ class FPFSV3 extends BaseStrategy {
                 if(this.shouldPlayScenario1A()){
                     await this.scenario1A();
                 }
+
+                if(this.shouldPlayScenario1AA()){
+                    await this.scenario1AA();
+                }
+
+                if(this.shouldPlayScenario1AB()){
+                    await this.scenario1AB();
+                }
     
                 if(this.shouldPlayScenario1B()){
                     await this.scenario1B();
@@ -873,7 +881,7 @@ class FPFSV3 extends BaseStrategy {
     async scenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
         // this.thirdBought = this.secondBought;
-        this.boughtSold = true;
+        // this.boughtSold = true;
         this.scenario1Adone = true;
 
         this.strategyUtils.logStrategyInfo(`Scenario 1A in action.`)
@@ -888,19 +896,19 @@ class FPFSV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                this.globalDict.target = this.globalDict.target + Math.abs(diff);
             }
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        //RESET TARGET, STOPLOSS, AND QUANTITY
-        this.globalDict.target = this.savedState['target'];
-        this.globalDict.stoploss = this.savedState['stoploss'];
-        this.globalDict.quantity = this.savedState['quantity'];
+        // //RESET TARGET, STOPLOSS, AND QUANTITY
+        // this.globalDict.target = this.savedState['target'];
+        // this.globalDict.stoploss = this.savedState['stoploss'];
+        // this.globalDict.quantity = this.savedState['quantity'];
 
-        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        // this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
 
         // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
@@ -933,6 +941,81 @@ class FPFSV3 extends BaseStrategy {
         // Emit instrument data update after second buy
         this.emitInstrumentDataUpdate();
 
+    }
+
+    async scenario1AA(){
+        let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
+        this.scenario1AAdone = true;
+        this.secondBought = true;
+        this.strategyUtils.logStrategyInfo(`Scenario 1AA in action.`)
+
+        // Select opposite instrument
+        instrument_1 = instrument_1.symbol.includes('CE')
+        ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+        : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+
+        this.instrument_bought = instrument_1;
+
+        // BUY opposite instrument
+        instrument_1.buyPrice = instrument_1.last;
+        let buyResult = null;
+        try {
+            buyResult = await this.buyInstrument(instrument_1);
+            if (buyResult && buyResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+            }
+            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+            this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+            instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+            this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyDone = true;
+            this.rebuyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.buyPriceOnce = this.prebuyBuyPriceTwice;
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
+
+    }
+
+    async scenario1AB(){
+        let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
+        this.scenario1ABdone = true;
+        this.secondBought = true;
+        this.strategyUtils.logStrategyInfo(`Scenario 1AB in action.`)
+
+        // Select same instrument
+        // instrument_1 = instrument_1.symbol.includes('CE')
+        // ? this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()]
+        // : this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
+
+        // this.instrument_bought = instrument_1;
+
+        // BUY same instrument
+        instrument_1.buyPrice = instrument_1.last;
+        let buyResult = null;
+        try {
+            buyResult = await this.buyInstrument(instrument_1);
+            if (buyResult && buyResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+            }
+            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+            this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+            instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+            this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyDone = true;
+            this.rebuyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+            this.buyPriceOnce = this.prebuyBuyPriceTwice;
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
     }
 
     async scenario1B(){
@@ -1118,6 +1201,16 @@ class FPFSV3 extends BaseStrategy {
         return !this.reachedHalfTarget && (instrument_1.last - instrument_1.buyPrice) <= this.globalDict.realBuyStoploss && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
+    shouldPlayScenario1AA(){
+        let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
+        return this.scenario1Adone && !this.scenario1AAdone && !this.scenario1ABdone && !this.boughtSold && (instrument_1.last - instrument_1.buyPrice) <= -20;
+    }
+
+    shouldPlayScenario1AB(){
+        let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
+        return this.scenario1Adone && !this.scenario1AAdone && !this.scenario1ABdone && !this.boughtSold && (instrument_1.last - instrument_1.buyPrice) >= 0;
+    }
+
     shouldPlayScenario1B(){
         let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
         return this.reachedHalfTarget && (instrument_1.last <= instrument_1.buyPrice) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
@@ -1133,6 +1226,7 @@ class FPFSV3 extends BaseStrategy {
         return (instrument_1.last <= instrument_1.buyPrice) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
     }
 
+
     shouldPlayScenarioSL(){
         let instrument_1 = this.universalDict.instrumentMap[this.instrument_bought.token];
         return (instrument_1.last - instrument_1.buyPrice <= this.globalDict.stoploss) && !this.boughtSold;
@@ -1140,6 +1234,8 @@ class FPFSV3 extends BaseStrategy {
 
     resetFilters(){
         this.scenario1Adone = false;
+        this.scenario1AAdone = false;
+        this.scenario1ABdone = false;
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
