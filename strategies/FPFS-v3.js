@@ -50,6 +50,8 @@ class FPFSV3 extends BaseStrategy {
         this.buyTimestamp = null;
         this.rebuyTimestamp = null;
         this.scenario1Adone = false;
+        this.scenario1AAdone = false;
+        this.scenario1ABdone = false;
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
@@ -174,6 +176,8 @@ class FPFSV3 extends BaseStrategy {
         this.secondCycleRebuyHit = false;
         this.scenario1Adone = false;
         this.scenario1Bdone = false;
+        this.scenario1AAdone = false;
+        this.scenario1ABdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
@@ -1279,6 +1283,8 @@ class FPFSV3 extends BaseStrategy {
         this.secondCycleRebuyHit = false;
         this.scenario1Adone = false;
         this.scenario1Bdone = false;
+        this.scenario1AAdone = false;
+        this.scenario1ABdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
