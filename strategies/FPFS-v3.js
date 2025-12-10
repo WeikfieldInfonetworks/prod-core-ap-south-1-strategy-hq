@@ -772,7 +772,7 @@ class FPFSV3 extends BaseStrategy {
                 }
 
                 // HALF TARGET
-                if(change >= this.globalDict.target/2 && !this.reachedHalfTarget && !this.realBuyStoplossHit){
+                if(change >= this.globalDict.halfTargetThreshold && !this.reachedHalfTarget && !this.realBuyStoplossHit){
                     this.reachedHalfTarget = true;
                 }
 
@@ -1859,6 +1859,11 @@ class FPFSV3 extends BaseStrategy {
                 type: 'number',
                 default: 7,
                 description: 'Rebuy Threshold.'
+            },
+            halfTargetThreshold: {
+                type: 'number',
+                default: 5,
+                description: 'Half target threshold'
             },
             prebuySignificantThreshold: {
                 type: 'number',
