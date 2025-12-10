@@ -3,6 +3,7 @@ const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
 const TradeQueue = require('../collection-framework/TradeQueue');
 const fs = require('fs');
+const crypto = require('crypto');
 
 class MTMV5SharedStrategy extends BaseStrategy {
     constructor() {
@@ -23,7 +24,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.buyCompleted = false;
         this.sellCompleted = false;
         this.debugMode = false;
-        
+        this.cycleInstanceSet = new Set();
+        this.setInstanceComplete = false;
+        this.cycleInstanceId = null;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -209,6 +212,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.buyCompleted = false;
         this.sellCompleted = false;
         this.debugMode = false;
+        this.cycleInstanceSet = new Set();
+        this.setInstanceComplete = false;
+        this.cycleInstanceId = null;
 
         // Reset MTM specific variables
         this.mainToken = null;
@@ -1434,20 +1440,32 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     processNextCycleBlock(ticks) {
         // this.strategyUtils.logStrategyInfo('Processing NEXT CYCLE block');
+
+
+        if(!this.cycleInstanceId && !this.setInstanceComplete){
+            this.cycleInstanceId = this.getInstanceId();
+            this.appendCompletionState();
+            this.setInstanceComplete = true;
+        }
+
+        this.updateCycleInstanceSet();
+
+        if(this.isInstancesComplete()){
         
-        // Reset for next cycle
-        this.resetForNextCycle();
-        
-        this.blockNextCycle = false;
-        this.blockInit = true;
-        this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
-        
-        // Emit cycle restart notification
-        this.emitBlockTransition('NEXT_CYCLE', 'INIT', {
-            cycleNumber: this.universalDict.cycles || 1,
-            cycleReset: true,
-            message: `Starting cycle ${this.universalDict.cycles || 1}`
-        });
+            // Reset for next cycle
+            this.resetForNextCycle();
+            
+            this.blockNextCycle = false;
+            this.blockInit = true;
+            this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
+            
+            // Emit cycle restart notification
+            this.emitBlockTransition('NEXT_CYCLE', 'INIT', {
+                cycleNumber: this.universalDict.cycles || 1,
+                cycleReset: true,
+                message: `Starting cycle ${this.universalDict.cycles || 1}`
+            });
+        }
     }
 
     async scenario1A(){
@@ -1915,6 +1933,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.universalDict.cycles = (this.universalDict.cycles || 1) + 1;
         
         // Reset all flags and state
+        this.setInstanceComplete = false;
+        this.cycleInstanceSet = new Set();
+        this.cycleInstanceId = null;
         this.cePlus3 = false;
         this.pePlus3 = false;
         this.interimLowReached = false;
@@ -3056,6 +3077,41 @@ class MTMV5SharedStrategy extends BaseStrategy {
     writeToGlobalOutput(data) {
         let formatted_data = `${data}`;
         fs.writeFileSync("output/global.txt", formatted_data);
+    }
+
+    appendToGlobalOutput(data) {
+        let formatted_data = `${data}`;
+        fs.appendFileSync("output/global.txt", formatted_data);
+    }
+
+    appendCompletionState(){
+        let formatted_data = `${this.universalDict.cycles}:${this.cycleInstanceId}:COMPLETE\n`;
+        this.appendToGlobalOutput(formatted_data);
+    }
+
+    getInstanceId(){
+        this.cycleInstanceId = crypto.randomBytes(16).toString('hex');
+        return this.cycleInstanceId;
+    }
+
+    updateCycleInstanceSet(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        corpusArray.forEach(line => {
+            let [cycle, instanceId, state] = line.split(':');
+            if(parseInt(cycle) === parseInt(this.universalDict.cycles)){
+                this.cycleInstanceSet.add(instanceId);
+            }
+        });
+        console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
+    }
+
+    isInstancesComplete(){
+        return this.cycleInstanceSet.size >= 2;
+    }
+
+    resetGlobalOutput(){
+        writeToGlobalOutput('');
     }
 }
 
