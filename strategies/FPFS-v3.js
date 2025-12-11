@@ -901,6 +901,7 @@ class FPFSV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
                 this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}`);
             }
         }
         catch (error) {
@@ -1040,6 +1041,7 @@ class FPFSV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
                 this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}`);
             }
         }
         catch (error) {
@@ -1106,6 +1108,7 @@ class FPFSV3 extends BaseStrategy {
             this.globalDict.target = this.globalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.globalDict.quantity = this.globalDict.quantity * 2;
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
@@ -1138,6 +1141,7 @@ class FPFSV3 extends BaseStrategy {
             this.globalDict.target = this.globalDict.target * 2;
             this.globalDict.stoploss = this.globalDict.stoploss * 2;
             this.globalDict.quantity = this.globalDict.quantity / 2;
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}`);
 
         }
         catch (error) {
