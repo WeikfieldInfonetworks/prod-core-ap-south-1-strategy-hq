@@ -2120,7 +2120,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 10,
+                default: 20,
                 description: 'Target profit in points'
             },
             stoploss: {
@@ -2185,12 +2185,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             prebuyStoploss: {
                 type: 'number',
-                default: -11,
+                default: -7,
                 description: 'Stoploss for pre-buy'
             },
             realBuyStoploss: {
                 type: 'number',
-                default: -10,
+                default: -8,
                 description: 'Stoploss for real buy'
             },
             rebuyAt: {
