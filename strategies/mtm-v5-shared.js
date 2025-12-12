@@ -85,6 +85,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
+        this.actualRebuyDone = false;
         
         // Block states
         this.blockInit = true;
@@ -311,6 +312,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.blockRef3 = false;
         this.blockDiff10 = false;
         this.blockNextCycle = false;
+        this.actualRebuyDone = false;
 
         // Reset flags
         this.cePlus3 = false;
@@ -923,7 +925,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         }
 
         // PREBUY TARGET NET OBSERVER.
-        if(!this.targetNet && this.universalDict.usePrebuy){
+        if(!this.targetNet && this.universalDict.usePrebuy && this.actualRebuyDone){
             this.targetNet = (instrument_1.last - instrument_1.buyPrice) > ((this.globalDict.target/2) - 0.5); // Casting net if price within 1 point of target
             if(this.targetNet){
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
@@ -933,7 +935,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5);
+        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5)));
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1493,7 +1495,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        this.globalDict.target = this.savedState['target'];
+        // this.globalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
         this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
@@ -1556,7 +1558,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        this.globalDict.target = this.savedState['target'];
+        // this.globalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
         this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
@@ -1601,6 +1603,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
 
         //REBUY
+        this.actualRebuyDone = true;
         this.prebuyBuyPriceTwice = instrument_1.last;
         instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
@@ -1661,7 +1664,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        this.globalDict.target = this.savedState['target'];
+        // this.globalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
         this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
@@ -1997,6 +2000,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.realBuyStoplossHit = false;
         this.targetNet = false;
         this.secondBought = false;
+        this.actualRebuyDone = false;
         // this.repetition = {
         //     observed: false,
         //     type: null
