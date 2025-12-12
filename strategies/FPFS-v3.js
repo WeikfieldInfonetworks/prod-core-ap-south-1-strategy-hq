@@ -404,13 +404,7 @@ class FPFSV3 extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Observed ticks set: ${this.universalDict.observedTicks.length}`);
         this.strategyUtils.logStrategyInfo(`Observed tokens: ${this.universalDict.observedTicks.join(', ')}`);
 
-        if(!this.lowestCEToken) {
-            this.lowestCEToken = this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 20, 20).token.toString();
-        }
-        if(!this.lowestPEToken) {
-            this.lowestPEToken = this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 20, 20).token.toString();
-        }
-
+        
         // Transition to next block only if we have sufficient tokens
         this.blockInit = false;
         this.blockUpdate = true;
@@ -559,7 +553,7 @@ class FPFSV3 extends BaseStrategy {
                 }
                 else {
 
-                if (instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag && (instrument.token.toString() == this.lowestCEToken || instrument.token.toString() == this.lowestPEToken)) {
+                if (this.lowestCEToken && this.lowestPEToken && instrument.lowAtRef <= instrument.firstPrice*(1 - this.globalDict.dropThreshold) && !this.halfdrop_flag && (instrument.token.toString() == this.lowestCEToken || instrument.token.toString() == this.lowestPEToken)) {
                     this.halfdrop_flag = true;
                     this.strategyUtils.logStrategyInfo(`HALF DROP FLAG: ${instrument.symbol} at ${instrument.lowAtRef}`);
 
@@ -610,6 +604,12 @@ class FPFSV3 extends BaseStrategy {
             }
         }
 
+        if(!this.lowestCEToken) {
+            this.lowestCEToken = this.strategyUtils.findClosestCEAbovePrice(this.universalDict.instrumentMap, 20, 20).token.toString();
+        }
+        if(!this.lowestPEToken) {
+            this.lowestPEToken = this.strategyUtils.findClosestPEAbovePrice(this.universalDict.instrumentMap, 20, 20).token.toString();
+        }
         console.log(`Processed ${processedCount} observed instruments out of ${ticks.length} total ticks`);
 
         if (this.halfdrop_flag && !this.blockDiff10) {
