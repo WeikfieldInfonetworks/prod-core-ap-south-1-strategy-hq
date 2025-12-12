@@ -196,8 +196,8 @@ class FPFSV3 extends BaseStrategy {
         const success = super.updateGlobalDictParameter(parameter, value);
         
         if (success) {
+            this.strategyUtils.logStrategyInfo(`🔧 Updated: ${parameter} = ${value}`);
             if (parameter === 'enableTrading') {
-                this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
                 
                 // Emit specific trading toggle notification
                 this.emitStatusUpdate('Trading mode updated', {
@@ -225,8 +225,8 @@ class FPFSV3 extends BaseStrategy {
         const success = super.updateUniversalDictParameter(parameter, value);
         
         if (success) {
+            this.strategyUtils.logStrategyInfo(`🔧 Updated: ${parameter} = ${value}`);
             if (parameter === 'cycles') {
-                this.strategyUtils.logStrategyInfo(`🔧 Cycles Updated: ${value}`);
                 
                 // Emit cycle update notification
                 this.emitStatusUpdate(`Cycle count updated`, {

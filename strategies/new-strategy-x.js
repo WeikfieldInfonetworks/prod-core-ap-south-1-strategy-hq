@@ -135,9 +135,7 @@ class NewXStrategy extends BaseStrategy {
     updateGlobalDictParameter(parameter, value) {
         const success = super.updateGlobalDictParameter(parameter, value);
         
-        if (parameter === 'enableTrading') {
-            this.strategyUtils.logStrategyInfo(`🔧 Enable Trading Updated: ${value}`);
-        }
+        this.strategyUtils.logStrategyInfo(`🔧 Global Parameter Updated: ${parameter} = ${value}`);
         
         return success;
     }
