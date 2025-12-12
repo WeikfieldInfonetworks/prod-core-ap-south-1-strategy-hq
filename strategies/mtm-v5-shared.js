@@ -437,7 +437,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         if (this.universalDict.cycles >= this.globalDict.skipAfterCycles) {
             // this.universalDict.skipBuy = true;
             this.globalDict.sellAt10Live = true;
-            this.globalDict.enableTrading = false;
+            // this.globalDict.enableTrading = false;
         }
 
         // Data initialization removed - now using simplified event emission
