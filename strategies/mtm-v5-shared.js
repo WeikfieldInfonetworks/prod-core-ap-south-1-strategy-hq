@@ -199,7 +199,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         }
 
         // Log enableTrading status
-        this.strategyUtils.logStrategyInfo(`Enable Trading Status: ${this.globalDict.enableTrading}`);
+        this.strategyUtils.logStrategyInfo(`Enable Trading Status: ${this.universalDict.enableTrading}`);
 
         // Reset position state
         this.hasActivePosition = false;
@@ -437,7 +437,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         if (this.universalDict.cycles >= this.globalDict.skipAfterCycles) {
             // this.universalDict.skipBuy = true;
             this.globalDict.sellAt10Live = true;
-            // this.globalDict.enableTrading = false;
+            // this.universalDict.enableTrading = false;
         }
 
         // Data initialization removed - now using simplified event emission
@@ -1780,7 +1780,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Opposite Token: ${oppInstrument.symbol} @ ${oppInstrument.last}`);
         
         // Check if trading is enabled
-        const tradingEnabled = this.globalDict.enableTrading === true && this.universalDict.usePrebuy === false;
+        const tradingEnabled = this.universalDict.enableTrading === true && this.universalDict.usePrebuy === false;
         this.strategyUtils.logStrategyInfo(`Trading enabled: ${tradingEnabled}`);
         
         // CRITICAL FIX: Ensure TradingUtils is available before proceeding
@@ -2128,11 +2128,6 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 default: -50,
                 description: 'Stop loss in points'
             },
-            enableTrading: {
-                type: 'boolean',
-                default: false,
-                description: 'Enable/disable actual trading'
-            },
             // sellAt10Live: {
             //     type: 'boolean',
             //     default: false,
@@ -2247,7 +2242,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 type: 'boolean',
                 default: true,
                 description: 'Use pre-buy technique.'
-            }
+            },
+            enableTrading: {
+                type: 'boolean',
+                default: false,
+                description: 'Enable/disable actual trading'
+            },
         };
     }
 
@@ -2256,7 +2256,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo('Selling both instruments at target/stoploss');
         
         // Check if trading is enabled
-        const tradingEnabled = this.globalDict.enableTrading;
+        const tradingEnabled = this.universalDict.enableTrading;
         
         // Ensure TradingUtils is available
         if (!this.tradingUtils) {
@@ -2344,7 +2344,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Selling instrument: ${instrument.symbol}`);
         
         // Check if trading is enabled
-        const tradingEnabled = this.globalDict.enableTrading;
+        const tradingEnabled = this.universalDict.enableTrading;
         
         // Ensure TradingUtils is available
         if (!this.tradingUtils) {
@@ -2407,7 +2407,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Buying instrument: ${instrument.symbol}`);
         
         // Check if trading is enabled
-        const tradingEnabled = this.globalDict.enableTrading;
+        const tradingEnabled = this.universalDict.enableTrading;
         
         // Ensure TradingUtils is available
         if (!this.tradingUtils) {
