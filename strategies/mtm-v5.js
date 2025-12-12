@@ -927,7 +927,7 @@ class MTMV5Strategy extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.targetNet && mtm >= this.globalDict.target) || (this.targetNet && mtm <= this.globalDict.target - 1);
+        const hit_7 = (this.targetNet && mtm >= this.globalDict.target) || (this.targetNet && mtm <= this.globalDict.target - 0.5);
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
