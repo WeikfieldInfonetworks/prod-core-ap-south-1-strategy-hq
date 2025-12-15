@@ -87,6 +87,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.thirdBought = false;
         this.actualRebuyDone = false;
         this.exit_at_cost = false;
+        this.exit_at_stoploss = false;
         
         // Block states
         this.blockInit = true;
@@ -306,6 +307,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.who_hit_24 = null;
         this.who_hit_36 = null;
         this.exit_at_cost = false;
+        this.exit_at_stoploss = false;
         // Reset block states
         this.blockInit = true;
         this.blockUpdate = false;
@@ -1009,6 +1011,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 await this.scenarioSL1();
             }
 
+            if(this.shouldPlayScenarioSL2()){
+                await this.scenarioSL2();
+            }
+
             if(this.shouldPlayScenario1A()){
                 await this.scenario1A();
             }
@@ -1502,6 +1508,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
+        this.announceExitAtStoploss();
         // this.globalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
@@ -1767,6 +1774,36 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.emitInstrumentDataUpdate();
     }
 
+    async scenarioSL2(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        this.boughtSold = true;
+        this.strategyUtils.logStrategyInfo(`Scenario SL2 in action.`)
+
+        //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
+        // let diff = 0;
+        try {
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+                // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+            }
+
+            this.globalDict.stoploss = this.savedState['stoploss'];
+            this.globalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
+    }
+
+
     shouldPlayScenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         return !this.reachedHalfTarget && (instrument_1.last - instrument_1.buyPrice) <= this.globalDict.realBuyStoploss && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
@@ -1794,6 +1831,11 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenarioSL1(){
         return this.exit_at_cost && !this.boughtSold;
+    }
+
+    shouldPlayScenarioSL2(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        return (instrument_1.last <= instrument_1.buyPrice) && this.exit_at_stoploss && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone;
     }
 
     resetFilters(){
@@ -2065,6 +2107,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.scenario1CAdone = false;
         this.thirdBought = false;
         this.exit_at_cost = false;
+        this.exit_at_stoploss = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
@@ -3157,6 +3200,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.exit_at_cost = true;
                 this.strategyUtils.logStrategyInfo('Exit at cost announced');
             }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_STOPLOSS'){
+                this.exit_at_stoploss = true;
+                this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
+            }
         });
     }
 
@@ -3167,6 +3214,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
     announceExitAtCost(){
         if(this.cycleInstanceSet.size < 2){
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_COST\n`);
+        }
+    }
+
+    announceExitAtStoploss(){
+        if(this.cycleInstanceSet.size < 2){
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_STOPLOSS\n`);
         }
     }
 
