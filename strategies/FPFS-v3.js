@@ -793,7 +793,7 @@ class FPFSV3 extends BaseStrategy {
                 // }
 
                 // TARGET NET
-                if(change > this.globalDict.target - 0.5 && !this.targetNet && !this.boughtSold){
+                if(change >= this.globalDict.target - 0.5 && !this.targetNet && !this.boughtSold){
                     this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument.symbol}`);
                     this.targetNet = true;
                 }
