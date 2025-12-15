@@ -86,6 +86,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.scenario1CAdone = false;
         this.thirdBought = false;
         this.actualRebuyDone = false;
+        this.exit_at_cost = false;
         
         // Block states
         this.blockInit = true;
@@ -304,7 +305,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.buyBackTarget = 0;
         this.who_hit_24 = null;
         this.who_hit_36 = null;
-        
+        this.exit_at_cost = false;
         // Reset block states
         this.blockInit = true;
         this.blockUpdate = false;
@@ -931,6 +932,8 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
             }
         }
+
+        this.updateCycleInstanceSet();
         
         
         // TARGET OBSERVER.
@@ -1001,6 +1004,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
         // PREBUY SELL LOGIC.
         if(this.universalDict.usePrebuy && !this.entry_7){
             console.log(`🔍 Checking real buy stoploss - Current: ${instrument_1_original_change}, Stoploss: ${this.globalDict.realBuyStoploss}, Real buy stoploss hit: ${this.realBuyStoplossHit}, Reached half target: ${this.reachedHalfTarget}`);
+
+            if(this.shouldPlayScenarioSL1()){
+                await this.scenarioSL1();
+            }
 
             if(this.shouldPlayScenario1A()){
                 await this.scenario1A();
@@ -1543,6 +1550,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
         //SELL
         this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        this.announceExitAtCost();
         // this.realBuyStoplossHit = true;
         let sellResult = null;
         let diff = 0;
@@ -1645,6 +1653,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.secondBought = true;
         //SELL
         this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        this.announceExitAtCost();
         // this.realBuyStoplossHit = true;
         let sellResult = null;
         let diff = 0;
@@ -1719,10 +1728,43 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
                 // this.globalDict.target = this.globalDict.target + Math.abs(diff);
             }
+
+            this.globalDict.stoploss = this.savedState['stoploss'];
+            this.globalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
+    }
+
+    async scenarioSL1(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        this.boughtSold = true;
+        this.strategyUtils.logStrategyInfo(`Scenario SL1 in action.`)
+
+        //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
+        // let diff = 0;
+        try {
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+                // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+            }
+
+            this.globalDict.stoploss = this.savedState['stoploss'];
+            this.globalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
     }
 
     shouldPlayScenario1A(){
@@ -1748,6 +1790,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
     shouldPlayScenarioSL(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         return (instrument_1.last - instrument_1.buyPrice <= this.globalDict.stoploss) && !this.boughtSold;
+    }
+
+    shouldPlayScenarioSL1(){
+        return this.exit_at_cost && !this.boughtSold;
     }
 
     resetFilters(){
@@ -2018,7 +2064,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
-
+        this.exit_at_cost = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
@@ -3103,15 +3149,25 @@ class MTMV5SharedStrategy extends BaseStrategy {
         let corpusArray = corpus.split('\n');
         corpusArray.forEach(line => {
             let [cycle, instanceId, state] = line.split(':');
-            if(parseInt(cycle) === parseInt(this.universalDict.cycles)){
+            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'COMPLETE'){
                 this.cycleInstanceSet.add(instanceId);
+                console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_COST'){
+                this.exit_at_cost = true;
+                this.strategyUtils.logStrategyInfo('Exit at cost announced');
             }
         });
-        console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
     }
 
     isInstancesComplete(){
         return this.cycleInstanceSet.size >= 2;
+    }
+
+    announceExitAtCost(){
+        if(this.cycleInstanceSet.size < 2){
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_COST\n`);
+        }
     }
 
     resetGlobalOutput(){
