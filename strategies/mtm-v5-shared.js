@@ -1822,7 +1822,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= instrument_1.buyPrice) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
+        return (instrument_1.last <= (instrument_1.buyPrice+1)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
     }
 
     shouldPlayScenarioSL(){
