@@ -126,6 +126,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.savedState = {};
         this.targetNet = false;
         this.secondBought = false;
+        this.actualRebuyDone = false;
         
         // Entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -284,6 +285,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
+        this.actualRebuyDone = false;
         // Reset entry stage variables
         this.entry_24_first_stage = false;
         this.entry_24_second_stage = false;
@@ -927,7 +929,7 @@ class MTMV5Strategy extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5);
+        const hit_7 = (this.targetNet && mtm >= (this.globalDict.target/2) && this.actualRebuyDone) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5 && this.actualRebuyDone);
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1580,6 +1582,7 @@ class MTMV5Strategy extends BaseStrategy {
     async scenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenario1Cdone = true;
+        this.actualRebuyDone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
 
         //REBUY
@@ -1993,7 +1996,7 @@ class MTMV5Strategy extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.thirdBought = false;
-
+        this.actualRebuyDone = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
