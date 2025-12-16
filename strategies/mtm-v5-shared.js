@@ -27,6 +27,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.cycleInstanceSet = new Set();
         this.setInstanceComplete = false;
         this.cycleInstanceId = null;
+        this.announcementDone = false;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -218,6 +219,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.cycleInstanceSet = new Set();
         this.setInstanceComplete = false;
         this.cycleInstanceId = null;
+        this.announcementDone = false;
 
         // Reset MTM specific variables
         this.mainToken = null;
@@ -437,7 +439,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         //     symbol: t.symbol,
         //     price: t.last_price
         // })))}`);
-        
+        this.cycleInstanceId = this.getInstanceId();
         // Skip buy after first cycle
         if (this.universalDict.cycles >= this.globalDict.skipAfterCycles) {
             // this.universalDict.skipBuy = true;
@@ -1457,8 +1459,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         // this.strategyUtils.logStrategyInfo('Processing NEXT CYCLE block');
 
 
-        if(!this.cycleInstanceId && !this.setInstanceComplete){
-            this.cycleInstanceId = this.getInstanceId();
+        if(!this.setInstanceComplete){
             this.appendCompletionState();
             this.setInstanceComplete = true;
         }
@@ -2108,6 +2109,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.thirdBought = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
+        this.announcementDone = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
@@ -3196,11 +3198,11 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.cycleInstanceSet.add(instanceId);
                 console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_COST'){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_COST' && !this.announcementDone && !this.exit_at_cost){
                 this.exit_at_cost = true;
                 this.strategyUtils.logStrategyInfo('Exit at cost announced');
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_STOPLOSS'){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_STOPLOSS' && !this.announcementDone && !this.exit_at_stoploss){
                 this.exit_at_stoploss = true;
                 this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
             }
@@ -3215,12 +3217,14 @@ class MTMV5SharedStrategy extends BaseStrategy {
         if(this.cycleInstanceSet.size < 2){
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_COST\n`);
         }
+        this.announcementDone = true;
     }
 
     announceExitAtStoploss(){
         if(this.cycleInstanceSet.size < 2){
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_STOPLOSS\n`);
         }
+        this.announcementDone = true;
     }
 
     resetGlobalOutput(){
