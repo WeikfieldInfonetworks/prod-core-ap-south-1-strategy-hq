@@ -64,6 +64,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
       case 'Fifty Percent Full Spectrum V3':
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
+      case 'Fifty Percent Full Spectrum V4':
+        return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
       case 'New X Strategy':
         return <NewXDashboard strategy={currentStrategy} />;
       case 'New X 2 Strategy':
