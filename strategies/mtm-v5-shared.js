@@ -777,7 +777,8 @@ class MTMV5SharedStrategy extends BaseStrategy {
             let pe_change = pe_instrument.last - pe_instrument.buyPrice;
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
-            if ((ce_change >= this.globalDict.prebuyStoploss || pe_change >= this.globalDict.prebuyStoploss) && !this.prebuyHit){
+            let filter = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss || pe_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss);
+            if (filter && !this.prebuyHit){
                 this.prebuyHit = true;
                 let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
                 let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
@@ -785,8 +786,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 // let closestCEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
 
                 // If repetition is not observed.
+                let filter_2 = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss);
                 if(!this.repetition.observed){
-                    real_instrument = ce_change <= this.globalDict.prebuyStoploss
+                    real_instrument = filter_2
                     ? (this.globalDict.buySame ? closestCEto200 : closestPEto200)
                     : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
                 }
@@ -1623,8 +1625,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
         //REBUY
         this.actualRebuyDone = true;
         this.prebuyBuyPriceTwice = instrument_1.last;
-        instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+        // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+        let averagePrice = this.prebuyBuyPriceOnce + (this.globalDict.rebuyAt/2);
+        instrument_1.buyPrice = averagePrice;
+        this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
         let buyResult = null;
         try {
             buyResult = await this.buyInstrument(instrument_1);
@@ -1634,11 +1638,11 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
-            this.rebuyAveragePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+            this.rebuyAveragePrice = averagePrice;
 
             // Update the real instrument's buy price to average of both buys
-            instrument_1.buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+            instrument_1.buyPrice = averagePrice;
+            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
             this.strategyUtils.logStrategyInfo(`New Target is ${instrument_1.buyPrice}.`)
             // this.globalDict.target = this.globalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
