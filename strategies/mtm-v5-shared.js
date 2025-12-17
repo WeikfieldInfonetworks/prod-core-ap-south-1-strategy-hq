@@ -720,24 +720,26 @@ class MTMV5SharedStrategy extends BaseStrategy {
                     closestPE = mainOption.symbol.includes('PE') ? mainOption : oppOption;
                 }
                 // Assign boughtToken and oppBoughtToken based on mtmFirstOption
+                let closestCEToken = closestCE.token.toString();
+                let closestPEToken = closestPE.token.toString();
+
                 if (this.mtmFirstOption) {
                     const firstOptionType = this.mtmFirstOption.symbol.includes('CE') ? 'CE' : 'PE';
-                    
                     if (firstOptionType === 'CE') {
-                        this.boughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.mainToken : this.oppToken;
-                        this.oppBoughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? this.oppToken : this.mainToken;
+                        this.boughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? closestCEToken : closestPEToken;
+                        this.oppBoughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? closestPEToken : closestCEToken;
                         this.strategyUtils.logStrategyInfo(`MTM First Option is CE ${closestCE.symbol}`);
                         this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestPE.symbol}`);
                     } else {
-                        this.boughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? this.oppToken : this.mainToken;
-                        this.oppBoughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.mainToken : this.oppToken;
+                        this.boughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? closestPEToken : closestCEToken;
+                        this.oppBoughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? closestCEToken : closestPEToken;
                         this.strategyUtils.logStrategyInfo(`MTM First Option is PE ${closestPE.symbol}`);
                         this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestCE.symbol}`);
                     }
                 } else {
                     // Fallback: use CE as bought token, PE as opposite
-                    this.boughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.mainToken : this.oppToken;
-                    this.oppBoughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? this.oppToken : this.mainToken;
+                    this.boughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? closestCEToken : closestPEToken;
+                    this.oppBoughtToken = this.universalDict.instrumentMap[this.oppToken].symbol.includes('PE') ? closestPEToken : closestCEToken;
                     this.strategyUtils.logStrategyInfo(`Fallback - Bought Token: ${closestCE.symbol}`);
                     this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestPE.symbol}`);
                 }
@@ -775,12 +777,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
             let pe_change = pe_instrument.last - pe_instrument.buyPrice;
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
-            if ((ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss) && !this.prebuyHit){
+            if ((ce_change >= this.globalDict.prebuyStoploss || pe_change >= this.globalDict.prebuyStoploss) && !this.prebuyHit){
                 this.prebuyHit = true;
-                // let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-                // let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 205, 205).token.toString()];
-                let closestPEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('PE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
-                let closestCEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
+                let closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                let closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                // let closestPEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('PE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
+                // let closestCEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
 
                 // If repetition is not observed.
                 if(!this.repetition.observed){
@@ -1822,7 +1824,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= (instrument_1.buyPrice+1)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
+        return (instrument_1.last <= (instrument_1.buyPrice)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
     }
 
     shouldPlayScenarioSL(){
@@ -2215,7 +2217,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 20,
+                default: 13,
                 description: 'Target profit in points'
             },
             stoploss: {
@@ -2275,7 +2277,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             prebuyStoploss: {
                 type: 'number',
-                default: -7,
+                default: -4,
                 description: 'Stoploss for pre-buy'
             },
             realBuyStoploss: {
@@ -2285,12 +2287,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             rebuyAt: {
                 type: 'number',
-                default: 7,
+                default: 5,
                 description: 'Rebuy Threshold.'
             },
             halfTargetThreshold: {
                 type: 'number',
-                default: 5,
+                default: 4,
                 description: 'Half target threshold'
             },
             prebuySignificantThreshold: {
