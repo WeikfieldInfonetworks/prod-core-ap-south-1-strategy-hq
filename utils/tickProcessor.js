@@ -81,6 +81,35 @@ class TickProcessor {
     }
 
     /**
+     * Create an immutable snapshot of tick data to ensure all instances see the same prices
+     * @param {Array} tickData - The original tick data array
+     * @returns {Object} Snapshot object with cloned tick data and timestamp
+     */
+    createTickSnapshot(tickData) {
+        const snapshotTimestamp = Date.now();
+        const snapshotTimeISO = new Date(snapshotTimestamp).toISOString();
+        
+        // Deep clone the tick data array to create an immutable snapshot
+        // This ensures all instances see the same prices even if the original tick objects are mutated
+        const clonedTickData = tickData.map(tick => {
+            // Create a new object with all properties from the original tick
+            // This prevents mutation of the original tick objects
+            return {
+                instrument_token: tick.instrument_token,
+                symbol: tick.symbol,
+                last_price: tick.last_price,  // Capture the price at snapshot time
+            };
+        });
+        
+        return {
+            tickData: clonedTickData,
+            snapshotTimestamp,
+            snapshotTimeISO,
+            originalTickCount: tickData.length
+        };
+    }
+
+    /**
      * Process ticks for multiple users with controlled concurrency
      * @param {Array} activeUsers - Array of user IDs
      * @param {Array} tickData - The tick data to process
@@ -94,11 +123,15 @@ class TickProcessor {
             return;
         }
         
+        // Create an immutable snapshot of tick data before processing
+        // This ensures all instances see the same prices even if tick objects are mutated
+        const snapshot = this.createTickSnapshot(tickData);
+        console.log(`📸 Created tick snapshot at ${snapshot.snapshotTimeISO} for ${snapshot.originalTickCount} ticks`);
         console.log(`Processing ticks for ${activeUsers.length} active users with controlled concurrency`);
         
-        // Process users with controlled concurrency
+        // Process users with controlled concurrency, each getting the same snapshot
         const promises = activeUsers.map(userId => 
-            this.processUserTicks(userId, tickData, processFunction, emitFunction)
+            this.processUserTicks(userId, snapshot.tickData, processFunction, emitFunction)
         );
         
         try {
