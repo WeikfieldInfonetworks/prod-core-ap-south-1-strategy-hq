@@ -89,6 +89,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.actualRebuyDone = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
+        this.acceptedTokensFound = false;
         
         // Block states
         this.blockInit = true;
@@ -220,6 +221,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.setInstanceComplete = false;
         this.cycleInstanceId = null;
         this.announcementDone = false;
+        this.acceptedTokensFound = false;
 
         // Reset MTM specific variables
         this.mainToken = null;
@@ -488,8 +490,15 @@ class MTMV5SharedStrategy extends BaseStrategy {
             5 // adjustment step
         );
         
-        const acceptedTokens = rangeResult.acceptedTokens;
-        const rejectedTokens = rangeResult.rejectedTokens;
+        let acceptedTokens = rangeResult.acceptedTokens;
+        let rejectedTokens = rangeResult.rejectedTokens;
+
+        if(this.checkAcceptedTokens().status) {
+            acceptedTokens = this.checkAcceptedTokens().acceptedTokens;
+        }
+        else {
+            this.announceAcceptedTokens(acceptedTokens);
+        }
 
         this.strategyUtils.logStrategyInfo(`Accepted tokens: ${acceptedTokens.length}`);
         this.strategyUtils.logStrategyInfo(`Rejected tokens: ${rejectedTokens.length}`);
@@ -2157,6 +2166,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
         this.announcementDone = false;
+        this.acceptedTokensFound = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
@@ -3272,6 +3282,26 @@ class MTMV5SharedStrategy extends BaseStrategy {
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_STOPLOSS\n`);
         }
         this.announcementDone = true;
+    }
+
+    announceAcceptedTokens(acceptedTokens){
+        if(!this.acceptedTokensFound){
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${acceptedTokens}:ACCEPTED_TOKENS\n`);
+        }
+    }
+
+    checkAcceptedTokens(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let accepted_tokens = [];
+        corpusArray.forEach(line => {
+            let [cycle, acceptedTokens, state] = line.split(':');
+            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'ACCEPTED_TOKENS' && !this.acceptedTokensFound){
+                this.acceptedTokensFound = true;
+                accepted_tokens = JSON.parse(acceptedTokens);
+            }
+        });
+        return {status: this.acceptedTokensFound, acceptedTokens: accepted_tokens};
     }
 
     resetGlobalOutput(){
