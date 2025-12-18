@@ -899,7 +899,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
         const instrument_1_original_change = instrument_1.last - instrument_1.buyPrice;
         const instrument_2_original_change = instrument_2.last - instrument_2.buyPrice;
-        const mtm = instrument_1_original_change + instrument_2_original_change;
+        let mtm = instrument_1_original_change + instrument_2_original_change;
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
         console.log(`TARGET: ${this.globalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.globalDict.quantity}`);
@@ -953,7 +953,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         }
 
         if(this.entry_7){
-            this.boughtSold = true;
+            // this.boughtSold = true;
             // if (this.universalDict.cycles == 0){
             //     this.writeToGlobalOutput("MTM HIT");
             // }
@@ -985,10 +985,42 @@ class MTMV5SharedStrategy extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
                 }
 
-                // this.globalDict.target = this.savedState['target'];
+                // // this.globalDict.target = this.savedState['target'];
                 this.globalDict.stoploss = this.savedState['stoploss'];
                 this.globalDict.quantity = this.savedState['quantity'];
                 this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+
+                // Select opposite instrument
+                instrument_1 = instrument_1.symbol.includes('CE')
+                ? this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()]
+                : this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+
+                this.prebuyBoughtToken = instrument_1.token;
+
+                // BUY opposite instrument
+                instrument_1.buyPrice = instrument_1.last;
+                let buyResult = null;
+                try {
+                    buyResult = await this.buyInstrument(instrument_1);
+                    if (buyResult && buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
+                    }
+                    this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                    this.prebuyLowTrackingPrice = this.prebuyBuyPriceTwice;
+                    instrument_1.buyPrice = this.prebuyBuyPriceTwice;
+                    this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceTwice;
+                    this.rebuyDone = true;
+                    this.rebuyPrice = this.prebuyBuyPriceTwice;
+                    this.rebuyAveragePrice = this.prebuyBuyPriceTwice;
+                    this.prebuyBuyPriceOnce = this.prebuyBuyPriceTwice;
+                    mtm = 0;
+                }
+                catch (error) {
+                    this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+                }
+
+                this.resetFilters();
+
 
                 // PREBUY REPETITION OBSERVER.
 
@@ -1557,7 +1589,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.boughtSold = true;
         this.scenario1Bdone = true;
         // this.thirdBought = this.secondBought;
-        this.secondBought = true;
+        // this.secondBought = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1B in action.`)
 
         //SELL
@@ -1664,7 +1696,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
         
         // this.thirdBought = this.secondBought;
-        this.secondBought = true;
+        // this.secondBought = true;
         //SELL
         this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
         this.announceExitAtCost();
@@ -1850,7 +1882,16 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
+        this.scenarioSLDone = false;
+        this.scenarioSL1Done = false;
+        this.scenarioSL2Done = false;
         this.reachedHalfTarget = false;
+        this.boughtSold = false;
+        this.entry_7 = false;
+        this.actualRebuyDone = false;
+        this.targetNet = false;
+        this.exit_at_cost = false;
+        this.exit_at_stoploss = false;
         this.secondBought = false;
     }
 
