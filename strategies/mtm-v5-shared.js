@@ -976,7 +976,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         }
 
         // SL2A OBSERVER.
-        if(this.actualRebuyDone && instrument_1.last >= (0.75*(this.globalDict.target/2)) && !this.sl2a){
+        if(this.actualRebuyDone && instrument_1.last >= (0.75*(this.globalDict.target/2)) && !this.sl2a && this.exit_at_stoploss){
             this.sl2a = true
         }
 
