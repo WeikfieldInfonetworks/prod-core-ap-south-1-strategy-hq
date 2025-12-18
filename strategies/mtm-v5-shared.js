@@ -89,8 +89,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.actualRebuyDone = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
-        this.acceptedTokensFound = false;
-        
+        this.prebuyTokensFound = false;
+        this.afterTarget = false;
+        this.sl2a = false;
         // Block states
         this.blockInit = true;
         this.blockUpdate = false;
@@ -221,7 +222,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.setInstanceComplete = false;
         this.cycleInstanceId = null;
         this.announcementDone = false;
-        this.acceptedTokensFound = false;
+        this.prebuyTokensFound = false;
+        this.afterTarget = false;
+        this.sl2a = false;
 
         // Reset MTM specific variables
         this.mainToken = null;
@@ -493,12 +496,13 @@ class MTMV5SharedStrategy extends BaseStrategy {
         let acceptedTokens = rangeResult.acceptedTokens;
         let rejectedTokens = rangeResult.rejectedTokens;
 
-        if(this.checkAcceptedTokens().status) {
-            acceptedTokens = this.checkAcceptedTokens().acceptedTokens;
-        }
-        else {
-            this.announceAcceptedTokens(acceptedTokens);
-        }
+        // let data = this.checkAcceptedTokens();
+        // if(data.status) {
+        //     acceptedTokens = data.acceptedTokens;
+        // }
+        // else {
+        //     this.announceAcceptedTokens(acceptedTokens);
+        // }
 
         this.strategyUtils.logStrategyInfo(`Accepted tokens: ${acceptedTokens.length}`);
         this.strategyUtils.logStrategyInfo(`Rejected tokens: ${rejectedTokens.length}`);
@@ -643,37 +647,42 @@ class MTMV5SharedStrategy extends BaseStrategy {
         }
 
         // Use StrategyUtils sequential filtering flow
-        const flags = {
-            mainToken: this.mainToken,
-            oppToken: this.oppToken,
-            cePlus3: this.cePlus3,
-            pePlus3: this.pePlus3,
-            interimLowReached: this.interimLowReached,
-            calcRefReached: this.calcRefReached,
-            interimLowDisabled: this.interimLowDisabled,
-            mtmFirstOption: this.mtmFirstOption
-        };
+        if(!this.interimLowReached){
+            const flags = {
+                mainToken: this.mainToken,
+                oppToken: this.oppToken,
+                cePlus3: this.cePlus3,
+                pePlus3: this.pePlus3,
+                interimLowReached: this.interimLowReached,
+                calcRefReached: this.calcRefReached,
+                interimLowDisabled: this.interimLowDisabled,
+                mtmFirstOption: this.mtmFirstOption
+            };
 
-        const result = this.strategyUtils.applySequentialFilterFlow(
-            this.universalDict.observedTicks,
-            this.universalDict.instrumentMap,
-            this.universalDict.ceTokens,
-            this.universalDict.peTokens,
-            flags,
-            this.globalDict
-        );
-        
-        // Update strategy state with results
-        if (result.success) {
-            this.mainToken = result.flags.mainToken;
-            this.oppToken = result.flags.oppToken;
-            this.cePlus3 = result.flags.cePlus3;
-            this.pePlus3 = result.flags.pePlus3;
-            this.interimLowReached = result.flags.interimLowReached;
-            this.calcRefReached = result.flags.calcRefReached;
-            this.mtmFirstOption = result.flags.mtmFirstOption;
+            const result = this.strategyUtils.applySequentialFilterFlow(
+                this.universalDict.observedTicks,
+                this.universalDict.instrumentMap,
+                this.universalDict.ceTokens,
+                this.universalDict.peTokens,
+                flags,
+                this.globalDict
+            );
+            
+            // Update strategy state with results
+            if (result.success) {
+                this.mainToken = result.flags.mainToken;
+                this.oppToken = result.flags.oppToken;
+                this.cePlus3 = result.flags.cePlus3;
+                this.pePlus3 = result.flags.pePlus3;
+                this.interimLowReached = result.flags.interimLowReached;
+                this.calcRefReached = result.flags.calcRefReached;
+                this.mtmFirstOption = result.flags.mtmFirstOption;
+            }
         }
 
+        if(!this.interimLowReached && this.onlyCheckPrebuyTokens()){
+            this.interimLowReached = true;
+        }
         // Check if we should transition to final ref
         if (this.shouldTransitionToFinalRef() && !this.blockFinalRef && !this.finalRefCompleted) {
             // this.blockUpdate = false;
@@ -731,6 +740,9 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 // Assign boughtToken and oppBoughtToken based on mtmFirstOption
                 let closestCEToken = closestCE.token.toString();
                 let closestPEToken = closestPE.token.toString();
+                if(!this.mtmFirstOption){
+                    this.mtmFirstOption = {symbol: '0000CE'}; // Temporary fix.
+                }
 
                 if (this.mtmFirstOption) {
                     const firstOptionType = this.mtmFirstOption.symbol.includes('CE') ? 'CE' : 'PE';
@@ -745,6 +757,19 @@ class MTMV5SharedStrategy extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`MTM First Option is PE ${closestPE.symbol}`);
                         this.strategyUtils.logStrategyInfo(`Opposite Token: ${closestCE.symbol}`);
                     }
+
+                    let x = this.universalDict.instrumentMap[this.boughtToken];
+                    let y = this.universalDict.instrumentMap[this.oppBoughtToken];
+
+                    let data = this.checkPrebuyTokens();
+                    if(data.status){
+                        this.universalDict.instrumentMap[this.boughtToken] = data.prebuyTokens[0];
+                        this.universalDict.instrumentMap[this.oppBoughtToken] = data.prebuyTokens[1];
+                    }
+                    else {
+                        this.announcePrebuy([x, y]);
+                    }
+
                 } else {
                     // Fallback: use CE as bought token, PE as opposite
                     this.boughtToken = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? closestCEToken : closestPEToken;
@@ -950,6 +975,11 @@ class MTMV5SharedStrategy extends BaseStrategy {
             }
         }
 
+        // SL2A OBSERVER.
+        if(this.actualRebuyDone && instrument_1.last >= (0.75*(this.globalDict.target/2)) && !this.sl2a){
+            this.sl2a = true
+        }
+
         this.updateCycleInstanceSet();
         
         
@@ -998,6 +1028,8 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.globalDict.stoploss = this.savedState['stoploss'];
                 this.globalDict.quantity = this.savedState['quantity'];
                 this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+
+                this.afterTarget = true;
 
                 // Select opposite instrument
                 instrument_1 = instrument_1.symbol.includes('CE')
@@ -1060,6 +1092,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
             if(this.shouldPlayScenarioSL2()){
                 await this.scenarioSL2();
+            }
+
+            if(this.shouldPlayScenarioSL2A()){
+                await this.scenarioSL2A();
             }
 
             if(this.shouldPlayScenario1A()){
@@ -1851,6 +1887,35 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.emitInstrumentDataUpdate();
     }
 
+    async scenarioSL2A(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        this.boughtSold = true;
+        this.strategyUtils.logStrategyInfo(`Scenario SL2A in action.`)
+
+        //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
+        // let diff = 0;
+        try {
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+                // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+            }
+
+            this.globalDict.stoploss = this.savedState['stoploss'];
+            this.globalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
+    }
+
 
     shouldPlayScenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
@@ -1869,7 +1934,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= (instrument_1.buyPrice)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold;
+        return (instrument_1.last <= (instrument_1.buyPrice)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.sl2a;
     }
 
     shouldPlayScenarioSL(){
@@ -1878,12 +1943,17 @@ class MTMV5SharedStrategy extends BaseStrategy {
     }
 
     shouldPlayScenarioSL1(){
-        return this.exit_at_cost && !this.boughtSold;
+        return this.exit_at_cost && !this.boughtSold && !this.afterTarget;
     }
 
     shouldPlayScenarioSL2(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= instrument_1.buyPrice) && this.exit_at_stoploss && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone;
+        return (instrument_1.last <= this.prebuyBuyPriceOnce) && this.exit_at_stoploss && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.afterTarget && !this.sl2a;
+    }
+
+    shouldPlayScenarioSL2A(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        return this.sl2a && this.exit_at_stoploss && instrument_1.last <= (0.5*(this.globalDict.target/2)) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.afterTarget;
     }
 
     resetFilters(){
@@ -2166,7 +2236,8 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
         this.announcementDone = false;
-        this.acceptedTokensFound = false;
+        this.prebuyTokensFound = false;
+        this.afterTarget = false;
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
         this.entry_plus_24_second_stage = false;
@@ -2182,6 +2253,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.buyBackTarget = 0;
         this.who_hit_24 = null;
         this.who_hit_36 = null;
+        this.sl2a = false;
 
         // Reset tokens
         this.mainToken = null;
@@ -2272,7 +2344,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 13,
+                default: 16,
                 description: 'Target profit in points'
             },
             stoploss: {
@@ -2332,7 +2404,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             prebuyStoploss: {
                 type: 'number',
-                default: -4,
+                default: 4,
                 description: 'Stoploss for pre-buy'
             },
             realBuyStoploss: {
@@ -2342,12 +2414,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             rebuyAt: {
                 type: 'number',
-                default: 5,
+                default: 8,
                 description: 'Rebuy Threshold.'
             },
             halfTargetThreshold: {
                 type: 'number',
-                default: 4,
+                default: 3,
                 description: 'Half target threshold'
             },
             prebuySignificantThreshold: {
@@ -3284,24 +3356,42 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.announcementDone = true;
     }
 
-    announceAcceptedTokens(acceptedTokens){
-        if(!this.acceptedTokensFound){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}:${acceptedTokens}:ACCEPTED_TOKENS\n`);
+    announcePrebuy(prebuyInstruments){
+        if(!this.prebuyTokensFound){
+            this.appendToGlobalOutput(`${this.universalDict.cycles}|${JSON.stringify(prebuyInstruments)}|PREBUY_INSTRUMENTS\n`);
         }
     }
 
-    checkAcceptedTokens(){
+    checkPrebuyTokens(){
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
-        let accepted_tokens = [];
+        let prebuy_tokens = [];
         corpusArray.forEach(line => {
-            let [cycle, acceptedTokens, state] = line.split(':');
-            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'ACCEPTED_TOKENS' && !this.acceptedTokensFound){
-                this.acceptedTokensFound = true;
-                accepted_tokens = JSON.parse(acceptedTokens);
+            if(line.includes('|')){
+                let [cycle, prebuyTokens, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'PREBUY_INSTRUMENTS' && !this.prebuyTokensFound){
+                    this.prebuyTokensFound = true;
+                    prebuy_tokens = JSON.parse(prebuyTokens);
+                }
             }
         });
-        return {status: this.acceptedTokensFound, acceptedTokens: accepted_tokens};
+        return {status: this.prebuyTokensFound, prebuyTokens: prebuy_tokens};
+    }
+
+    onlyCheckPrebuyTokens(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        corpusArray.forEach(line => {
+            if(line.includes('|')){
+                let [cycle, prebuyTokens, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'PREBUY_INSTRUMENTS'){
+                    this.strategyUtils.logStrategyInfo('Prebuy tokens found');
+                    return true;
+                    
+                }
+            }
+        });
+        return false;
     }
 
     resetGlobalOutput(){
