@@ -653,7 +653,7 @@ class StrategyUtils {
      * @param {Object} flags - Object containing strategy flags
      * @returns {Array} - Array of tokens that have passed peak and fall checkpoint
      */
-    applyPeakAndFallFilter(tokens, instrumentMap, flags) {
+    applyPeakAndFallFilter(tokens, instrumentMap, flags, globalDict) {
         // Return tokens that have passed the peak and fall checkpoint
         const tokensInRace = [];
         
@@ -665,7 +665,7 @@ class StrategyUtils {
             if (instrument.flagPlus3 && !flags.calcRefReached && !flags.interimLowReached) {
                 // Check if there's a difference of at least 2.5 between current price and peak
                 const peakFallDifference = instrument.peak - instrument.last;
-                if (peakFallDifference >= 2.5 && !instrument.flagPeakAndFall) {
+                if (peakFallDifference >= globalDict.peakAndFallDef && !instrument.flagPeakAndFall) {
                     this.logStrategyInfo(`PEAK AND FALL by ${instrument.symbol}. PEAK: ${instrument.peak} LAST: ${instrument.last} DIFF: ${peakFallDifference.toFixed(2)}`);
                     instrument.peakAtRef = instrument.peak;
                     instrument.peakTime = instrument.time;
@@ -1034,7 +1034,7 @@ class StrategyUtils {
         updatedFlags.pePlus3 = plus3Result.pePlus3;
 
         // Filter 2: Peak and Fall Conditions - Apply to tokens that passed plus3
-        const peakFallResult = this.applyPeakAndFallFilter(tokensPassedPlus3, instrumentMap, updatedFlags);
+        const peakFallResult = this.applyPeakAndFallFilter(tokensPassedPlus3, instrumentMap, updatedFlags, globalDict);
         tokensPassedPeakFall = peakFallResult;
         console.log(`Peak and Fall filter: ${tokensPassedPeakFall.length} tokens passed`);
         
