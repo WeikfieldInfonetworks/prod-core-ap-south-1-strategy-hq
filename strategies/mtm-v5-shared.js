@@ -1945,7 +1945,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= (instrument_1.buyPrice)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
+        return (instrument_1.last <= instrument_1.buyPrice) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
     }
 
     shouldPlayScenarioSL(){
@@ -1959,7 +1959,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
 
     shouldPlayScenarioSL2(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= this.prebuyBuyPriceOnce) && this.exit_at_stoploss && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.afterTarget;
+        return (instrument_1.last <= instrument_1.buyPrice) && this.exit_at_stoploss && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.afterTarget;
     }
 
     shouldPlayScenarioSL2A(){
