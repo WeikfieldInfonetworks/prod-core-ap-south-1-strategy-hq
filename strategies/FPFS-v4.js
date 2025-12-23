@@ -81,14 +81,14 @@ class FPFSV4 extends BaseStrategy {
 
     setUserInfo(userName, userId) {
         this.strategyUtils.setUserInfo(userName, userId);
-        this.strategyUtils.logStrategyInfo(`Fifty Percent Strategy v3 initialized for user: ${userName} (ID: ${userId})`);
+        this.strategyUtils.logStrategyInfo(`Fifty Percent Strategy v4 initialized for user: ${userName} (ID: ${userId})`);
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
         // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
-        console.log('=== Fifty Percent Strategy v3 Initialization ===');
+        console.log('=== Fifty Percent Strategy v4 Initialization ===');
         console.log(`Strategy Name: ${this.name}`);
         console.log(`Strategy Description: ${this.description}`);
         console.log(`Access Token Available: ${!!this.accessToken}`);

@@ -450,6 +450,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             // this.universalDict.skipBuy = true;
             // this.globalDict.sellAt10Live = true;
             // this.universalDict.enableTrading = false;
+            this.globalDict.peakDef = 10
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
         }
