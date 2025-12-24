@@ -1036,6 +1036,8 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.globalDict.quantity = this.savedState['quantity'];
                 this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
 
+                this.announceTargetHit();
+
                 // this.afterTarget = true;
 
                 // if(!this.secondBought){
@@ -3420,7 +3422,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
     }
 
     announceTargetHit(){
-        if(this.cycleInstanceSet.size < 2){
+        if(!this.targetHit){
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:TARGET_HIT\n`);
         }
     }
