@@ -89,6 +89,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.actualRebuyDone = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
+        this.targetHit = false;
         this.prebuyTokensFound = false;
         this.afterTarget = false;
         this.sl2a = false;
@@ -225,7 +226,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.prebuyTokensFound = false;
         this.afterTarget = false;
         this.sl2a = false;
-
+        this.targetHit = false;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -1101,6 +1102,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 await this.scenarioSL1();
             }
 
+            if(this.shouldPlayScenarioSL3()){
+                await this.scenarioSL3();
+            }
+
             if(this.shouldPlayScenarioSL2()){
                 await this.scenarioSL2();
             }
@@ -1927,6 +1932,33 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.emitInstrumentDataUpdate();
     }
 
+    async scenarioSL3(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        this.boughtSold = true;
+        this.strategyUtils.logStrategyInfo(`Scenario SL3 in action.`)
+
+        //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
+        try {
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+            }
+
+            this.globalDict.stoploss = this.savedState['stoploss'];
+            this.globalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        }
+
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+        }
+
+        this.emitInstrumentDataUpdate();
+    }
+
 
     shouldPlayScenario1A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
@@ -1965,6 +1997,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
     shouldPlayScenarioSL2A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         return this.sl2a && this.exit_at_stoploss && ((instrument_1.last - instrument_1.buyPrice) <= (0.5*(this.globalDict.target/2))) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone;
+    }
+
+    shouldPlayScenarioSL3(){
+        return this.targetHit && !this.boughtSold && !this.afterTarget;
     }
 
     resetFilters(){
@@ -2246,6 +2282,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
         this.thirdBought = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
+        this.targetHit = false;
         this.announcementDone = false;
         this.prebuyTokensFound = false;
         this.afterTarget = false;
@@ -3351,6 +3388,10 @@ class MTMV5SharedStrategy extends BaseStrategy {
                 this.exit_at_stoploss = true;
                 this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
             }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'TARGET_HIT' && !this.targetHit){
+                this.targetHit = true;
+                this.strategyUtils.logStrategyInfo('Target hit announced');
+            }
         });
     }
 
@@ -3375,6 +3416,12 @@ class MTMV5SharedStrategy extends BaseStrategy {
     announcePrebuy(prebuyInstruments){
         if(!this.prebuyTokensFound){
             this.appendToGlobalOutput(`${this.universalDict.cycles}|${JSON.stringify(prebuyInstruments)}|PREBUY_INSTRUMENTS\n`);
+        }
+    }
+
+    announceTargetHit(){
+        if(this.cycleInstanceSet.size < 2){
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:TARGET_HIT\n`);
         }
     }
 
