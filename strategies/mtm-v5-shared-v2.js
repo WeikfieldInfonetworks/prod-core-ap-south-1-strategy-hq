@@ -1614,7 +1614,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     async scenarioSL4(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
-        this.strategyUtils.logStrategyInfo(`Scenario SL3 in action.`)
+        this.strategyUtils.logStrategyInfo(`Scenario SL4 in action.`)
 
         //SELL
         // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
@@ -1682,7 +1682,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     }
 
     shouldPlayScenarioSL4(){
-        return this.rebuyFound && !this.boughtSold && !this.afterTarget;
+        return this.rebuyFound && !this.boughtSold && !this.afterTarget && !this.rebuyDataAnnounced;
     }
 
     resetFilters(){
@@ -2082,7 +2082,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
         return {
             target: {
                 type: 'number',
-                default: 50,
+                default: 40,
                 description: 'Target profit in points'
             },
             stoploss: {
@@ -3082,6 +3082,10 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
                 this.targetHit = true;
                 this.strategyUtils.logStrategyInfo('Target hit announced');
             }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'REBUY_DATA' && !this.rebuyFound){
+                this.rebuyFound = true;
+                this.strategyUtils.logStrategyInfo('Rebuy data found');
+            }
         });
     }
 
@@ -3118,7 +3122,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     announceRebuyData(){
         if(!this.rebuyDataAnnounced){
             let data = JSON.stringify(this.previousRebuyData);
-            this.appendToGlobalOutput(`${this.universalDict.cycles}|${data}|REBUY_DATA\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:data:REBUY_DATA\n`);
             this.rebuyDataAnnounced = true;
         }
     }
@@ -3154,7 +3158,8 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
             if(line.includes('|')){
                 let [cycle, rebuyData, state] = line.split('|');
                 if(parseInt(cycle) === parseInt(this.universalDict.cycles-1) && state === 'REBUY_DATA'){
-                    this.previousRebuyData = JSON.parse(rebuyData);
+                    // this.previousRebuyData = JSON.parse(rebuyData);
+                    this.previousRebuyData = rebuyData;
                 }
             }
         });
@@ -3175,19 +3180,6 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
                         this.previouslyTargetHit = true;
                         this.previouslyExitAtCost = false;
                     }
-                }
-            }
-        });
-    }
-
-    checkForRebuy(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
-        let corpusArray = corpus.split('\n');
-        corpusArray.forEach(line => {
-            if(line.includes('|')){
-                let [cycle, rebuyData, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'REBUY_DATA'){
-                    
                 }
             }
         });
