@@ -158,11 +158,13 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
         this.buyBackTarget = 0;
         this.who_hit_24 = null;
         this.who_hit_36 = null;
+        this.userId = null;
     }
 
     setUserInfo(userName, userId) {
         this.strategyUtils.setUserInfo(userName, userId);
         this.strategyUtils.logStrategyInfo(`MTM V5 Strategy Shared V2 initialized for user: ${userName} (ID: ${userId})`);
+        this.userId = userId;
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
@@ -3057,7 +3059,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     }
 
     appendCompletionState(){
-        let formatted_data = `${this.universalDict.cycles}:${this.cycleInstanceId}:COMPLETE\n`;
+        let formatted_data = `${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:COMPLETE\n`;
         this.appendToGlobalOutput(formatted_data);
     }
 
@@ -3069,27 +3071,30 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     updateCycleInstanceSet(){
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
-            let [cycle, instanceId, state] = line.split(':');
-            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'COMPLETE'){
-                this.cycleInstanceSet.add(instanceId);
-                console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
-            }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_COST' && !this.announcementDone && !this.exit_at_cost){
-                this.exit_at_cost = true;
-                this.strategyUtils.logStrategyInfo('Exit at cost announced');
-            }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_STOPLOSS' && !this.announcementDone && !this.exit_at_stoploss){
-                this.exit_at_stoploss = true;
-                this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
-            }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'TARGET_HIT' && !this.targetHit){
-                this.targetHit = true;
-                this.strategyUtils.logStrategyInfo('Target hit announced');
-            }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'REBUY_DATA' && !this.rebuyFound){
-                this.rebuyFound = true;
-                this.strategyUtils.logStrategyInfo('Rebuy data found');
+            let [cycle, userId, instanceId, state] = line.split(':');
+            if(id_list.includes(userId)){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'COMPLETE'){
+                    this.cycleInstanceSet.add(instanceId);
+                    console.log("Cycle instance set size: ", this.cycleInstanceSet.size);
+                }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_COST' && !this.announcementDone && !this.exit_at_cost){
+                    this.exit_at_cost = true;
+                    this.strategyUtils.logStrategyInfo('Exit at cost announced');
+                }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'EXIT_AT_STOPLOSS' && !this.announcementDone && !this.exit_at_stoploss){
+                    this.exit_at_stoploss = true;
+                    this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
+                }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'TARGET_HIT' && !this.targetHit){
+                    this.targetHit = true;
+                    this.strategyUtils.logStrategyInfo('Target hit announced');
+                }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'REBUY_DATA' && !this.rebuyFound){
+                    this.rebuyFound = true;
+                    this.strategyUtils.logStrategyInfo('Rebuy data found');
+                }
             }
         });
     }
@@ -3100,41 +3105,41 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
 
     announceExitAtCost(){
         if(this.cycleInstanceSet.size < 2){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_COST\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:EXIT_AT_COST\n`);
         }
         this.announcementDone = true;
     }
 
     announceExitAtStoploss(){
         if(this.cycleInstanceSet.size < 2){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:EXIT_AT_STOPLOSS\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:EXIT_AT_STOPLOSS\n`);
         }
         this.announcementDone = true;
     }
 
     announcePrebuy(prebuyInstruments){
         if(!this.prebuyTokensFound){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}|${JSON.stringify(prebuyInstruments)}|PREBUY_INSTRUMENTS\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${JSON.stringify(prebuyInstruments)}|PREBUY_INSTRUMENTS\n`);
         }
     }
 
     announceTargetHit(){
         if(!this.targetHit){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.cycleInstanceId}:TARGET_HIT\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:TARGET_HIT\n`);
         }
     }
 
     announceRebuyData(){
         if(!this.rebuyDataAnnounced){
             let data = JSON.stringify(this.previousRebuyData);
-            this.appendToGlobalOutput(`${this.universalDict.cycles}:data:REBUY_DATA\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:data:REBUY_DATA\n`);
             this.rebuyDataAnnounced = true;
         }
     }
 
     announcePreviousCompletionMethod(status){
         if(!this.previousCompletionMethodAnnounced){
-            this.appendToGlobalOutput(`${this.universalDict.cycles}|${status}|PREVIOUS_COMPLETION_METHOD\n`);
+            this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${status}|PREVIOUS_COMPLETION_METHOD\n`);
             this.previousCompletionMethodAnnounced = true;
         }
     }
@@ -3143,10 +3148,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
         let prebuy_tokens = [];
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
             if(line.includes('|')){
-                let [cycle, prebuyTokens, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'PREBUY_INSTRUMENTS' && !this.prebuyTokensFound){
+                let [cycle, userId, prebuyTokens, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'PREBUY_INSTRUMENTS' && !this.prebuyTokensFound){
                     this.prebuyTokensFound = true;
                     this.strategyUtils.logStrategyInfo('Using existing prebuy tokens');
                     prebuy_tokens = JSON.parse(prebuyTokens);
@@ -3159,10 +3165,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     checkRebuyData(){
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
             if(line.includes('|')){
-                let [cycle, rebuyData, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles-1) && state === 'REBUY_DATA'){
+                let [cycle, userId, rebuyData, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles-1) && id_list.includes(userId) && state === 'REBUY_DATA'){
                     // this.previousRebuyData = JSON.parse(rebuyData);
                     this.previousRebuyData = rebuyData;
                 }
@@ -3173,10 +3180,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     checkPreviousCompletionMethod(){
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
             if(line.includes('|')){
-                let [cycle, status, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles-1) && state === 'PREVIOUS_COMPLETION_METHOD'){
+                let [cycle, userId, status, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles-1) && id_list.includes(userId) && state === 'PREVIOUS_COMPLETION_METHOD'){
                     if(status === 'EXIT_AT_COST'){
                         this.previouslyExitAtCost = true;
                         this.previouslyTargetHit = false;
@@ -3193,10 +3201,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
     onlyCheckPrebuyTokens(){
         let corpus = fs.readFileSync("output/global.txt", 'utf8');
         let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         for (const line of corpusArray) {
             if(line.includes('|')){
-                let [cycle, prebuyTokens, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'PREBUY_INSTRUMENTS' && !this.prebuyTokensFound){
+                let [cycle, userId, prebuyTokens, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'PREBUY_INSTRUMENTS' && !this.prebuyTokensFound){
                     this.strategyUtils.logStrategyInfo('Prebuy tokens found');
                     return true;  // Early exit - stops immediately when match is found
                 }
@@ -3223,6 +3232,17 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
         
         let diff = instrument_1.last - this.previousRebuyData.rebuy_price;
         return (instrument_1.last >= this.previousRebuyData.rebuy_price ? diff <= 2: diff >= 2) && this.universalDict.cycles >= 2 && this.previouslyTargetHit && false;
+    }
+
+    getUserIdFromMap(id){
+        let map = {
+            "9bd9ab31-e3cb-4b3e-a7ae-1130f130b5d7": "474b7da4-b146-4b1e-aff2-9db2608f9090",
+            "474b7da4-b146-4b1e-aff2-9db2608f9090": "9bd9ab31-e3cb-4b3e-a7ae-1130f130b5d7",
+            "b95df6b6-26de-4d54-9af1-a0a361d4b0cf": "f0cfd181-8642-451f-a04d-10c96b026b42",
+            "f0cfd181-8642-451f-a04d-10c96b026b42": "b95df6b6-26de-4d54-9af1-a0a361d4b0cf",
+        }
+
+        return map[id];
     }
 }
 
