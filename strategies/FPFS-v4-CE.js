@@ -3,11 +3,11 @@ const TradingUtils = require('../utils/tradingUtils');
 const StrategyUtils = require('../utils/strategyUtils');
 const fs = require('fs');
 
-class FPFSV4 extends BaseStrategy {
+class FPFSV4CE extends BaseStrategy {
 
     constructor() {
         super();
-        this.name = 'Fifty Percent Full Spectrum V4';
+        this.name = 'Fifty Percent Full Spectrum V4 CE';
         this.description = 'Fifty percent strategy with full spectrum of tokens';
         this.strategyUtils = new StrategyUtils();
         this.tickCount = 0;
@@ -81,14 +81,14 @@ class FPFSV4 extends BaseStrategy {
 
     setUserInfo(userName, userId) {
         this.strategyUtils.setUserInfo(userName, userId);
-        this.strategyUtils.logStrategyInfo(`Fifty Percent Strategy v4 initialized for user: ${userName} (ID: ${userId})`);
+        this.strategyUtils.logStrategyInfo(`Fifty Percent Strategy v4 CE initialized for user: ${userName} (ID: ${userId})`);
     }
 
     initialize(globalDict, universalDict, blockDict, accessToken) {
         // Call parent initialize method
         super.initialize(globalDict, universalDict, blockDict, accessToken);
         
-        console.log('=== Fifty Percent Strategy v4 Initialization ===');
+        console.log('=== Fifty Percent Strategy v4 CE Initialization ===');
         console.log(`Strategy Name: ${this.name}`);
         console.log(`Strategy Description: ${this.description}`);
         console.log(`Access Token Available: ${!!this.accessToken}`);
@@ -511,7 +511,7 @@ class FPFSV4 extends BaseStrategy {
             }
 
             // Other updates only for selected instruments.
-            if (this.universalDict.ceTokens.includes(token) || this.universalDict.peTokens.includes(token)) {
+            if (this.universalDict.ceTokens.includes(token)) {
 
                 if (newPrice > instrument.peak) {
                     instrument.prevPeak = instrument.peak;
@@ -1951,4 +1951,4 @@ class FPFSV4 extends BaseStrategy {
     }
 }
 
-module.exports = FPFSV4;
+module.exports = FPFSV4CE;

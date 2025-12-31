@@ -467,7 +467,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
             // this.universalDict.skipBuy = true;
             // this.globalDict.sellAt10Live = true;
             // this.universalDict.enableTrading = false;
-            this.globalDict.peakDef = 10;
+            this.globalDict.peakDef = this.globalDict.peakDefAfterFirstCycle;
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
             this.globalDict.prebuyStoploss = 0;
@@ -2105,6 +2105,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
                 default: 0,
                 description: 'Peak definition in points'
             },
+            peakDefAfterFirstCycle: {
+                type: 'number',
+                default: 10,
+                description: 'Peak definition in points after first cycle'
+            },
             peakAndFallDef: {
                 type: 'number',
                 default: 0,
@@ -2122,7 +2127,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
             },
             quantity: {
                 type: 'number',
-                default: 75,
+                default: 65,
                 description: 'Quantity to trade'
             },
             sellAt24Limit: {

@@ -2434,7 +2434,7 @@ class MTMV5SharedStrategy extends BaseStrategy {
             },
             quantity: {
                 type: 'number',
-                default: 75,
+                default: 65,
                 description: 'Quantity to trade'
             },
             sellAt24Limit: {
