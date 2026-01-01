@@ -258,6 +258,31 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
       return;
     }
   
+    // Prompt user for filename
+    const defaultFilename = `TradingHistory_${strategy.name}_${new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")}`;
+    
+    const userFilename = window.prompt(
+      "Enter filename for PDF (without .pdf extension):",
+      defaultFilename
+    );
+    
+    if (!userFilename) {
+      // User cancelled
+      return;
+    }
+    
+    // Sanitize filename (remove invalid characters)
+    const sanitizedFilename = userFilename
+      .replace(/[<>:"/\\|?*]/g, '_')
+      .trim();
+    
+    if (!sanitizedFilename) {
+      alert("Invalid filename. Please enter a valid name.");
+      return;
+    }
+  
     setIsGeneratingPDF(true);
   
     import("jspdf").then(({ default: jsPDF }) => {
@@ -400,11 +425,7 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
         line();
       });
   
-      pdf.save(
-        `TradingHistory_${strategy.name}_${new Date()
-          .toISOString()
-          .replace(/[:.]/g, "-")}.pdf`
-      );
+      pdf.save(`${sanitizedFilename}.pdf`);
   
       setIsGeneratingPDF(false);
     });
