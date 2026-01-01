@@ -3,8 +3,9 @@ import { Table, TrendingUp, TrendingDown, Target, DollarSign } from 'lucide-reac
 
 const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
   const formatPrice = (price) => {
-    if (typeof price !== 'number' || price === 0) return '-';
-    return `₹${price.toFixed(2)}`;
+    if (typeof price === 'string') return parseFloat(price).toFixed(2);
+    else if (typeof price !== 'number') return '-.--';
+    return parseFloat(price).toFixed(2);
   };
 
   const getCellColor = (value, isProfit = null) => {
@@ -260,7 +261,7 @@ const TradingTable = ({ strategy, instrumentData, tradingActions }) => {
               {tradingActions.slice(0, 5).map((action, index) => (
                 <div key={index} className="text-xs text-gray-600 flex items-center justify-between">
                   <span>
-                    {action.action}: {action.symbol} @ {formatPrice(action.price)}
+                    {action.action}: {action.symbol} @ ₹{formatPrice(action.price)}
                   </span>
                   <span className="text-gray-400">
                     {new Date(action.timestamp).toLocaleTimeString()}

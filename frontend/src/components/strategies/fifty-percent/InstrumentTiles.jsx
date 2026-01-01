@@ -27,8 +27,9 @@ const InstrumentTiles = ({ strategy, instrumentData }) => {
   };
 
   const formatPrice = (price) => {
-    if (price === undefined || price === null || price === -1) return 'N/A';
-    return price.toFixed(2);
+    if (typeof price === 'string') return parseFloat(price).toFixed(2);
+    else if (typeof price !== 'number') return '-.--';
+    return parseFloat(price).toFixed(2);
   };
 
   const formatChange = (change) => {

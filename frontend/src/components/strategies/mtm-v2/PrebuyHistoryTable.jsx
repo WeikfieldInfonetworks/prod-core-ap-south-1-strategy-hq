@@ -526,8 +526,9 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
   }, [preboughtInstruments, getStorageKey]);
 
   const formatPrice = (price) => {
-    if (typeof price !== 'number' || price === 0) return '-';
-    return `₹${price.toFixed(2)}`;
+    if (typeof price === 'string') return parseFloat(price).toFixed(2);
+    else if (typeof price !== 'number') return '-.--';
+    return parseFloat(price).toFixed(2);
   };
 
   const formatTime = (timestamp) => {
@@ -912,7 +913,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                                 </div>
                                 <div className="text-right">
                                   <div className="text-sm font-semibold">
-                                    {formatPrice(cycleData.preboughtInstruments.peInstrument?.price)}
+                                    ₹{formatPrice(cycleData.preboughtInstruments.peInstrument?.price)}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     Qty: {cycleData.preboughtInstruments.peInstrument?.quantity || 0}
@@ -930,7 +931,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                                 </div>
                                 <div className="text-right">
                                   <div className="text-sm font-semibold">
-                                    {formatPrice(cycleData.preboughtInstruments.ceInstrument?.price)}
+                                    ₹{formatPrice(cycleData.preboughtInstruments.ceInstrument?.price)}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     Qty: {cycleData.preboughtInstruments.ceInstrument?.quantity || 0}
@@ -964,7 +965,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-semibold text-yellow-800">
-                                  {formatPrice(cycleData.niftyPrice)}
+                                  ₹{formatPrice(cycleData.niftyPrice)}
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   At first buy
@@ -1012,7 +1013,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                                     <div className={`text-sm font-semibold ${
                                       event.action === 'buy' ? 'text-green-800' : 'text-red-800'
                                     }`}>
-                                      {formatPrice(event.price)}
+                                      ₹{formatPrice(event.price)}
                                     </div>
                                     <div className="text-xs text-gray-500">
                                       Qty: {event.quantity || 0}

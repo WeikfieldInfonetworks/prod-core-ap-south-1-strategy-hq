@@ -3,8 +3,9 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const InstrumentTiles = ({ instrumentData }) => {
   const formatPrice = (price) => {
-    if (typeof price !== 'number') return '-.--';
-    return price.toFixed(2);
+    if (typeof price === 'string') return parseFloat(price).toFixed(2);
+    else if (typeof price !== 'number') return '-.--';
+    return parseFloat(price).toFixed(2);
   };
 
   const formatDiff = (diff) => {
