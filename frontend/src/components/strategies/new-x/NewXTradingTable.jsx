@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { History, Clock, ChevronDown, ChevronUp, ArrowUpCircle, ArrowDownCircle, Download } from 'lucide-react';
 
 const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => {
   const [historyData, setHistoryData] = useState([]);
   const [expandedCycles, setExpandedCycles] = useState(new Set());
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // Session storage key for this strategy
   const getStorageKey = useCallback(() => `new_x_trading_history_${strategy.name || 'new_x'}`, [strategy.name]);
@@ -250,6 +251,165 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
     }
   };
 
+  // Download PDF function using jsPDF
+  const downloadPDF = async () => {
+    if (!historyData.length) {
+      alert("No history to export");
+      return;
+    }
+  
+    setIsGeneratingPDF(true);
+  
+    import("jspdf").then(({ default: jsPDF }) => {
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+  
+      const PAGE = {
+        width: 210,
+        height: 297,
+        margin: 12,
+        lineHeight: 5,
+        sectionSpacing: 6,
+      };
+  
+      let y = PAGE.margin;
+  
+      // ---- THEME ----
+      const COLORS = {
+        text: [30, 30, 30],
+        faint: [120, 120, 120],
+        line: [180, 180, 180],
+        box: [240, 240, 240],
+        green: [20, 120, 60],
+        red: [180, 50, 50],
+        yellow: [190, 140, 20],
+      };
+  
+      // ---- HELPERS ----
+      const ensureSpace = (needed = 15) => {
+        if (y + needed >= PAGE.height - PAGE.margin) {
+          pdf.addPage();
+          y = PAGE.margin;
+        }
+      };
+  
+      const line = () => {
+        pdf.setDrawColor(...COLORS.line);
+        pdf.line(PAGE.margin, y, PAGE.width - PAGE.margin, y);
+        y += PAGE.sectionSpacing;
+      };
+  
+      const text = (t, size = 11, bold = false, color = COLORS.text) => {
+        ensureSpace(size * 0.45);
+        pdf.setFont("helvetica", bold ? "bold" : "normal");
+        pdf.setFontSize(size);
+        pdf.setTextColor(...color);
+        pdf.text(t, PAGE.margin, y);
+        y += PAGE.lineHeight;
+      };
+  
+      const chip = (label, bg = COLORS.box, color = COLORS.text) => {
+        const w = pdf.getTextWidth(label) + 6;
+        pdf.setFillColor(...bg);
+        pdf.setTextColor(...color);
+        pdf.roundedRect(PAGE.margin, y - 4, w, 6, 1, 1, "F");
+        pdf.text(label, PAGE.margin + 3, y);
+        y += PAGE.sectionSpacing;
+      };
+  
+      const box = (title, contentCallback) => {
+        ensureSpace(20);
+        const boxStartY = y;
+        const boxWidth = PAGE.width - PAGE.margin * 2;
+  
+        pdf.setDrawColor(...COLORS.line);
+        pdf.setFillColor(...COLORS.box);
+  
+        pdf.roundedRect(PAGE.margin, y, boxWidth, 6, 2, 2, "FD");
+        pdf.setFontSize(10);
+        pdf.text(title, PAGE.margin + 2, y + 4);
+  
+        y += 10;
+        contentCallback();
+        const boxEndY = y + 2;
+  
+        pdf.roundedRect(PAGE.margin, boxStartY, boxWidth, boxEndY - boxStartY, 2, 2);
+        y = boxEndY + PAGE.sectionSpacing;
+      };
+  
+      const format = {
+        time: (t) =>
+          typeof t === "string" && /^\d\d:\d\d:\d\d$/.test(t)
+            ? t
+            : new Date(t).toLocaleTimeString("en-GB"),
+        price: (p) => (p ? `${p.toFixed(2)}` : "-"),
+      };
+  
+      // ---- HEADER ----
+      text("Trading History", 18, true);
+      text(
+        `Strategy: ${strategy.name}    |    Generated: ${new Date().toLocaleString()}`,
+        9,
+        false,
+        COLORS.faint
+      );
+      line();
+  
+      // ---- BODY: LOOP CYCLES ----
+      historyData.forEach((cycle, idx) => {
+        ensureSpace(20);
+  
+        text(`Cycle ${cycle.cycle}`, 14, true);
+  
+        if (idx === 0)
+          chip("LIVE", [220, 240, 255], [20, 80, 160]);
+  
+        text(
+          `Started: ${format.time(cycle.timestamp)}  | Updated: ${format.time(
+            cycle.lastUpdated
+          )}`,
+          9,
+          false,
+          COLORS.faint
+        );
+  
+        text(`${cycle.tradeEvents?.length || 0} trade(s)`);
+  
+        box("Trade Events", () => {
+          if (!cycle.tradeEvents || !cycle.tradeEvents.length)
+            return text("No trades recorded", 10, false, COLORS.faint);
+  
+          cycle.tradeEvents
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+            .forEach((t) => {
+              const color = t.action === "buy" ? COLORS.green : COLORS.red;
+              text(
+                `${t.action.toUpperCase()} ${t.symbol} — ${format.price(
+                  t.price
+                )} | Qty: ${t.quantity || 0} @ ${format.time(t.timestamp)}`,
+                10,
+                true,
+                color
+              );
+            });
+        });
+  
+        line();
+      });
+  
+      pdf.save(
+        `TradingHistory_${strategy.name}_${new Date()
+          .toISOString()
+          .replace(/[:.]/g, "-")}.pdf`
+      );
+  
+      setIsGeneratingPDF(false);
+    });
+  };
+
   if (!strategy) return null;
 
   return (
@@ -266,12 +426,23 @@ const NewXTradingTable = ({ strategy, tradeEvents = [], socketEvents = [] }) => 
               {historyData.length} cycle{historyData.length !== 1 ? 's' : ''} recorded
             </span>
             {historyData.length > 0 && (
-              <button
-                onClick={clearHistory}
-                className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
-              >
-                Clear History
-              </button>
+              <>
+                <button
+                  onClick={downloadPDF}
+                  disabled={isGeneratingPDF}
+                  className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded border border-blue-200 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  title="Download PDF"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>{isGeneratingPDF ? 'Generating...' : 'Download PDF'}</span>
+                </button>
+                <button
+                  onClick={clearHistory}
+                  className="text-sm text-red-600 hover:text-red-800 px-2 py-1 rounded border border-red-200 hover:bg-red-50"
+                >
+                  Clear History
+                </button>
+              </>
             )}
           </div>
         </div>

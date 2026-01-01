@@ -469,10 +469,10 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
             // this.universalDict.skipBuy = true;
             // this.globalDict.sellAt10Live = true;
             // this.universalDict.enableTrading = false;
-            this.globalDict.peakDef = this.globalDict.peakDefAfterFirstCycle;
+            this.globalDict.peakDef = 0;
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
-            this.globalDict.prebuyStoploss = 0;
+            this.globalDict.prebuyStoploss = this.globalDict.peakDefAfterFirstCycle;
         }
 
         // Data initialization removed - now using simplified event emission
