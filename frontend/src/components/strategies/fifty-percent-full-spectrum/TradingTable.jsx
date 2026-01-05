@@ -298,9 +298,16 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
     }
     
     // Sanitize filename (remove invalid characters)
-    const sanitizedFilename = userFilename
-      .replace(/[<>:"/\\|?*]/g, '_')
+    let sanitizedFilename = userFilename
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // Remove invalid chars and control characters
+      .replace(/^\.+|\.+$/g, '') // Remove leading/trailing dots
+      .replace(/\s+/g, '_') // Replace spaces with underscores
       .trim();
+    
+    // Limit filename length (255 chars is common OS limit, but we'll use 200 for safety)
+    if (sanitizedFilename.length > 200) {
+      sanitizedFilename = sanitizedFilename.substring(0, 200);
+    }
     
     if (!sanitizedFilename) {
       alert("Invalid filename. Please enter a valid name.");
@@ -309,7 +316,8 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
   
     setIsGeneratingPDF(true);
   
-    import("jspdf").then(({ default: jsPDF }) => {
+    try {
+      const { default: jsPDF } = await import("jspdf");
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",
@@ -394,7 +402,13 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
           typeof t === "string" && /^\d\d:\d\d:\d\d$/.test(t)
             ? t
             : new Date(t).toLocaleTimeString("en-GB"),
-        price: (p) => (p ? `${p.toFixed(2)}` : "-"),
+        price: (p) => {
+          if (p === null || p === undefined) return "-";
+          // Convert to number if it's a string
+          const numPrice = typeof p === 'string' ? parseFloat(p) : Number(p);
+          if (isNaN(numPrice)) return "-";
+          return numPrice.toFixed(2);
+        },
       };
   
       // ---- HEADER ----
@@ -452,7 +466,11 @@ const TradingTable = ({ strategy, instrumentData, tradingActions, tradeEvents = 
       pdf.save(`${sanitizedFilename}.pdf`);
   
       setIsGeneratingPDF(false);
-    });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+      setIsGeneratingPDF(false);
+    }
   };
 
   return (
