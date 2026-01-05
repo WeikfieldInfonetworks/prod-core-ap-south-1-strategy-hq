@@ -468,8 +468,8 @@ class FPFSV4 extends BaseStrategy {
                     token: token,
                     time: currentTime,
                     symbol: tick.symbol,
-                    firstPrice: this.firstPriceMap[token] ? this.firstPriceMap[token] : tick.last_price,
-                    last: tick.last_price,
+                    firstPrice: this.firstPriceMap[token] ? parseFloat(this.firstPriceMap[token]) : parseFloat(tick.last_price),
+                    last: parseFloat(tick.last_price),
                     open: -1,
                     peak: -1,
                     prevPeak: -1,
@@ -490,7 +490,7 @@ class FPFSV4 extends BaseStrategy {
             } 
 
             if(!this.firstPriceMap[token]) {
-                this.firstPriceMap[token] = tick.last_price;
+                this.firstPriceMap[token] = parseFloat(tick.last_price);
             }
             
             const instrument = this.universalDict.instrumentMap[token];
