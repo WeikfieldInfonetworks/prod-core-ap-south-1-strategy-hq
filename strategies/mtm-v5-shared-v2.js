@@ -1656,12 +1656,12 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice >= this.globalDict.rebuyAt) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
+        return (instrument_1.last - instrument_1.buyPrice >= (this.globalDict.rebuyAt+this.globalDict.microRebuyControl)) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last <= (this.prebuyBuyPriceOnce+1)) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
+        return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
     }
 
     shouldPlayScenarioSL(){
@@ -2166,6 +2166,16 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
                 default: -50,
                 description: 'Stoploss for real buy'
             },
+            microStoplossControl: {
+                type: 'number',
+                default: 1,
+                description: 'Micro stoploss control'
+            }, 
+            microRebuyControl: {
+                type: 'number',
+                default: 0,
+                description: 'Micro rebuy control'
+            },
             rebuyAt: {
                 type: 'number',
                 default: 10,
@@ -2220,6 +2230,11 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
                 type: 'boolean',
                 default: true,
                 description: 'Use pre-buy technique.'
+            },
+            exitAtFirstBuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Exit at first buy'
             },
             enableTrading: {
                 type: 'boolean',
