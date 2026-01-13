@@ -1011,7 +1011,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
 
         // PREBUY TARGET NET OBSERVER.
         if(!this.targetNet && this.universalDict.usePrebuy && this.actualRebuyDone){
-            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.globalDict.target/2) - 0.5); // Casting net if price within 1 point of target
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.globalDict.target/2) - 0.0); // Casting net if price within 1 point of target
             if(this.targetNet){
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
             }
@@ -1027,7 +1027,7 @@ class MTMV5SharedStrategyV2 extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5)));
+        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.0)));
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;

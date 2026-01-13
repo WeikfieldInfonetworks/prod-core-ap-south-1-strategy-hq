@@ -1105,7 +1105,7 @@ class FPFSV4PE extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
 
         //REBUY
-        this.prebuyBuyPriceTwice = instrument_1.last;
+        this.prebuyBuyPriceTwice = parseFloat(instrument_1.last);
         instrument_1.buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
         this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
         let buyResult = null;
@@ -1114,7 +1114,7 @@ class FPFSV4PE extends BaseStrategy {
             if (buyResult && buyResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
             }
-            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? parseFloat(instrument_1.last) : buyResult.executedPrice;
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
             this.rebuyAveragePrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
