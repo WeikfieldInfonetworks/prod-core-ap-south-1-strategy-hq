@@ -1017,7 +1017,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // PREBUY TARGET NET OBSERVER.
         if(!this.targetNet && this.universalDict.usePrebuy && this.actualRebuyDone){
-            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.globalDict.target/2) - 0.5); // Casting net if price within 1 point of target
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.globalDict.target/2) - 0.0); // Casting net if price within 1 point of target
             if(this.targetNet){
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
             }
@@ -1033,7 +1033,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.5)));
+        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.0)));
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -2439,32 +2439,88 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         try {
             if (tradingEnabled) {
-                // Place sell order for the instrument
-                const sellResult = tradingUtils.placeMarketSellOrder(
-                    instrument.symbol,
-                    instrument.last,
-                    this.globalDict.quantity || 65
-                );
-
-                if (sellResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
-                    
-                    // Get order history for executed price
-                    try {
-                        const orderId = await sellResult.orderId;
-                        this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
-                        const result = await tradingUtils.getOrderHistory(orderId.order_id);
-                        this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
-                        executedPrice = result.at(-1).average_price;
-                        this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
-                    } catch (error) {
-                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
-                        executedPrice = instrument.last; // Fallback to current price
+                if(this.globalDict.quantity > 1755){
+                    let global_qty = this.globalDict.quantity;
+                    let qtys = [];
+                    while(global_qty > 1755){
+                        qtys.push(1755);
+                        global_qty = global_qty - 1755;
                     }
-                } else {
-                    this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
-                    this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, sellResult.error);
+                    if(global_qty > 0){
+                        qtys.push(global_qty);
+                    }
+                    let executed_prices = [];
+                    qtys.forEach(async (qty) => {
+
+                        // Place sell order for the instrument
+                        const sellResult = tradingUtils.placeMarketSellOrder(
+                            instrument.symbol,
+                            instrument.last,
+                            qty || 65
+                        );
+
+                        if (sellResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
+                            this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, qty || 65, instrument.token);
+                            
+                            // Get order history for executed price
+                            try {
+                                const orderId = await sellResult.orderId;
+                                this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                                const result = await tradingUtils.getOrderHistory(orderId.order_id);
+                                this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                                executedPrice = result.at(-1).average_price;
+                                executed_prices.push(executedPrice);
+                                this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                            } catch (error) {
+                                this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                                executedPrice = instrument.last; // Fallback to current price
+                            }
+                        } else {
+                            this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
+                            this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, qty || 65, instrument.token, sellResult.error);
+                        }
+                    });
+
+                    executed_prices = executed_prices.map((price, index, _) => {
+                        return price*qtys[index];
+                    })
+
+                    let average_price = (executed_prices.reduce((a,b) => a + b, 0)/this.globalDict.quantity).toFixed(2);
+                    // instrument.buyPrice = average_price;
+                    executedPrice = average_price;
+
+
+
+                }
+                else {
+                    // Place sell order for the instrument
+                    const sellResult = tradingUtils.placeMarketSellOrder(
+                        instrument.symbol,
+                        instrument.last,
+                        this.globalDict.quantity || 65
+                    );
+
+                    if (sellResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
+                        this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                        
+                        // Get order history for executed price
+                        try {
+                            const orderId = await sellResult.orderId;
+                            this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                            const result = await tradingUtils.getOrderHistory(orderId.order_id);
+                            this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                            executedPrice = result.at(-1).average_price;
+                            this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                        } catch (error) {
+                            this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                            executedPrice = instrument.last; // Fallback to current price
+                        }
+                    } else {
+                        this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
+                        this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, sellResult.error);
+                    }
                 }
             } else {
                 // Paper trading
@@ -2502,37 +2558,96 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         try {
             if (tradingEnabled) {
-                // Place buy order for the instrument
-                const buyResult = tradingUtils.placeBuyOrder(
-                    instrument.symbol,
-                    instrument.last,
-                    this.globalDict.quantity || 65
-                );
-
-                if (buyResult.success) {
-                    this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
-                    
-                    // Get order history for executed price and update buy price
-                    try {
-                        const orderId = await buyResult.orderId;
-                        this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
-                        const result = await tradingUtils.getOrderHistory(orderId.order_id);
-                        this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
-                        executedPrice = result.at(-1).average_price;
-                        this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
-                        // Update buy price with executed price
-                        instrument.buyPrice = executedPrice != 0 ? executedPrice : instrument.last;
-                        this.strategyUtils.logStrategyInfo(`Buy Instrument Buy Price: ${instrument.buyPrice}`);
-                    } catch (error) {
-                        this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
-                        // Fallback to current price if order history fails
-                        executedPrice = instrument.last;
-                        instrument.buyPrice = instrument.last;
+                if(this.globalDict.quantity > 1755){
+                    let global_qty = this.globalDict.quantity;
+                    let qtys = [];
+                    while(global_qty > 1755){
+                        qtys.push(1755);
+                        global_qty = global_qty - 1755;
                     }
-                } else {
-                    this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyResult.error}`);
-                    this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, buyResult.error);
+                    if(global_qty > 0){
+                        qtys.push(global_qty);
+                    }
+                    let executed_prices = [];
+                    qtys.forEach(async (qty) => {
+                        const buyResult = tradingUtils.placeBuyOrder(
+                            instrument.symbol,
+                            instrument.last,
+                            qty || 65
+                        );
+
+                        if (buyResult.success) {
+                            this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
+                            this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, qty || 65, instrument.token);
+                            
+                            // Get order history for executed price and update buy price
+                            try {
+                                const orderId = await buyResult.orderId;
+                                this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                                const result = await tradingUtils.getOrderHistory(orderId.order_id);
+                                this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                                executedPrice = result.at(-1).average_price;
+                                executed_prices.push(executedPrice);
+                                this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                                // Update buy price with executed price
+                                instrument.buyPrice = executedPrice != 0 ? executedPrice : instrument.last;
+                                this.strategyUtils.logStrategyInfo(`Buy Instrument Buy Price: ${instrument.buyPrice}`);
+                            } catch (error) {
+                                this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                                // Fallback to current price if order history fails
+                                executedPrice = instrument.last;
+                                instrument.buyPrice = instrument.last;
+                            }
+                        } else {
+                            this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyResult.error}`);
+                            this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, qty || 65, instrument.token, buyResult.error);
+                        }
+                    });
+
+                    executed_prices = executed_prices.map((price, index, _) => {
+                        return price*qtys[index];
+                    })
+
+                    let average_price = (executed_prices.reduce((a,b) => a + b, 0)/this.globalDict.quantity).toFixed(2);
+                    instrument.buyPrice = average_price;
+                    executedPrice = average_price;
+
+
+
+                }
+                else {
+                    // Place buy order for the instrument
+                    const buyResult = tradingUtils.placeBuyOrder(
+                        instrument.symbol,
+                        instrument.last,
+                        this.globalDict.quantity || 65
+                    );
+    
+                    if (buyResult.success) {
+                        this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
+                        this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                        
+                        // Get order history for executed price and update buy price
+                        try {
+                            const orderId = await buyResult.orderId;
+                            this.strategyUtils.logStrategyInfo(`Order ID: ${orderId.order_id}`);
+                            const result = await tradingUtils.getOrderHistory(orderId.order_id);
+                            this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
+                            executedPrice = result.at(-1).average_price;
+                            this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
+                            // Update buy price with executed price
+                            instrument.buyPrice = executedPrice != 0 ? executedPrice : instrument.last;
+                            this.strategyUtils.logStrategyInfo(`Buy Instrument Buy Price: ${instrument.buyPrice}`);
+                        } catch (error) {
+                            this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
+                            // Fallback to current price if order history fails
+                            executedPrice = instrument.last;
+                            instrument.buyPrice = instrument.last;
+                        }
+                    } else {
+                        this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyResult.error}`);
+                        this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, buyResult.error);
+                    }
                 }
             } else {
                 // Paper trading
