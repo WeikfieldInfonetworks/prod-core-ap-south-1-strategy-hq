@@ -1769,7 +1769,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     shouldPlayScenarioSL5A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         let diff = instrument_1.last - instrument_1.buyPrice;
-        return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.globalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+        if(this.scenario1Cdone){
+            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.globalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+        }
+        else {
+            return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+        }
     }
 
 
