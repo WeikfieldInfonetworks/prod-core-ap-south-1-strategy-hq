@@ -64,7 +64,8 @@ class TradingUtils {
                 quantity: parseInt(quantity),
                 product: "MIS",
                 order_type: "MARKET",
-                price: parseFloat(price)
+                price: parseFloat(price),
+                autoslice: true
             };
             
             console.log('Order params:', orderParams);
@@ -116,7 +117,8 @@ class TradingUtils {
                 quantity: parseInt(quantity),
                 product: "MIS",
                 order_type: "MARKET",
-                price: parseFloat(price)
+                price: parseFloat(price),
+                autoslice:true
             };
             
             console.log('Order params:', orderParams);
@@ -162,7 +164,8 @@ class TradingUtils {
                 quantity: parseInt(quantity),
                 product: "MIS",
                 order_type: "LIMIT",
-                price: parseFloat(price)
+                price: parseFloat(price),
+                autoslice:true
             };
             
             console.log('Order params:', orderParams);
