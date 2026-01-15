@@ -881,6 +881,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.prebuyBuyPriceOnce = parseFloat(real_instrument.last);
                 console.log(`REAL INSTRUMENT: ${real_instrument.symbol}`);
                 this.prebuyBoughtToken = real_instrument.token;
+                this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = parseFloat(real_instrument.last)
+
                 // BUY LOGIC - Buy the real instrument
                 try {
                     const buyResult = await this.buyInstrument(real_instrument);
