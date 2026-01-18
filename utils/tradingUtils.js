@@ -5,6 +5,8 @@ const path = require('path');
 class TradingUtils {
     constructor() {
         this.kite = null;
+        this.BASE_QUANTITY = 65;
+        this.FREEZE_LIMIT = 1755;
     }
 
     initializeKiteConnect(apiKey, accessToken) {
@@ -41,7 +43,7 @@ class TradingUtils {
         return orderHistory;
     }
 
-    placeBuyOrder(symbol, price, quantity = 75) {
+    placeBuyOrder(symbol, price, quantity = this.BASE_QUANTITY) {
         console.log('Placing buy order for', symbol, price, quantity);
         console.log('Kite instance available:', !!this.kite);
         console.log('Kite type:', typeof this.kite);
@@ -65,7 +67,7 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                autoslice: true
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
             };
             
             console.log('Order params:', orderParams);
@@ -98,7 +100,7 @@ class TradingUtils {
         }
     }
 
-    placeMarketSellOrder(symbol, price, quantity = 75) {
+    placeMarketSellOrder(symbol, price, quantity = this.BASE_QUANTITY) {
         if (!this.kite) {
             console.log('Paper trading mode - simulating sell order');
             console.log(`Simulated SELL: ${symbol} @ ${price} x ${quantity}`);
@@ -118,7 +120,7 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                autoslice:true
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
             };
             
             console.log('Order params:', orderParams);
@@ -145,7 +147,7 @@ class TradingUtils {
         }
     }
 
-    placeLimitSellOrder(symbol, price, quantity = 75) {
+    placeLimitSellOrder(symbol, price, quantity = this.BASE_QUANTITY) {
         if (!this.kite) {
             console.log('Paper trading mode - simulating sell order');
             console.log(`Simulated SELL: ${symbol} @ ${price} x ${quantity}`);
@@ -165,7 +167,7 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "LIMIT",
                 price: parseFloat(price),
-                autoslice:true
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
             };
             
             console.log('Order params:', orderParams);
