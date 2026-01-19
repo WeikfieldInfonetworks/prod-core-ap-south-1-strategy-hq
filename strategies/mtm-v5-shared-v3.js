@@ -2125,12 +2125,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
     }
 
-    shouldBuyBack() {
-        if((this.globalDict.sellAt24Limit + this.globalDict.sellAt36Limit) < this.globalDict.target){
-            return true;
-        }
-        return false;
-    }
+    // shouldBuyBack() {
+    //     if((this.globalDict.sellAt24Limit + this.globalDict.sellAt36Limit) < this.globalDict.target){
+    //         return true;
+    //     }
+    //     return false;
+    // }
 
     getConfig() {
         const config = {
@@ -2223,36 +2223,36 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 0,
                 description: 'Upper limit for interim low'
             },
-            lowerLimit: {
-                type: 'number',
-                default: 0,
-                description: 'Lower limit for MTM'
-            },
+            // lowerLimit: {
+            //     type: 'number',
+            //     default: 0,
+            //     description: 'Lower limit for MTM'
+            // },
             quantity: {
                 type: 'number',
                 default: 65,
                 description: 'Quantity to trade'
             },
-            sellAt24Limit: {
-                type: 'number',
-                default: 24,
-                description: 'Limit for selling at 24 points'
-            },
+            // sellAt24Limit: {
+            //     type: 'number',
+            //     default: 24,
+            //     description: 'Limit for selling at 24 points'
+            // },
             // sellAt10Limit: {
             //     type: 'number',
             //     default: -10,
             //     description: 'Limit for selling at -10 points'
             // },
-            buyBackTarget: {
-                type: 'number',
-                default: 10,
-                description: 'Trigger for selling the buy-back instrument'
-            },
-            sellAt36Limit: {
-                type: 'number',
-                default: -36,
-                description: 'Limit for selling at -36 points'
-            },
+            // buyBackTarget: {
+            //     type: 'number',
+            //     default: 10,
+            //     description: 'Trigger for selling the buy-back instrument'
+            // },
+            // sellAt36Limit: {
+            //     type: 'number',
+            //     default: -36,
+            //     description: 'Limit for selling at -36 points'
+            // },
             prebuyStoploss: {
                 type: 'number',
                 default: -5,
@@ -2283,11 +2283,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 5,
                 description: 'Half target threshold'
             },
-            prebuySignificantThreshold: {
-                type: 'number',
-                default: -11,
-                description: 'Significant stoploss threshold for pre-buy'
-            },
+            // prebuySignificantThreshold: {
+            //     type: 'number',
+            //     default: -11,
+            //     description: 'Significant stoploss threshold for pre-buy'
+            // },
             buySame : {
                 type: 'boolean',
                 default: false,
@@ -2313,16 +2313,16 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 1,
                 description: 'Number of cycles completed'
             },
-            skipBuy: {
-                type: 'boolean',
-                default: false,
-                description: 'Skip buying after first cycle'
-            },
-            interimLowDisabled: {
-                type: 'boolean',
-                default: false,
-                description: 'Disable interim low detection'
-            },
+            // skipBuy: {
+            //     type: 'boolean',
+            //     default: false,
+            //     description: 'Skip buying after first cycle'
+            // },
+            // interimLowDisabled: {
+            //     type: 'boolean',
+            //     default: false,
+            //     description: 'Disable interim low detection'
+            // },
             usePrebuy: {
                 type: 'boolean',
                 default: true,
