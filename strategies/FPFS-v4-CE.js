@@ -1106,8 +1106,8 @@ class FPFSV4CE extends BaseStrategy {
 
         //REBUY
         this.prebuyBuyPriceTwice = parseFloat(instrument_1.last);
-        instrument_1.buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+        instrument_1.buyPrice = ((parseFloat(this.buyPriceOnce) + this.prebuyBuyPriceTwice) / 2).toFixed(2);
+        this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = ((parseFloat(this.buyPriceOnce) + this.prebuyBuyPriceTwice) / 2).toFixed(2);
         let buyResult = null;
         try {
             buyResult = await this.buyInstrument(instrument_1);
@@ -1117,11 +1117,11 @@ class FPFSV4CE extends BaseStrategy {
             this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? parseFloat(instrument_1.last) : buyResult.executedPrice;
             this.rebuyDone = true;
             this.rebuyPrice = this.prebuyBuyPriceTwice;
-            this.rebuyAveragePrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+            this.rebuyAveragePrice = ((parseFloat(this.buyPriceOnce) + this.prebuyBuyPriceTwice) / 2).toFixed(2);
 
             // Update the real instrument's buy price to average of both buys
-            instrument_1.buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-            this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice = (this.buyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+            instrument_1.buyPrice = ((parseFloat(this.buyPriceOnce) + this.prebuyBuyPriceTwice) / 2).toFixed(2);
+            this.universalDict.instrumentMap[this.instrument_bought.token].buyPrice =((parseFloat(this.buyPriceOnce) + this.prebuyBuyPriceTwice) / 2).toFixed(2);;
             this.globalDict.target = this.globalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.globalDict.quantity = this.globalDict.quantity * 2;
