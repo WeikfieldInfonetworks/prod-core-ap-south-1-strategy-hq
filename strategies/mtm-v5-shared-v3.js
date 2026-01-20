@@ -906,17 +906,18 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.previouslyExitAtCost = false;
                 this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
                 
+                if(!this.savedState['target']){
+                    // this.savedState['target'] = this.globalDict.target;
+                    this.savedState['stoploss'] = this.globalDict.stoploss;
+                    this.savedState['quantity'] = this.globalDict.quantity;
+                }
+                
                 // Emit real-time notifications
                 this.emitBlockTransition('FINAL_REF', 'DIFF10', {
                     boughtSymbol: real_instrument?.symbol,
                     oppSymbol: real_instrument.symbol.includes('CE') ? "000PE" : "000CE",
                     ordersPlaced: true
                 });
-            }
-            if(!this.savedState['target']){
-                // this.savedState['target'] = this.globalDict.target;
-                this.savedState['stoploss'] = this.globalDict.stoploss;
-                this.savedState['quantity'] = this.globalDict.quantity;
             }
 
         }
