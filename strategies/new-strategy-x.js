@@ -158,20 +158,22 @@ class NewXStrategy extends BaseStrategy {
             
             // Process ticks based on current block state
             // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
-            if (this.blockInit) {
-                this.processInitBlock(ticks);
-            }
-            
-            if (this.blockUpdate) {
-                this.processUpdateBlock(ticks);
-            }
-            
-            if (this.blockDiff10) {
-                this.processDiff10Block(ticks);
-            }
-            
-            if (this.blockNextCycle) {
-                this.processNextCycleBlock(ticks);
+            if(this.tickCount >= 10){
+                if (this.blockInit) {
+                    this.processInitBlock(ticks);
+                }
+                
+                if (this.blockUpdate) {
+                    this.processUpdateBlock(ticks);
+                }
+                
+                if (this.blockDiff10) {
+                    this.processDiff10Block(ticks);
+                }
+                
+                if (this.blockNextCycle) {
+                    this.processNextCycleBlock(ticks);
+                }
             }
             
             console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
