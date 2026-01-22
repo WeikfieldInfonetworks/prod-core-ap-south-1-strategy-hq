@@ -1152,8 +1152,8 @@ class FPFSV4PE extends BaseStrategy {
             sellResult = await this.sellInstrument(instrument_1);
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
-                diff = parseFloat(sellResult.executedPrice) == 0 ? parseFloat(instrument_1.last) - parseFloat(instrument_1.buyPrice) : parseFloat(sellResult.executedPrice) - parseFloat(instrument_1.buyPrice);
-                this.globalDict.target = (this.globalDict.target + Math.abs(diff)).toFixed(2);
+                // diff = parseFloat(sellResult.executedPrice) == 0 ? parseFloat(instrument_1.last) - parseFloat(instrument_1.buyPrice) : parseFloat(sellResult.executedPrice) - parseFloat(instrument_1.buyPrice);
+                // this.globalDict.target = (this.globalDict.target + Math.abs(diff)).toFixed(2);
             }
             this.globalDict.target = this.globalDict.target * 2;
             this.globalDict.stoploss = this.globalDict.stoploss * 2;
