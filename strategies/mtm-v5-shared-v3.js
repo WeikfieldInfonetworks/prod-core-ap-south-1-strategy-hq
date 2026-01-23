@@ -1983,12 +1983,16 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
     
     resetForNextCycle() {
-
+        
         this.strategyUtils.logStrategyInfo('Resetting for next cycle');
         
         // Increment cycle count
         this.universalDict.cycles = (this.universalDict.cycles || 1) + 1;
         
+        if(this.checkedDiff){
+            this.globalDict.target = this.savedState['target'];
+        }
+
         // Reset all flags and state
         this.setInstanceComplete = false;
         this.cycleInstanceSet = new Set();
@@ -3297,6 +3301,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.checkedDiff = true;
                     this.strategyUtils.logStrategyInfo('Diff found');
                     diff_val = parseFloat(diff);
+                    this.savedState['target'] = this.globalDict.target;
                     this.globalDict.target = this.globalDict.target - diff_val;
                     this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.globalDict.target}`);
                 }
