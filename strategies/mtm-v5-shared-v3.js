@@ -31,6 +31,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.previousCompletionMethodAnnounced = false;
         this.rebuyDataAnnounced = false;
         this.rebuyFound = false;
+        this.checkedDiff = false;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -241,6 +242,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.previousCompletionMethodAnnounced = false;
         this.rebuyDataAnnounced = false;
         this.rebuyFound = false;
+        this.checkedDiff = false;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -1002,6 +1004,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
 
         this.updateCycleInstanceSet();
+        if(this.scenario1Cdone && !this.checkedDiff){
+            this.checkDiff();
+        }
 
         // PREBUY LOW TRACKING LOGIC.
         if(this.universalDict.usePrebuy && this.prebuyBoughtToken && instrument_1.token == this.prebuyBoughtToken){
@@ -1647,6 +1652,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
             }
 
+            let diff = sellResult.executedPrice - (instrument_1.buyPrice - this.globalDict.rebuyAt);
+            this.announceDiff(diff);
+
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
             this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
@@ -2034,6 +2042,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.prebuyLowTrackingPrice = 0;
         this.prebuyLowTrackingTime = null;
         this.rebuyDone = false;
+        this.checkedDiff = false;
         this.rebuyPrice = 0;
         this.rebuyAveragePrice = 0;
         this.flagSet = {
@@ -3270,6 +3279,29 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${status}|PREVIOUS_COMPLETION_METHOD\n`);
             this.previousCompletionMethodAnnounced = true;
         }
+    }
+
+    announceDiff(diff){
+        this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${diff}|DIFF\n`);
+    }
+
+    checkDiff(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let diff_val = 0;
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
+        corpusArray.forEach(line => {
+            if(line.includes('|')){
+                let [cycle, userId, diff, state] = line.split('|');
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'DIFF' && !this.checkedDiff){
+                    this.checkedDiff = true;
+                    this.strategyUtils.logStrategyInfo('Diff found');
+                    diff_val = parseFloat(diff);
+                    this.globalDict.target = this.globalDict.target - diff_val;
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.globalDict.target}`);
+                }
+            }
+        });
     }
 
     checkPrebuyTokens(){
