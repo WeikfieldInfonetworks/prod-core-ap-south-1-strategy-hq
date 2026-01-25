@@ -1084,6 +1084,15 @@ class StrategyUtils {
     sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
+
+    getInstrumentBySymbol(instrumentMap, symbol){
+        for (let instrument of instrumentMap){
+            if(instrument.symbol === symbol){
+                return instrument;
+            }
+        }
+        return null;
+    }
 }
 
 module.exports = StrategyUtils; 

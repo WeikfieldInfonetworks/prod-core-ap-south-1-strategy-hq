@@ -43,7 +43,17 @@ class TradingUtils {
         return orderHistory;
     }
 
-    placeBuyOrder(symbol, price, quantity = this.BASE_QUANTITY) {
+    async getOrderbook(){
+        if(!this.kite){
+            console.log('Paper trading mode - simulating orderbook');
+            return {success: false, error: 'Paper trading mode - cannot get orderbook'};
+        }
+
+        const orderbook = await this.kite.getOrders();
+        return orderbook;
+    }
+
+    placeBuyOrder(symbol, price, quantity = this.BASE_QUANTITY, tag = null) {
         console.log('Placing buy order for', symbol, price, quantity);
         console.log('Kite instance available:', !!this.kite);
         console.log('Kite type:', typeof this.kite);
@@ -67,7 +77,8 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false,
+                tag: tag
             };
             
             console.log('Order params:', orderParams);
@@ -100,7 +111,7 @@ class TradingUtils {
         }
     }
 
-    placeMarketSellOrder(symbol, price, quantity = this.BASE_QUANTITY) {
+    placeMarketSellOrder(symbol, price, quantity = this.BASE_QUANTITY, tag = null) {
         if (!this.kite) {
             console.log('Paper trading mode - simulating sell order');
             console.log(`Simulated SELL: ${symbol} @ ${price} x ${quantity}`);
@@ -120,7 +131,8 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false,
+                tag: tag
             };
             
             console.log('Order params:', orderParams);
@@ -147,7 +159,7 @@ class TradingUtils {
         }
     }
 
-    placeLimitSellOrder(symbol, price, quantity = this.BASE_QUANTITY) {
+    placeLimitSellOrder(symbol, price, quantity = this.BASE_QUANTITY, tag = null) {
         if (!this.kite) {
             console.log('Paper trading mode - simulating sell order');
             console.log(`Simulated SELL: ${symbol} @ ${price} x ${quantity}`);
@@ -167,7 +179,8 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "LIMIT",
                 price: parseFloat(price),
-                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false
+                autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false,
+                tag: tag
             };
             
             console.log('Order params:', orderParams);

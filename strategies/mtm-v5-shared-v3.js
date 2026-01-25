@@ -32,6 +32,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.rebuyDataAnnounced = false;
         this.rebuyFound = false;
         this.checkedDiff = false;
+        this.expectedSymbols = { call: null, put: null };
+        this.tickCountFlag = false;
+        this.tickA = null;
+        this.tickB = null;
+        this.buyVerified = false;
+        this.tradingState = {
+            used: false,
+            enabled: false
+        }
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -243,6 +252,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.rebuyDataAnnounced = false;
         this.rebuyFound = false;
         this.checkedDiff = false;
+        this.expectedSymbols = { call: null, put: null };
+        this.tickCountFlag = false;
+        this.tickA = null;
+        this.tickB = null;
+        this.buyVerified = false;
+        this.tradingState = {
+            used: false,
+            enabled: false
+        }
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -860,6 +878,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 else {
                     closestPEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
                     closestCEto200 = this.universalDict.instrumentMap[this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString()];
+                    this.expectedSymbols.call = closestCEto200.symbol;
+                    this.expectedSymbols.put = closestPEto200.symbol;
                     this.previousRebuyData.ce_token = closestCEto200.token.toString();
                     this.previousRebuyData.pe_token = closestPEto200.token.toString();
                 }
@@ -981,6 +1001,30 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if (!instrument_1 || !instrument_2) {
             this.strategyUtils.logStrategyError('Cannot process DIFF10 block - instrument data not found');
             return;
+        }
+
+        if(!this.buyVerified && this.universalDict.enableTrading && !this.globalDict.buySame && !this.tradingState.used){
+            let result = await this.verifyBuy();
+            if(!result.status){
+                this.strategyUtils.logStrategyInfo('Buy not verified. Skipping DIFF10 block.');
+                this.strategyUtils.logStrategyInfo(`CE count: ${result.ce_count}, PE count: ${result.pe_count}`);
+                let ce_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.call);
+                let pe_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put);
+
+                if(result.ce_count > 0){
+                    await this.sellInstrument(ce_instrument);
+                }
+                else if(result.pe_count > 0){
+                    await this.sellInstrument(pe_instrument);
+                }
+                else {
+                    this.strategyUtils.logStrategyInfo('Nothing to sell. Continuing with PAPER TRADING');
+                }
+
+                this.tradingState.used = true;
+                this.tradingState.enabled = this.universalDict.enableTrading;
+                this.universalDict.enableTrading = false;
+            }
         }
 
         const instrument_1_original_change = instrument_1.last - instrument_1.buyPrice;
@@ -1993,6 +2037,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.globalDict.target = this.savedState['target'];
         }
 
+        if(this.tradingState.used){
+            this.universalDict.enableTrading = this.tradingState.enabled;
+        }
+
         // Reset all flags and state
         this.setInstanceComplete = false;
         this.cycleInstanceSet = new Set();
@@ -2047,6 +2095,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.prebuyLowTrackingTime = null;
         this.rebuyDone = false;
         this.checkedDiff = false;
+        this.expectedSymbols = { call: null, put: null };
+        this.tickCountFlag = false;
+        this.tickA = null;
+        this.tickB = null;
+        this.buyVerified = false;
+        this.tradingState = {
+            used: false,
+            enabled: false
+        }
         this.rebuyPrice = 0;
         this.rebuyAveragePrice = 0;
         this.flagSet = {
@@ -2528,7 +2585,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const buyResult = tradingUtils.placeBuyOrder(
                     instrument.symbol,
                     instrument.last,
-                    this.globalDict.quantity || 65
+                    this.globalDict.quantity || 65,
+                    this.generateTag(this.userId, this.universalDict.cycles, instrument.symbol)
                 );
 
                 if (buyResult.success) {
@@ -3408,6 +3466,64 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
 
         return map[id];
+    }
+
+    getPairID(id){
+        let map = {
+            "9bd9ab31-e3cb-4b3e-a7ae-1130f130b5d7": "LKW326",
+            "474b7da4-b146-4b1e-aff2-9db2608f9090": "LKW326",
+            "b95df6b6-26de-4d54-9af1-a0a361d4b0cf": "GW0633",
+            "f0cfd181-8642-451f-a04d-10c96b026b42": "GW0633",
+        }
+
+        return map[id];
+    }
+
+    generateTag(user_id, cycle_id, symbol){
+        let pairId = this.getPairID(user_id);
+        let type = symbol.includes('CE') ? 'CE' : 'PE';
+        return `${cycle_id}_${pairId}_${type}`;
+    }
+
+    async verifyBuy(){
+        if(!this.tickCountFlag){
+            this.tickCountFlag = true;
+            this.tickA = this.tickCount;
+        }
+        
+        let orderbook = await this.tradingUtils.getOrderbook();
+        let orders = orderbook.data;
+        let ce_tag = this.generateTag(this.userId, this.universalDict.cycles, this.expectedSymbols.call);
+        let pe_tag = this.generateTag(this.userId, this.universalDict.cycles, this.expectedSymbols.put);
+        let tag_map = {
+            [ce_tag]: 0,
+            [pe_tag]: 0
+        }
+
+        for(let order of orders){
+            if(order.tag !== null && order.transaction_type === 'BUY'){
+                if(order.tag === ce_tag){
+                    tag_map[ce_tag]++;
+                }
+                else if(order.tag === pe_tag){
+                    tag_map[pe_tag]++;
+                }
+            }
+        }
+
+
+        if((tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0) || (this.tickCount - this.tickA) <= 6){
+            if(tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0){
+                this.buyVerified = true;
+            }
+
+            return {status: true};
+        }
+
+
+        return {status: false, ce_count: tag_map[ce_tag], pe_count: tag_map[pe_tag]};
+
+
     }
 }
 
