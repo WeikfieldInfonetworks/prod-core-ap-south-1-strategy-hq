@@ -3442,7 +3442,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         
         let orderbook = await this.tradingUtils.getOrderbook();
-        let orders = orderbook.data;
+        let orders = orderbook;
         let ce_tag = this.generateTag(this.userId, this.universalDict.cycles, this.expectedSymbols.call);
         let pe_tag = this.generateTag(this.userId, this.universalDict.cycles, this.expectedSymbols.put);
         let tag_map = {
@@ -3450,30 +3450,32 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             [pe_tag]: 0
         }
 
-        for(let order of orders){
-            if(order.tag !== null && order.transaction_type === 'BUY'){
-                if(order.tag === ce_tag){
-                    tag_map[ce_tag]++;
-                }
-                else if(order.tag === pe_tag){
-                    tag_map[pe_tag]++;
+        try{
+            for(let order of orders){
+                if(order.tag !== null && order.transaction_type === 'BUY'){
+                    if(order.tag === ce_tag){
+                        tag_map[ce_tag]++;
+                    }
+                    else if(order.tag === pe_tag){
+                        tag_map[pe_tag]++;
+                    }
                 }
             }
+
+            if((tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0) || (this.tickCount - this.tickA) <= 6){
+                if(tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0){
+                    this.buyVerified = true;
+                }
+
+                return {status: true};
+            }
+            
+            return {status: false, ce_count: tag_map[ce_tag], pe_count: tag_map[pe_tag]};
         }
-
-
-        if((tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0) || (this.tickCount - this.tickA) <= 6){
-            if(tag_map[ce_tag] > 0 && tag_map[pe_tag] > 0){
-                this.buyVerified = true;
-            }
-
+        catch(error){
+            this.strategyUtils.logStrategyError(`Error verifying buy: ${error.message}`);
             return {status: true};
         }
-
-
-        return {status: false, ce_count: tag_map[ce_tag], pe_count: tag_map[pe_tag]};
-
-
     }
 }
 
