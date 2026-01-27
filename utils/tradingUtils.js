@@ -43,6 +43,101 @@ class TradingUtils {
         return orderHistory;
     }
 
+    async getOrderDetails(orderId){
+        if(!this.kite){
+            console.log('Paper trading mode - simulating order details');
+            return {success: false, error: 'Paper trading mode - cannot get order details'};
+        }
+
+        const orderDetails = await this.kite.getOrderHistory(orderId);
+        let completeOrder = orderDetails.filter(item => item.status === "COMPLETE").at(-1);
+        if(completeOrder){
+            return {success: true, data: {
+                order_id: completeOrder.order_id,
+                symbol: completeOrder.tradingsymbol,
+                token: completeOrder.instrument_token.toString(),
+                last_price: completeOrder.average_price,
+                quantity: completeOrder.filled_quantity,
+                tag: completeOrder.tag,
+                tags: JSON.stringify(completeOrder.tags),
+                status: completeOrder.status
+            }}
+        }
+        else if(orderDetails.length > 0){
+            let lastOrder = orderDetails.at(-1);
+            return {success: true, data: {
+                order_id: lastOrder.order_id,
+                symbol: lastOrder.tradingsymbol,
+                token: lastOrder.instrument_token.toString(),
+                last_price: 0,
+                quantity: 0,
+                tag: lastOrder.tag,
+                tags: JSON.stringify(lastOrder.tags),
+                status: lastOrder.status
+            }}
+        }
+        else {
+            return {success: false, data: {
+                message: 'NO_ORDER_FOUND'}
+            };
+        }
+
+    }
+
+    async getOrdersByTag(tag){
+        if(!this.kite){
+            console.log('Paper trading mode - simulating order details');
+            return {success: false, error: 'Paper trading mode - cannot get order details'};
+        }
+
+        const orders = await this.kite.getOrders();
+        let filteredOrders = orders.filter(order => order.tag === tag);
+        if (filteredOrders.length > 0){
+            return {success: true, data: filteredOrders.map(order => ({
+                order_id: order.order_id,
+                symbol: order.tradingsymbol,
+                token: order.instrument_token.toString(),
+                last_price: order.average_price,
+                quantity: order.filled_quantity,
+                tag: order.tag,
+                tags: JSON.stringify(order.tags),
+                status: order.status
+            }))};
+        }
+        else {
+            return {success: false, data: {
+                message: 'NO_ORDERS_FOUND'
+            }};
+        }
+    }
+
+    async getOrdersByInstrumentToken(instrumentToken){
+        if(!this.kite){
+            console.log('Paper trading mode - simulating order details');
+            return {success: false, error: 'Paper trading mode - cannot get order details'};
+        }
+
+        const orders = await this.kite.getOrders();
+        let filteredOrders = orders.filter(order => order.instrument_token === parseInt(instrumentToken));
+        if (filteredOrders.length > 0){
+            return {success: true, data: filteredOrders.map(order => ({
+                order_id: order.order_id,
+                symbol: order.tradingsymbol,
+                token: order.instrument_token.toString(),
+                last_price: order.average_price,
+                quantity: order.filled_quantity,
+                tag: order.tag,
+                tags: JSON.stringify(order.tags),
+                status: order.status
+            }))};
+        }
+        else {
+            return {success: false, data: {
+                message: 'NO_ORDERS_FOUND'
+            }};
+        }
+    }
+
     async getOrderbook(){
         if(!this.kite){
             console.log('Paper trading mode - simulating orderbook');
