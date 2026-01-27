@@ -498,7 +498,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.globalDict.peakDef = 0;
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
-            this.globalDict.prebuyStoploss = this.globalDict.peakDefAfterFirstCycle;
+            this.globalDict.prebuyStoploss = this.universalDict.peakDefAfterFirstCycle;
         }
 
         // Data initialization removed - now using simplified event emission
@@ -890,8 +890,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 let filter_2 = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss);
                 if(!this.repetition.observed){
                     real_instrument = filter_2
-                    ? (this.globalDict.buySame ? closestCEto200 : closestPEto200)
-                    : (this.globalDict.buySame ? closestPEto200 : closestCEto200);
+                    ? (this.universalDict.buySame ? closestCEto200 : closestPEto200)
+                    : (this.universalDict.buySame ? closestPEto200 : closestCEto200);
                 }
 
                 // If repetition is observed.
@@ -929,7 +929,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo('Transitioning from FINAL REF to DIFF10 block');
                 
                 if(!this.savedState['target']){
-                    // this.savedState['target'] = this.globalDict.target;
+                    // this.savedState['target'] = this.universalDict.target;
                     this.savedState['stoploss'] = this.globalDict.stoploss;
                     this.savedState['quantity'] = this.globalDict.quantity;
                 }
@@ -1003,7 +1003,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             return;
         }
 
-        if(!this.buyVerified && this.universalDict.enableTrading && !this.globalDict.buySame && !this.tradingState.used){
+        if(!this.buyVerified && this.universalDict.enableTrading && !this.universalDict.buySame && !this.tradingState.used){
             let result = await this.verifyBuy();
             if(!result.status){
                 this.strategyUtils.logStrategyInfo('Buy not verified. Skipping DIFF10 block.');
@@ -1032,7 +1032,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let mtm = instrument_1_original_change + instrument_2_original_change;
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
-        console.log(`TARGET: ${this.globalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.globalDict.quantity}`);
+        console.log(`TARGET: ${this.universalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.globalDict.quantity}`);
         console.log(`BUY PRICE: ${instrument_1.buyPrice}`);
 
 
@@ -1069,14 +1069,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // PREBUY TARGET NET OBSERVER.
         if(!this.targetNet && this.universalDict.usePrebuy && this.actualRebuyDone){
-            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.globalDict.target/2) - 0.0); // Casting net if price within 1 point of target
+            this.targetNet = (instrument_1.last - instrument_1.buyPrice) >= ((this.universalDict.target/2) - 0.0); // Casting net if price within 1 point of target
             if(this.targetNet){
                 this.strategyUtils.logStrategyInfo(`Target net casted for ${instrument_1.symbol}`);
             }
         }
 
         // SL2A OBSERVER.
-        if(this.actualRebuyDone && ((instrument_1.last - instrument_1.buyPrice) >= (0.75*(this.globalDict.target/2))) && !this.sl2a && this.exit_at_stoploss){
+        if(this.actualRebuyDone && ((instrument_1.last - instrument_1.buyPrice) >= (0.75*(this.universalDict.target/2))) && !this.sl2a && this.exit_at_stoploss){
             this.strategyUtils.logStrategyInfo('SL2A hit');
             this.sl2a = true
         }
@@ -1085,7 +1085,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.globalDict.target/2)) || (this.targetNet && mtm <= (this.globalDict.target/2) - 0.0)));
+        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.universalDict.target/2)) || (this.targetNet && mtm <= (this.universalDict.target/2) - 0.0)));
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1124,10 +1124,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.strategyUtils.logStrategyError(`Error selling instrument: ${error.message}`);
                 }
 
-                // // this.globalDict.target = this.savedState['target'];
+                // // this.universalDict.target = this.savedState['target'];
                 this.globalDict.stoploss = this.savedState['stoploss'];
                 this.globalDict.quantity = this.savedState['quantity'];
-                this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
 
                 this.announceTargetHit();
                 // this.previouslyTargetHit = true;
@@ -1313,7 +1313,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
         }
         catch (error) {
@@ -1321,10 +1321,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
 
         this.announceExitAtStoploss();
-        // this.globalDict.target = this.savedState['target'];
+        // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
 
         // // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
@@ -1378,17 +1378,17 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        // this.globalDict.target = this.savedState['target'];
+        // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
 
         // // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
@@ -1433,9 +1433,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.actualRebuyDone = true;
         this.prebuyBuyPriceTwice = instrument_1.last;
         // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        let rebuy_val = this.globalDict.rebuyAt;
+        let rebuy_val = this.universalDict.rebuyAt;
         this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
-        let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.globalDict.rebuyAt)/2);
+        let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.universalDict.rebuyAt)/2);
         this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
         instrument_1.buyPrice = averagePrice;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
@@ -1455,10 +1455,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
             this.strategyUtils.logStrategyInfo(`New Buy Price in map is ${this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice}.`)
             this.strategyUtils.logStrategyInfo(`New Buy Price is ${instrument_1.buyPrice}.`)
-            // this.globalDict.target = this.globalDict.target / 2;
+            // this.universalDict.target = this.universalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.globalDict.quantity = this.globalDict.quantity * 2;
-            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(this.globalDict.rebuyAt);
+            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(this.universalDict.rebuyAt);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
         }
@@ -1490,9 +1490,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
-            // this.globalDict.target = this.globalDict.target * 2;
+            // this.universalDict.target = this.universalDict.target * 2;
             this.globalDict.stoploss = this.globalDict.stoploss * 2;
             this.globalDict.quantity = this.globalDict.quantity / 2;
 
@@ -1501,10 +1501,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        // this.globalDict.target = this.savedState['target'];
+        // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
         this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         this.announcePreviousCompletionMethod('EXIT_AT_COST');
 
         // // Select opposite instrument
@@ -1555,12 +1555,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1582,12 +1582,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1611,12 +1611,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1640,12 +1640,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
-                // this.globalDict.target = this.globalDict.target + Math.abs(diff);
+                // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1671,7 +1671,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1696,12 +1696,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
             }
 
-            let diff = sellResult.executedPrice - (instrument_1.buyPrice - this.globalDict.rebuyAt);
+            let diff = sellResult.executedPrice - (instrument_1.buyPrice - this.universalDict.rebuyAt);
             this.announceDiff(diff);
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1730,7 +1730,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1759,7 +1759,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
             this.globalDict.stoploss = this.savedState['stoploss'];
             this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1781,7 +1781,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice >= (this.globalDict.rebuyAt+this.globalDict.microRebuyControl)) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
+        return (instrument_1.last - instrument_1.buyPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
     shouldPlayScenario1CA(){
@@ -1805,7 +1805,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenarioSL2A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return this.sl2a && this.exit_at_stoploss && ((instrument_1.last - instrument_1.buyPrice) <= (0.5*(this.globalDict.target/2))) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && false;
+        return this.sl2a && this.exit_at_stoploss && ((instrument_1.last - instrument_1.buyPrice) <= (0.5*(this.universalDict.target/2))) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && false;
     }
 
     shouldPlayScenarioSL3(){
@@ -1818,7 +1818,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenarioSL5(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.globalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done;
+        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.universalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done;
     }
 
     shouldPlayScenarioSL5A(){
@@ -1826,7 +1826,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let diff = parseFloat(instrument_1.last)
         console.log(`Change after SL5: ${diff}`);
         if(this.scenario1Cdone && !this.universalDict.exitAtFirstBuy){
-            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.globalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
         }
         else {
             return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
@@ -2034,7 +2034,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.universalDict.cycles = (this.universalDict.cycles || 1) + 1;
         
         if(this.checkedDiff){
-            this.globalDict.target = this.savedState['target'];
+            this.universalDict.target = this.savedState['target'];
         }
 
         if(this.tradingState.used){
@@ -2197,7 +2197,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     // shouldBuyBack() {
-    //     if((this.globalDict.sellAt24Limit + this.globalDict.sellAt36Limit) < this.globalDict.target){
+    //     if((this.globalDict.sellAt24Limit + this.globalDict.sellAt36Limit) < this.universalDict.target){
     //         return true;
     //     }
     //     return false;
@@ -2254,35 +2254,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     getGlobalDictParameters() {
         return {
-            target: {
-                type: 'number',
-                default: 40,
-                description: 'Target profit in points'
-            },
             stoploss: {
                 type: 'number',
                 default: -50,
                 description: 'Stop loss in points'
             },
-            // sellAt10Live: {
-            //     type: 'boolean',
-            //     default: false,
-            //     description: 'Enable/disable selling at 10 points live'
-            // },
-            // sellFirstAt10: {
-            //     type: 'string',
-            //     default: 'HIGHER',
-            //     description: 'Sell first instrument at 10 points higher or lower. Default is HIGHER'
-            // },
             peakDef: {
                 type: 'number',
                 default: 0,
                 description: 'Peak definition in points'
-            },
-            peakDefAfterFirstCycle: {
-                type: 'number',
-                default: 10,
-                description: 'Peak definition in points after first cycle'
             },
             peakAndFallDef: {
                 type: 'number',
@@ -2294,36 +2274,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 0,
                 description: 'Upper limit for interim low'
             },
-            // lowerLimit: {
-            //     type: 'number',
-            //     default: 0,
-            //     description: 'Lower limit for MTM'
-            // },
             quantity: {
                 type: 'number',
                 default: 65,
                 description: 'Quantity to trade'
             },
-            // sellAt24Limit: {
-            //     type: 'number',
-            //     default: 24,
-            //     description: 'Limit for selling at 24 points'
-            // },
-            // sellAt10Limit: {
-            //     type: 'number',
-            //     default: -10,
-            //     description: 'Limit for selling at -10 points'
-            // },
-            // buyBackTarget: {
-            //     type: 'number',
-            //     default: 10,
-            //     description: 'Trigger for selling the buy-back instrument'
-            // },
-            // sellAt36Limit: {
-            //     type: 'number',
-            //     default: -36,
-            //     description: 'Limit for selling at -36 points'
-            // },
             prebuyStoploss: {
                 type: 'number',
                 default: -5,
@@ -2344,25 +2299,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 0,
                 description: 'Micro rebuy control'
             },
-            rebuyAt: {
-                type: 'number',
-                default: 10,
-                description: 'Rebuy Threshold.'
-            },
             halfTargetThreshold: {
                 type: 'number',
                 default: 5,
                 description: 'Half target threshold'
-            },
-            // prebuySignificantThreshold: {
-            //     type: 'number',
-            //     default: -11,
-            //     description: 'Significant stoploss threshold for pre-buy'
-            // },
-            buySame : {
-                type: 'boolean',
-                default: false,
-                description: 'Buy the same instrument again'
             },
             skipAfterCycles: {
                 type: 'number',
@@ -2384,25 +2324,35 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 1,
                 description: 'Number of cycles completed'
             },
-            // skipBuy: {
-            //     type: 'boolean',
-            //     default: false,
-            //     description: 'Skip buying after first cycle'
-            // },
-            // interimLowDisabled: {
-            //     type: 'boolean',
-            //     default: false,
-            //     description: 'Disable interim low detection'
-            // },
             usePrebuy: {
                 type: 'boolean',
                 default: true,
                 description: 'Use pre-buy technique.'
             },
+            peakDefAfterFirstCycle: {
+                type: 'number',
+                default: 10,
+                description: 'Peak definition in points after first cycle'
+            },
             exitAtFirstBuy: {
                 type: 'boolean',
                 default: true,
                 description: 'Exit at first buy'
+            },
+            buySame: {
+                type: 'boolean',
+                default: false,
+                description: 'Buy the same instrument again'
+            },
+            target: {
+                type: 'number',
+                default: 40,
+                description: 'Target profit in points'
+            },
+            rebuyAt: {
+                type: 'number',
+                default: 10,
+                description: 'Rebuy Threshold.'
             },
             enableTrading: {
                 type: 'boolean',
@@ -2660,10 +2610,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
     
                     if(this.prebuyBuyPriceTwice > 0){
-                        this.globalDict.target = this.globalDict.target * 2;
+                        this.universalDict.target = this.universalDict.target * 2;
                         this.globalDict.stoploss = this.globalDict.stoploss * 2;
                         this.globalDict.quantity = this.globalDict.quantity / 2;
-                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                     }
 
                     this.boughtSold = true;
@@ -2686,10 +2636,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
     
                     if(this.prebuyBuyPriceTwice > 0){
-                        this.globalDict.target = this.globalDict.target * 2;
+                        this.universalDict.target = this.universalDict.target * 2;
                         this.globalDict.stoploss = this.globalDict.stoploss * 2;
                         this.globalDict.quantity = this.globalDict.quantity / 2;
-                        this.strategyUtils.logStrategyInfo(`Target: ${this.globalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
                     }
                     this.boughtSold = true;
                 }
@@ -3359,9 +3309,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.checkedDiff = true;
                     this.strategyUtils.logStrategyInfo('Diff found');
                     diff_val = parseFloat(diff);
-                    this.savedState['target'] = this.globalDict.target;
-                    this.globalDict.target = this.globalDict.target - diff_val;
-                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.globalDict.target}`);
+                    this.savedState['target'] = this.universalDict.target;
+                    this.universalDict.target = this.universalDict.target - diff_val;
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.universalDict.target}`);
                 }
             }
         });
