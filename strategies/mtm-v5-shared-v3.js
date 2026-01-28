@@ -37,6 +37,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.tickA = null;
         this.tickB = null;
         this.buyVerified = false;
+        this.verificationError = false;
         this.tradingState = {
             used: false,
             enabled: false
@@ -257,6 +258,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.tickA = null;
         this.tickB = null;
         this.buyVerified = false;
+        this.verificationError = false;
         this.tradingState = {
             used: false,
             enabled: false
@@ -1003,28 +1005,35 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             return;
         }
 
-        if(!this.buyVerified && this.universalDict.enableTrading && !this.universalDict.buySame && !this.tradingState.used){
-            let result = await this.verifyBuy();
-            if(!result.status){
-                this.strategyUtils.logStrategyInfo('Buy not verified. Skipping DIFF10 block.');
-                this.strategyUtils.logStrategyInfo(`CE count: ${result.ce_count}, PE count: ${result.pe_count}`);
-                let ce_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.call);
-                let pe_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put);
+        try{
+            if(!this.buyVerified && this.universalDict.enableTrading && !this.universalDict.buySame && !this.tradingState.used && !this.verificationError){
+                let result = await this.verifyBuy();
+                if(!result.status){
+                    this.strategyUtils.logStrategyInfo('Buy not verified. Skipping DIFF10 block.');
+                    this.strategyUtils.logStrategyInfo(`CE count: ${result.ce_count}, PE count: ${result.pe_count}`);
+                    let ce_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.call);
+                    let pe_instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put);
 
-                if(result.ce_count > 0){
-                    await this.sellInstrument(ce_instrument);
-                }
-                else if(result.pe_count > 0){
-                    await this.sellInstrument(pe_instrument);
-                }
-                else {
-                    this.strategyUtils.logStrategyInfo('Nothing to sell. Continuing with PAPER TRADING');
-                }
+                    if(result.ce_count > 0){
+                        await this.sellInstrument(ce_instrument);
+                    }
+                    else if(result.pe_count > 0){
+                        await this.sellInstrument(pe_instrument);
+                    }
+                    else {
+                        this.strategyUtils.logStrategyInfo('Nothing to sell. Continuing with PAPER TRADING');
+                    }
 
-                this.tradingState.used = true;
-                this.tradingState.enabled = this.universalDict.enableTrading;
-                this.universalDict.enableTrading = false;
+                    this.tradingState.used = true;
+                    this.tradingState.enabled = this.universalDict.enableTrading;
+                    this.universalDict.enableTrading = false;
+                }
             }
+        }
+        catch (error) {
+            this.strategyUtils.logStrategyError(`Error verifying buy: ${error.message}`);
+            this.strategyUtils.logStrategyError(`Full error: ${JSON.stringify(error)}`);
+            this.verificationError = true;
         }
 
         const instrument_1_original_change = instrument_1.last - instrument_1.buyPrice;
@@ -2100,6 +2109,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.tickA = null;
         this.tickB = null;
         this.buyVerified = false;
+        this.verificationError = false;
         this.tradingState = {
             used: false,
             enabled: false
