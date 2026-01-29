@@ -1837,9 +1837,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if(this.scenario1Cdone && !this.universalDict.exitAtFirstBuy){
             return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
         }
-        else {
-            return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
-        }
+        // else {
+        //     return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+        // }
     }
 
 
