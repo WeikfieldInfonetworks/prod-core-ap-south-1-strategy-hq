@@ -1827,7 +1827,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenarioSL5(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.universalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done;
+        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.universalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done && !this.sl5aHit;
     }
 
     shouldPlayScenarioSL5A(){
@@ -3446,6 +3446,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     async verifyBuy(){
+        this.strategyUtils.logStrategyInfo(`Verify buy called`);
         if(!this.tickCountFlag){
             this.tickCountFlag = true;
             this.tickA = this.tickCount;

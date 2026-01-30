@@ -1086,7 +1086,7 @@ class StrategyUtils {
     }
 
     getInstrumentBySymbol(instrumentMap, symbol){
-        for (let instrument of instrumentMap){
+        for (let [token, instrument] of Object.entries(instrumentMap)){
             if(instrument.symbol === symbol){
                 return instrument;
             }
