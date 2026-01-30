@@ -1827,14 +1827,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenarioSL5(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.universalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done && !this.sl5aHit;
+        return (instrument_1.last - instrument_1.buyPrice) <= (-1*this.universalDict.rebuyAt) && !this.boughtSold && !this.afterTarget && !this.rebuyFound && !this.scenarioSL5Done && !this.sl5aHit && this.universalDict.exitAtNegativeRebuy;
     }
 
     shouldPlayScenarioSL5A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         let diff = parseFloat(instrument_1.last)
         console.log(`Change after SL5: ${diff}`);
-        if(this.scenario1Cdone && !this.universalDict.exitAtFirstBuy){
+        if(this.scenario1Cdone){
             return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
         }
         // else {
@@ -2344,10 +2344,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 10,
                 description: 'Peak definition in points after first cycle'
             },
-            exitAtFirstBuy: {
+            // exitAtFirstBuy: {
+            //     type: 'boolean',
+            //     default: true,
+            //     description: 'Exit at first buy'
+            // },
+            exitAtNegativeRebuy: {
                 type: 'boolean',
                 default: true,
-                description: 'Exit at first buy'
+                description: 'Exit at negative rebuy'
             },
             buySame: {
                 type: 'boolean',
