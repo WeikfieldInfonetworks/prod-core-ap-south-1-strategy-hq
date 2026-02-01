@@ -2344,11 +2344,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 10,
                 description: 'Peak definition in points after first cycle'
             },
-            // exitAtFirstBuy: {
-            //     type: 'boolean',
-            //     default: true,
-            //     description: 'Exit at first buy'
-            // },
+            exitAtFirstBuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Exit at first buy'
+            },
             exitAtNegativeRebuy: {
                 type: 'boolean',
                 default: true,
