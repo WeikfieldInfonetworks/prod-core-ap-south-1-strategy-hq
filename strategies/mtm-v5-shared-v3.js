@@ -1290,6 +1290,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
             // Reset for next cycle
             this.resetForNextCycle();
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
             
             this.blockNextCycle = false;
             this.blockInit = true;
