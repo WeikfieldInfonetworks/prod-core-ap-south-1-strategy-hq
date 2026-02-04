@@ -42,6 +42,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.mtmHit = false;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -99,6 +100,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
+        this.scenario1Ddone = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
         this.thirdBought = false;
@@ -263,6 +265,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.mtmHit = false;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -336,6 +339,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
+        this.scenario1Ddone = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
         this.thirdBought = false;
@@ -1094,7 +1098,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.universalDict.target/2)) || (this.targetNet && mtm <= (this.universalDict.target/2) - 0.0)));
+        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= (this.universalDict.target/2)) || (this.targetNet && mtm <= (this.universalDict.target/2) - 0.0))) || this.mtmHit;
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
@@ -1550,6 +1554,37 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     }
 
+    async scenario1D(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        this.boughtSold = true;
+        this.scenario1Ddone = true;
+        this.strategyUtils.logStrategyInfo(`Scenario 1D in action.`)
+
+        // //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // // this.realBuyStoplossHit = true;
+        // let sellResult = null;
+        // let diff = 0;
+        // try {
+        //     sellResult = await this.sellInstrument(instrument_1);
+        //     if (sellResult && sellResult.success) {
+        //         this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+        //         // diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+        //         // this.universalDict.target = this.universalDict.target + Math.abs(diff);
+        //     }
+    
+        //     this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        // }
+        // catch (error) {
+        //     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+        // }
+
+        // this.emitInstrumentDataUpdate();
+
+        this.mtmHit = true;
+        this.announceMTMHit();
+    }
+
     async scenarioSL(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
@@ -1797,6 +1832,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss && !this.sl5aHit;
+    }
+
+    shouldPlayScenario1D(){
+        let call = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.call).token.toString()];
+        let put = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put).token.toString()];
+        let callDiff = call.last - call.buyPrice;
+        let putDiff = put.last - put.buyPrice;
+        return (callDiff + putDiff) >= this.universalDict.target && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone;
     }
 
     shouldPlayScenarioSL(){
@@ -2128,6 +2171,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.targetNet = false;
         this.secondBought = false;
         this.actualRebuyDone = false;
+        this.mtmHit = false;
         // this.repetition = {
         //     observed: false,
         //     type: null
@@ -2144,6 +2188,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Bdone = false;
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
+        this.scenario1Ddone = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
         this.thirdBought = false;
@@ -3253,6 +3298,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.sl5aHit = true;
                     this.strategyUtils.logStrategyInfo('SL5 exit announced');
                 }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'MTM_HIT' && !this.mtmHit && !this.announcementDone){
+                    this.mtmHit = true;
+                    this.strategyUtils.logStrategyInfo('MTM hit announced');
+                }
             }
         });
     }
@@ -3292,6 +3341,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if(!this.targetHit){
             this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:TARGET_HIT\n`);
         }
+    }
+
+    announceMTMHit(){
+        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:MTM_HIT\n`);
+        this.announcementDone = true;
     }
 
     announceRebuyData(){
