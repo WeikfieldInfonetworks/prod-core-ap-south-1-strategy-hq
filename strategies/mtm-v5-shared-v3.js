@@ -937,7 +937,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 if(!this.savedState['target']){
                     // this.savedState['target'] = this.universalDict.target;
                     this.savedState['stoploss'] = this.globalDict.stoploss;
-                    this.savedState['quantity'] = this.globalDict.quantity;
+                    this.savedState['quantity'] = this.universalDict.quantity;
                 }
                 
                 // Emit real-time notifications
@@ -1045,7 +1045,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let mtm = instrument_1_original_change + instrument_2_original_change;
 
         console.log(`${instrument_1.symbol} ${instrument_1_original_change} ${instrument_2.symbol} ${instrument_2_original_change} MTM:${mtm}`);
-        console.log(`TARGET: ${this.universalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.globalDict.quantity}`);
+        console.log(`TARGET: ${this.universalDict.target}, STOPLOSS: ${this.globalDict.stoploss}, QUANTITY: ${this.universalDict.quantity}`);
         console.log(`BUY PRICE: ${instrument_1.buyPrice}`);
 
 
@@ -1139,8 +1139,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
                 // // this.universalDict.target = this.savedState['target'];
                 this.globalDict.stoploss = this.savedState['stoploss'];
-                this.globalDict.quantity = this.savedState['quantity'];
-                this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                this.universalDict.quantity = this.savedState['quantity'];
+                this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
 
                 this.announceTargetHit();
                 // this.previouslyTargetHit = true;
@@ -1294,7 +1294,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
             // Reset for next cycle
             this.resetForNextCycle();
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity}) RESET COMPLETED.`);
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity}) RESET COMPLETED.`);
             
             this.blockNextCycle = false;
             this.blockInit = true;
@@ -1337,8 +1337,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.announceExitAtStoploss();
         // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
-        this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.universalDict.quantity = this.savedState['quantity'];
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
 
         // // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
@@ -1401,8 +1401,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
-        this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.universalDict.quantity = this.savedState['quantity'];
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
 
         // // Select opposite instrument
         // instrument_1 = instrument_1.symbol.includes('CE')
@@ -1471,7 +1471,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.strategyUtils.logStrategyInfo(`New Buy Price is ${instrument_1.buyPrice}.`)
             // this.universalDict.target = this.universalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
-            this.globalDict.quantity = this.globalDict.quantity * 2;
+            this.universalDict.quantity = this.universalDict.quantity * 2;
             this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(this.universalDict.rebuyAt);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
@@ -1508,7 +1508,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
             // this.universalDict.target = this.universalDict.target * 2;
             this.globalDict.stoploss = this.globalDict.stoploss * 2;
-            this.globalDict.quantity = this.globalDict.quantity / 2;
+            this.universalDict.quantity = this.universalDict.quantity / 2;
 
         }
         catch (error) {
@@ -1517,8 +1517,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // this.universalDict.target = this.savedState['target'];
         this.globalDict.stoploss = this.savedState['stoploss'];
-        this.globalDict.quantity = this.savedState['quantity'];
-        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        this.universalDict.quantity = this.savedState['quantity'];
+        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         this.announcePreviousCompletionMethod('EXIT_AT_COST');
 
         // // Select opposite instrument
@@ -1555,8 +1555,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     async scenario1D(){
-        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        this.boughtSold = true;
+        // let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        // this.boughtSold = true;
         this.scenario1Ddone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1D in action.`)
 
@@ -1573,7 +1573,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         //         // this.universalDict.target = this.universalDict.target + Math.abs(diff);
         //     }
     
-        //     this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+        //     this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         // }
         // catch (error) {
         //     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1604,8 +1604,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1631,8 +1631,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1660,8 +1660,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1689,8 +1689,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
@@ -1715,8 +1715,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1745,8 +1745,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.announceDiff(diff);
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1774,8 +1774,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.announceSL5Exit();
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1803,8 +1803,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             this.globalDict.stoploss = this.savedState['stoploss'];
-            this.globalDict.quantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+            this.universalDict.quantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
         }
 
         catch (error) {
@@ -1953,15 +1953,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const boughtOrderResult = tradingUtils.placeBuyOrder(
                     boughtInstrument.symbol,
                     boughtInstrument.last,
-                    this.globalDict.quantity || 65
+                    this.universalDict.quantity || 65
                 );
                 
                 if (boughtOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${boughtInstrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 65, this.boughtToken);
+                    this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.universalDict.quantity || 65, this.boughtToken);
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${boughtInstrument.symbol}: ${boughtOrderResult.error}`);
-                    this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 65, this.boughtToken, boughtOrderResult.error);
+                    this.strategyUtils.logOrderFailed('buy', boughtInstrument.symbol, boughtInstrument.last, this.universalDict.quantity || 65, this.boughtToken, boughtOrderResult.error);
                 }
                 
                 let boughtPrice = boughtInstrument.last;
@@ -1987,15 +1987,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const oppOrderResult = tradingUtils.placeBuyOrder(
                     oppInstrument.symbol,
                     oppInstrument.last,
-                    this.globalDict.quantity || 65
+                    this.universalDict.quantity || 65
                 );
 
                 if (oppOrderResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${oppInstrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 65, this.oppBoughtToken);
+                    this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.universalDict.quantity || 65, this.oppBoughtToken);
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${oppInstrument.symbol}: ${oppOrderResult.error}`);
-                    this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 65, this.oppBoughtToken, oppOrderResult.error);
+                    this.strategyUtils.logOrderFailed('buy', oppInstrument.symbol, oppInstrument.last, this.universalDict.quantity || 65, this.oppBoughtToken, oppOrderResult.error);
                 }
                 
                 let oppPrice = oppInstrument.last;
@@ -2018,10 +2018,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             } else {
                 // Paper trading - log the orders without placing them
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${boughtInstrument.symbol} @ ${boughtInstrument.last}`);
-                this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.globalDict.quantity || 65, this.boughtToken);
+                this.strategyUtils.logOrderPlaced('buy', boughtInstrument.symbol, boughtInstrument.last, this.universalDict.quantity || 65, this.boughtToken);
                 
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${oppInstrument.symbol} @ ${oppInstrument.last}`);
-                this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.globalDict.quantity || 65, this.oppBoughtToken);
+                this.strategyUtils.logOrderPlaced('buy', oppInstrument.symbol, oppInstrument.last, this.universalDict.quantity || 65, this.oppBoughtToken);
                 
                 boughtInstrument.buyPrice = boughtInstrument.last;
                 oppInstrument.buyPrice = oppInstrument.last;
@@ -2032,7 +2032,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
 
             this.strategyUtils.logStrategyInfo('Orders placed successfully for MTM strategy');
-            this.strategyUtils.logStrategyInfo(`Total investment: ${(boughtInstrument.last + oppInstrument.last) * (this.globalDict.quantity || 65)}`);
+            this.strategyUtils.logStrategyInfo(`Total investment: ${(boughtInstrument.last + oppInstrument.last) * (this.universalDict.quantity || 65)}`);
 
             // Emit prebought instruments data
             const preboughtData = {
@@ -2040,13 +2040,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 ceInstrument: {
                     symbol: boughtInstrument.symbol.includes('CE') ? boughtInstrument.symbol : oppInstrument.symbol,
                     price: boughtInstrument.symbol.includes('CE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
-                    quantity: this.globalDict.quantity || 65,
+                    quantity: this.universalDict.quantity || 65,
                     token: boughtInstrument.symbol.includes('CE') ? this.boughtToken : this.oppBoughtToken
                 },
                 peInstrument: {
                     symbol: boughtInstrument.symbol.includes('PE') ? boughtInstrument.symbol : oppInstrument.symbol,
                     price: boughtInstrument.symbol.includes('PE') ? boughtInstrument.buyPrice : oppInstrument.buyPrice,
-                    quantity: this.globalDict.quantity || 65,
+                    quantity: this.universalDict.quantity || 65,
                     token: boughtInstrument.symbol.includes('PE') ? this.boughtToken : this.oppBoughtToken
                 },
                 timestamp: this.formatTime24(new Date()),
@@ -2330,11 +2330,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 0,
                 description: 'Upper limit for interim low'
             },
-            quantity: {
-                type: 'number',
-                default: 65,
-                description: 'Quantity to trade'
-            },
             prebuyStoploss: {
                 type: 'number',
                 default: -5,
@@ -2405,6 +2400,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: false,
                 description: 'Buy the same instrument again'
             },
+            quantity: {
+                type: 'number',
+                default: 65,
+                description: 'Quantity to trade'
+            },
             target: {
                 type: 'number',
                 default: 40,
@@ -2445,18 +2445,18 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const sellResult1 = tradingUtils.placeMarketSellOrder(
                     instrument1.symbol,
                     instrument1.last,
-                    this.globalDict.quantity || 65
+                    this.universalDict.quantity || 65
                 );
 
                 const sellResult2 = tradingUtils.placeMarketSellOrder(
                     instrument2.symbol,
                     instrument2.last,
-                    this.globalDict.quantity || 65
+                    this.universalDict.quantity || 65
                 );
 
                 if (sellResult1.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument1.symbol}`);
-                    this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 65, instrument1.token);
+                    this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.universalDict.quantity || 65, instrument1.token);
                     
                     // Get order history for executed price
                     try {
@@ -2476,7 +2476,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
                 if (sellResult2.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument2.symbol}`);
-                    this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 65, instrument2.token);
+                    this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.universalDict.quantity || 65, instrument2.token);
                     
                     // Get order history for executed price
                     try {
@@ -2497,8 +2497,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 // Paper trading
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument1.symbol} @ ${instrument1.last}`);
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument2.symbol} @ ${instrument2.last}`);
-                this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.globalDict.quantity || 65, instrument1.token);
-                this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.globalDict.quantity || 65, instrument2.token);
+                this.strategyUtils.logOrderPlaced('sell', instrument1.symbol, instrument1.last, this.universalDict.quantity || 65, instrument1.token);
+                this.strategyUtils.logOrderPlaced('sell', instrument2.symbol, instrument2.last, this.universalDict.quantity || 65, instrument2.token);
                 
                 executedPrices.instrument1 = instrument1.last;
                 executedPrices.instrument2 = instrument2.last;
@@ -2533,12 +2533,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const sellResult = tradingUtils.placeMarketSellOrder(
                     instrument.symbol,
                     instrument.last,
-                    this.globalDict.quantity || 65
+                    this.universalDict.quantity || 65
                 );
 
                 if (sellResult.success) {
                     this.strategyUtils.logStrategyInfo(`Sell order placed for ${instrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                    this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token);
                     
                     // Get order history for executed price
                     try {
@@ -2554,18 +2554,18 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place sell order for ${instrument.symbol}: ${sellResult.error}`);
-                    this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, sellResult.error);
+                    this.strategyUtils.logOrderFailed('sell', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token, sellResult.error);
                 }
             } else {
                 // Paper trading
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Sell order for ${instrument.symbol} @ ${instrument.last}`);
-                this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                this.strategyUtils.logOrderPlaced('sell', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token);
                 
                 executedPrice = instrument.last;
             }
             
             // Emit simplified trade event after determining executed price
-            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.globalDict.quantity || 65);
+            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.universalDict.quantity || 65);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -2596,13 +2596,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 const buyResult = tradingUtils.placeBuyOrder(
                     instrument.symbol,
                     instrument.last,
-                    this.globalDict.quantity || 65,
+                    this.universalDict.quantity || 65,
                     this.generateTag(this.userId, this.universalDict.cycles, instrument.symbol)
                 );
 
                 if (buyResult.success) {
                     this.strategyUtils.logStrategyInfo(`Buy order placed for ${instrument.symbol}`);
-                    this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                    this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token);
                     
                     // Get order history for executed price and update buy price
                     try {
@@ -2623,12 +2623,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 } else {
                     this.strategyUtils.logStrategyError(`Failed to place buy order for ${instrument.symbol}: ${buyResult.error}`);
-                    this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token, buyResult.error);
+                    this.strategyUtils.logOrderFailed('buy', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token, buyResult.error);
                 }
             } else {
                 // Paper trading
                 this.strategyUtils.logStrategyInfo(`PAPER TRADING: Buy order for ${instrument.symbol} @ ${instrument.last}`);
-                this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.globalDict.quantity || 65, instrument.token);
+                this.strategyUtils.logOrderPlaced('buy', instrument.symbol, instrument.last, this.universalDict.quantity || 65, instrument.token);
                 
                 // Update buy price for paper trading
                 executedPrice = instrument.last;
@@ -2636,7 +2636,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
             
             // Emit simplified trade event after determining executed price
-            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.globalDict.quantity || 65);
+            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.universalDict.quantity || 65);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -2673,8 +2673,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     if(this.prebuyBuyPriceTwice > 0){
                         this.universalDict.target = this.universalDict.target * 2;
                         this.globalDict.stoploss = this.globalDict.stoploss * 2;
-                        this.globalDict.quantity = this.globalDict.quantity / 2;
-                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        this.universalDict.quantity = this.universalDict.quantity / 2;
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
                     }
 
                     this.boughtSold = true;
@@ -2699,8 +2699,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     if(this.prebuyBuyPriceTwice > 0){
                         this.universalDict.target = this.universalDict.target * 2;
                         this.globalDict.stoploss = this.globalDict.stoploss * 2;
-                        this.globalDict.quantity = this.globalDict.quantity / 2;
-                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.globalDict.quantity} RESET COMPLETED.`);
+                        this.universalDict.quantity = this.universalDict.quantity / 2;
+                        this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.universalDict.quantity} RESET COMPLETED.`);
                     }
                     this.boughtSold = true;
                 }
