@@ -1228,6 +1228,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 await this.scenarioSL2A();
             }
 
+            if(this.shouldPlayScenario1D()){
+                await this.scenario1D();
+            }
+
             if(this.shouldPlayScenario1A()){
                 await this.scenario1A();
             }
@@ -1447,9 +1451,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.actualRebuyDone = true;
         this.prebuyBuyPriceTwice = instrument_1.last;
         // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        let rebuy_val = this.universalDict.rebuyAt;
+        let rebuy_val = this.sl5aHit ? (parseFloat(this.prebuyBuyPriceTwice) - parseFloat(this.prebuyBuyPriceOnce)) : this.universalDict.rebuyAt;
         this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
-        let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.universalDict.rebuyAt)/2);
+        let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(rebuy_val)/2);
         this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
         instrument_1.buyPrice = averagePrice;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
@@ -1472,7 +1476,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             // this.universalDict.target = this.universalDict.target / 2;
             this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.universalDict.quantity = this.universalDict.quantity * 2;
-            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(this.universalDict.rebuyAt);
+            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(rebuy_val);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
         }
@@ -1826,12 +1830,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (instrument_1.last - instrument_1.buyPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
+        return ((instrument_1.last - instrument_1.buyPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) || this.sl5aHit)&& !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold;
     }
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss && !this.sl5aHit;
+        return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
     }
 
     shouldPlayScenario1D(){
@@ -1879,7 +1883,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let diff = parseFloat(instrument_1.last)
         console.log(`Change after SL5: ${diff}`);
         if(this.scenario1Cdone){
-            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
+            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone && false;
         }
         // else {
         //     return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
