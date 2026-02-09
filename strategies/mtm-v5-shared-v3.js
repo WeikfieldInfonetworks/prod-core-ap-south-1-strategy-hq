@@ -1842,9 +1842,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1CA(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
+        if(this.universalDict.enableExitAfterRebuy){
+            return (this.universalDict.exitAtFirstBuy ? (instrument_1.last <= (this.prebuyBuyPriceOnce+this.globalDict.microStoplossControl)) : (parseFloat(instrument_1.last) <= parseFloat(instrument_1.buyPrice+this.globalDict.microStoplossControl))) && this.scenario1Cdone && !this.scenario1CAdone && !this.boughtSold && !this.exit_at_stoploss;
+        }
+        else {
+            return false;
+        }
     }
-
     shouldPlayScenario1D(){
         let call = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.call).token.toString()];
         let put = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put).token.toString()];
@@ -2426,6 +2430,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 type: 'number',
                 default: 10,
                 description: 'Rebuy Threshold.'
+            },
+            enableExitAfterRebuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Enable/disable exit after rebuy'
             },
             enableTrading: {
                 type: 'boolean',
