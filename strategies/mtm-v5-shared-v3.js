@@ -43,6 +43,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             enabled: false
         }
         this.mtmHit = false;
+        this.residual = 0;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -267,6 +268,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             enabled: false
         }
         this.mtmHit = false;
+        this.residual = 0;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -1070,6 +1072,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.updateCycleInstanceSet();
         if(this.scenario1Cdone && !this.checkedDiff){
             this.checkDiff();
+        }
+
+        if(this.checkedDiff){
+            this.universalDict.target = this.universalDict.target - this.residual;
         }
 
         // PREBUY LOW TRACKING LOGIC.
@@ -2188,6 +2194,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.secondBought = false;
         this.actualRebuyDone = false;
         this.mtmHit = false;
+        this.residual = 0;
         // this.repetition = {
         //     observed: false,
         //     type: null
@@ -3405,6 +3412,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.checkedDiff = true;
                     this.strategyUtils.logStrategyInfo('Diff found');
                     diff_val = parseFloat(diff);
+                    this.residual = diff_val;
                     this.savedState['target'] = this.universalDict.target;
                     this.universalDict.target = this.universalDict.target - diff_val;
                     this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.universalDict.target}`);
