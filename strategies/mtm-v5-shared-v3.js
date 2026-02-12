@@ -44,6 +44,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         this.mtmHit = false;
         this.residual = 0;
+        this.newTarget = 0;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -269,6 +270,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         this.mtmHit = false;
         this.residual = 0;
+        this.newTarget = 0;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -439,6 +441,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     impact: 'next_cycle'
                 });
             }
+
+            this.emitCommonParameters();
         }
         
         return success;
@@ -449,7 +453,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.tickCount++;
             console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
             console.log(`Number of ticks received: ${ticks.length}`);
-            console.log(`Current Cycle: ${this.cycleCount}`);
+            console.log(`Current Cycle: ${this.universalDict.cycles}`);
+            this.checkCommonParameters();
             
             // Process ticks based on current block state
             // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
@@ -1074,9 +1079,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.checkDiff();
         }
 
-        if(this.checkedDiff){
-            this.universalDict.target = this.universalDict.target - this.residual;
-        }
+        // if(this.newTarget == 0 || this.newTarget != this.savedState['target']){
+        //     this.newTarget
+        // }
+
+        // if(this.checkedDiff){
+        //     this.universalDict.target = this.universalDict.target - this.residual;
+        // }
 
         // PREBUY LOW TRACKING LOGIC.
         if(this.universalDict.usePrebuy && this.prebuyBoughtToken && instrument_1.token == this.prebuyBoughtToken){
@@ -2195,6 +2204,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.actualRebuyDone = false;
         this.mtmHit = false;
         this.residual = 0;
+        this.newTarget = 0;
         // this.repetition = {
         //     observed: false,
         //     type: null
@@ -2452,6 +2462,16 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 type: 'boolean',
                 default: false,
                 description: 'Enable/disable actual trading for next cycle'
+            },
+            enableManualEntry: {
+                type: 'boolean',
+                default: false,
+                description: 'Enable/disable manual entry'
+            },
+            enterNow: {
+                type: 'boolean',
+                default: false,
+                description: "Enter trade now."
             }
         };
     }
@@ -3290,6 +3310,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         fs.appendFileSync("output/global.txt", formatted_data);
     }
 
+    appendToSharedOutput(data){
+        let formatted_data = `${data}`;
+        fs.appendFileSync("output/shared.txt", formatted_data);
+    }
+
     appendCompletionState(){
         let formatted_data = `${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:COMPLETE\n`;
         this.appendToGlobalOutput(formatted_data);
@@ -3531,6 +3556,50 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
 
         return map[id];
+    }
+
+    emitCommonParameters(){
+        try{
+            if(!this.universalDict.buySame || true){
+                let params = {
+                    "enableTrading": this.universalDict.enableTrading,
+                    "enableTradingForNextCycle": this.universalDict.enableTradingForNextCycle,
+                    "enableManualEntry": this.universalDict.enableManualEntry,
+                    "enterNow": this.universalDict.enterNow
+                }
+    
+                this.appendToSharedOutput(`${this.userId}|${JSON.stringify(params)}`);
+    
+            }
+        }
+        catch(error){
+            this.strategyUtils.logStrategyError(error);
+        }
+    }
+
+    checkCommonParameters(){
+        try{
+            if(this.universalDict.buySame || true){
+                let corpus = fs.readFileSync("output/shared.txt", 'utf8');
+                let corpusArray = corpus.split('\n');
+                let id_to_check = this.getUserIdFromMap(this.userId)
+                let boolean_keys = ['enableTrading', 'enableTradingForNextCycle', 'enableManualEntry', 'enterNow'];
+                if(corpusArray.length > 0){
+                    let latest_status = corpusArray.filter(line => line.split("|")[0] === id_to_check).at(-1);
+                    if(latest_status){
+                        let params = JSON.parse(latest_status.split("|")[1]);
+                        for(const [k, v] of Object.entries(params)){
+                            if(boolean_keys.includes(k)){
+                                this.universalDict[k] = v === "true";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch(error){
+            this.strategyUtils.logStrategyError(error);
+        }
     }
 
     generateTag(user_id, cycle_id, symbol){
