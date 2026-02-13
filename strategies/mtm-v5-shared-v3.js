@@ -513,7 +513,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.globalDict.peakDef = 0;
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
-            this.globalDict.prebuyStoploss = this.universalDict.peakDefAfterFirstCycle;
+            this.universalDict.peakDefInCurrentCycle = this.universalDict.peakDefAfterFirstCycle;
             this.universalDict.enableTrading = this.universalDict.enableTradingForNextCycle;
         }
 
@@ -878,7 +878,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let pe_change = pe_instrument.last - pe_instrument.buyPrice;
             console.log(`PREBUY: CE CHANGE: ${ce_change} PE CHANGE: ${pe_change}`);
             let real_instrument = null;
-            let filter = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss || pe_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss);
+            let filter = this.universalDict.peakDefInCurrentCycle >= 0 ? (ce_change >= this.universalDict.peakDefInCurrentCycle || pe_change >= this.universalDict.peakDefInCurrentCycle) : (ce_change <= this.universalDict.peakDefInCurrentCycle || pe_change <= this.universalDict.peakDefInCurrentCycle);
             // Check if previousRebuyData has required fields before using isPriceAtCost()
             // let filter_x = this.universalDict.cycles >= 2 && this.previouslyTargetHit && this.previousRebuyData.token && this.previousRebuyData.rebuy_price !== undefined ? this.isPriceAtCost() : filter;
             let manualEntryFilter = this.universalDict.enableManualEntry && this.universalDict.enterNow;
@@ -906,7 +906,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 // let closestCEto200 = this.universalDict.instrumentMap[this.mainToken].symbol.includes('CE') ? this.universalDict.instrumentMap[this.mainToken] : this.universalDict.instrumentMap[this.oppToken];
 
                 // If repetition is not observed.
-                let filter_2 = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss);
+                let filter_2 = this.universalDict.peakDefInCurrentCycle >= 0 ? (ce_change >= this.universalDict.peakDefInCurrentCycle) : (ce_change <= this.universalDict.peakDefInCurrentCycle);
                 if(!this.repetition.observed){
                     real_instrument = filter_2
                     ? (this.universalDict.buySame ? closestCEto200 : closestPEto200)
@@ -2366,11 +2366,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 0,
                 description: 'Upper limit for interim low'
             },
-            prebuyStoploss: {
-                type: 'number',
-                default: 0,
-                description: 'Stoploss for pre-buy'
-            },
             realBuyStoploss: {
                 type: 'number',
                 default: -50,
@@ -2415,6 +2410,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 type: 'number',
                 default: 1,
                 description: 'Number of cycles completed'
+            },
+            peakDefInCurrentCycle: {
+                type: 'number',
+                default: 0,
+                description: 'Peak definition in points in current cycle'
             },
             peakDefAfterFirstCycle: {
                 type: 'number',
