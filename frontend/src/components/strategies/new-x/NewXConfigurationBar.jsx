@@ -56,6 +56,17 @@ const NewXConfigurationBar = ({ strategy, onParameterUpdate }) => {
     }
   };
 
+  const updateParameterWithValue = (type, paramName, value) => {
+    if (type === 'global') {
+      updateGlobalParameter(paramName, value);
+    } else {
+      updateUniversalParameter(paramName, value);
+    }
+    if (onParameterUpdate) {
+      onParameterUpdate(paramName, value);
+    }
+  };
+
   const resetParameter = (type, paramName) => {
     setLocalValues(prev => {
       const newLocalValues = { ...prev };
@@ -119,6 +130,42 @@ const NewXConfigurationBar = ({ strategy, onParameterUpdate }) => {
     // Check if there's a local change - any local value means user has modified it
     const hasLocalChange = localValue !== undefined;
 
+    if (paramConfig.type === 'boolean') {
+      const isOn = currentValue === true || currentValue === 'true';
+      const handleToggle = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const newVal = !isOn;
+        setLocalValues(prev => ({ ...prev, [localKey]: newVal }));
+        updateParameterWithValue(type, paramName, newVal);
+      };
+      return (
+        <div key={paramName} className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm font-medium text-gray-700 shrink-0">
+              {paramName}
+            </label>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isOn}
+              onClick={handleToggle}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                isOn ? 'bg-green-500' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`pointer-events-none absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
+                  isOn ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">{paramConfig.description}</p>
+        </div>
+      );
+    }
+
     return (
       <div key={paramName} className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
@@ -133,32 +180,17 @@ const NewXConfigurationBar = ({ strategy, onParameterUpdate }) => {
         </label>
         
         <div className="flex space-x-3">
-          {paramConfig.type === 'boolean' ? (
-            <select
-              value={currentValue}
-              onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black transition-colors ${
-                hasLocalChange 
-                  ? 'border-orange-400 bg-orange-50 ring-orange-200' 
-                  : 'border-gray-300 bg-white focus:border-blue-500'
-              }`}
-            >
-              <option value="true" className="text-black">True</option>
-              <option value="false" className="text-black">False</option>
-            </select>
-          ) : (
-            <input
-              type={paramConfig.type === 'number' ? 'number' : 'text'}
-              value={currentValue || ''}
-              onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
-              className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black transition-colors ${
-                hasLocalChange 
-                  ? 'border-orange-400 bg-orange-50 ring-orange-200' 
-                  : 'border-gray-300 bg-white focus:border-blue-500'
-              }`}
-              step={paramConfig.type === 'number' ? 'any' : undefined}
-            />
-          )}
+          <input
+            type={paramConfig.type === 'number' ? 'number' : 'text'}
+            value={currentValue || ''}
+            onChange={(e) => handleParameterChange(type, paramName, e.target.value, paramConfig.type)}
+            className={`flex-1 px-3 py-2 text-sm border-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black transition-colors ${
+              hasLocalChange 
+                ? 'border-orange-400 bg-orange-50 ring-orange-200' 
+                : 'border-gray-300 bg-white focus:border-blue-500'
+            }`}
+            step={paramConfig.type === 'number' ? 'any' : undefined}
+          />
           
           {/* Update Button */}
           <button

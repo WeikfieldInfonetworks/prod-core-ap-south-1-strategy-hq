@@ -1047,6 +1047,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.tradingState.used = true;
                     this.tradingState.enabled = this.universalDict.enableTrading;
                     this.universalDict.enableTrading = false;
+                    this.emitCommonParameters();
                 }
             }
         }
@@ -2367,7 +2368,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             },
             prebuyStoploss: {
                 type: 'number',
-                default: -5,
+                default: 0,
                 description: 'Stoploss for pre-buy'
             },
             realBuyStoploss: {
@@ -2400,6 +2401,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     getUniversalDictParameters() {
         return {
+            usePrebuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Use pre-buy technique.'
+            },
             expiry: {
                 type: 'number',
                 default: 2,
@@ -2410,30 +2416,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 1,
                 description: 'Number of cycles completed'
             },
-            usePrebuy: {
-                type: 'boolean',
-                default: true,
-                description: 'Use pre-buy technique.'
-            },
             peakDefAfterFirstCycle: {
                 type: 'number',
                 default: 10,
                 description: 'Peak definition in points after first cycle'
-            },
-            exitAtFirstBuy: {
-                type: 'boolean',
-                default: true,
-                description: 'Exit at first buy'
-            },
-            exitAtNegativeRebuy: {
-                type: 'boolean',
-                default: true,
-                description: 'Exit at negative rebuy'
-            },
-            buySame: {
-                type: 'boolean',
-                default: false,
-                description: 'Buy the same instrument again'
             },
             quantity: {
                 type: 'number',
@@ -2449,6 +2435,21 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 type: 'number',
                 default: 10,
                 description: 'Rebuy Threshold.'
+            },
+            exitAtFirstBuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Exit at first buy'
+            },
+            exitAtNegativeRebuy: {
+                type: 'boolean',
+                default: true,
+                description: 'Exit at negative rebuy'
+            },
+            buySame: {
+                type: 'boolean',
+                default: false,
+                description: 'Buy the same instrument again'
             },
             enableExitAfterRebuy: {
                 type: 'boolean',
