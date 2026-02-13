@@ -885,6 +885,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let filter_x = this.universalDict.enableManualEntry ? manualEntryFilter : filter;
             if (filter_x && !this.prebuyHit){
                 this.universalDict.enterNow = false;
+                this.universalDict.enableManualEntry = false;
+                this.emitCommonParameters();
                 this.prebuyHit = true;
                 this.lockedQuantity = this.universalDict.quantity;
                 let closestCEto200 = null;
@@ -1047,6 +1049,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.tradingState.used = true;
                     this.tradingState.enabled = this.universalDict.enableTrading;
                     this.universalDict.enableTrading = false;
+                    this.universalDict.enableTradingForNextCycle = false;
                     this.emitCommonParameters();
                 }
             }
