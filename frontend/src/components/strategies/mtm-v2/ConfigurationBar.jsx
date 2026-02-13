@@ -122,6 +122,18 @@ const ConfigurationBar = ({ strategy }) => {
     return paramConfig?.default !== undefined ? paramConfig.default : '';
   };
 
+  const valueDiffersFromServer = (localVal, serverVal, paramType) => {
+    if (localVal === undefined) return false;
+    if (paramType === 'number') {
+      const a = parseFloat(localVal);
+      const b = parseFloat(serverVal);
+      if (isNaN(a) && isNaN(b)) return false;
+      if (isNaN(a) || isNaN(b)) return true;
+      return a !== b;
+    }
+    return String(localVal) !== String(serverVal ?? '');
+  };
+
   const renderParameterInput = (type, paramName, paramConfig) => {
     const currentValue = getCurrentValue(type, paramName);
     const localKey = `${type}.${paramName}`;
@@ -135,8 +147,8 @@ const ConfigurationBar = ({ strategy }) => {
       ? originalValue 
       : paramConfig?.default;
     
-    // Check if there's a local change - any local value means user has modified it
-    const hasLocalChange = localValue !== undefined;
+    // Show Update button only when local value exists and differs from server/default
+    const hasLocalChange = localValue !== undefined && valueDiffersFromServer(localValue, effectiveOriginalValue, paramConfig?.type);
 
     if (paramConfig.type === 'boolean') {
       const isOn = currentValue === true || currentValue === 'true';
@@ -242,7 +254,21 @@ const ConfigurationBar = ({ strategy }) => {
     );
   };
 
-  const hasLocalChanges = Object.keys(localValues).length > 0;
+  const localChangeCount = (() => {
+    let n = 0;
+    Object.entries(globalParams).forEach(([paramName, paramConfig]) => {
+      const localVal = localValues[`global.${paramName}`];
+      const serverVal = strategy.globalDict?.[paramName] ?? paramConfig?.default;
+      if (localVal !== undefined && valueDiffersFromServer(localVal, serverVal, paramConfig?.type)) n++;
+    });
+    Object.entries(universalParams).forEach(([paramName, paramConfig]) => {
+      const localVal = localValues[`universal.${paramName}`];
+      const serverVal = strategy.universalDict?.[paramName] ?? paramConfig?.default;
+      if (localVal !== undefined && valueDiffersFromServer(localVal, serverVal, paramConfig?.type)) n++;
+    });
+    return n;
+  })();
+  const hasLocalChanges = localChangeCount > 0;
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">
@@ -256,7 +282,7 @@ const ConfigurationBar = ({ strategy }) => {
           <h3 className="text-lg font-medium text-gray-900">Configuration Parameters</h3>
           {hasLocalChanges && (
             <span className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
-              {Object.keys(localValues).length} local changes
+              {localChangeCount} local changes
             </span>
           )}
         </div>
