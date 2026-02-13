@@ -881,8 +881,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let filter = this.globalDict.prebuyStoploss >= 0 ? (ce_change >= this.globalDict.prebuyStoploss || pe_change >= this.globalDict.prebuyStoploss) : (ce_change <= this.globalDict.prebuyStoploss || pe_change <= this.globalDict.prebuyStoploss);
             // Check if previousRebuyData has required fields before using isPriceAtCost()
             // let filter_x = this.universalDict.cycles >= 2 && this.previouslyTargetHit && this.previousRebuyData.token && this.previousRebuyData.rebuy_price !== undefined ? this.isPriceAtCost() : filter;
-            let filter_x = filter;
+            let manualEntryFilter = this.universalDict.enableManualEntry && this.universalDict.enterNow;
+            let filter_x = this.universalDict.enableManualEntry ? manualEntryFilter : filter;
             if (filter_x && !this.prebuyHit){
+                this.universalDict.enterNow = false;
                 this.prebuyHit = true;
                 this.lockedQuantity = this.universalDict.quantity;
                 let closestCEto200 = null;
@@ -2465,7 +2467,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             },
             enableManualEntry: {
                 type: 'boolean',
-                default: false,
+                default: true,
                 description: 'Enable/disable manual entry'
             },
             enterNow: {
@@ -3311,7 +3313,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     appendToSharedOutput(data){
-        let formatted_data = `${data}`;
+        let formatted_data = `${data}\n`;
         fs.appendFileSync("output/shared.txt", formatted_data);
     }
 
@@ -3560,7 +3562,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     emitCommonParameters(){
         try{
-            if(!this.universalDict.buySame || true){
+            if(!this.universalDict.buySame){
                 let params = {
                     "enableTrading": this.universalDict.enableTrading,
                     "enableTradingForNextCycle": this.universalDict.enableTradingForNextCycle,
@@ -3579,7 +3581,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     checkCommonParameters(){
         try{
-            if(this.universalDict.buySame || true){
+            if(this.universalDict.buySame){
                 let corpus = fs.readFileSync("output/shared.txt", 'utf8');
                 let corpusArray = corpus.split('\n');
                 let id_to_check = this.getUserIdFromMap(this.userId)
@@ -3590,7 +3592,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         let params = JSON.parse(latest_status.split("|")[1]);
                         for(const [k, v] of Object.entries(params)){
                             if(boolean_keys.includes(k)){
-                                this.universalDict[k] = v === "true";
+                                this.universalDict[k] = v;
                             }
                         }
                     }
