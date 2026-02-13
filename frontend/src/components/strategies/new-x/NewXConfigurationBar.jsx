@@ -248,14 +248,11 @@ const NewXConfigurationBar = ({ strategy, onParameterUpdate }) => {
         
         <p className="text-xs text-gray-500">{paramConfig.description}</p>
         
-        {/* Show original value if modified */}
+        {/* Show current value if modified */}
         {hasLocalChange && effectiveOriginalValue !== undefined && (
           <div className="flex items-center space-x-2 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-            <span className="font-medium">Original:</span>
+            <span className="font-medium">Current Value:</span>
             <span className="font-mono">{String(effectiveOriginalValue)}</span>
-            <span className="text-gray-400">→</span>
-            <span className="font-medium">New:</span>
-            <span className="font-mono text-orange-600">{String(localValue)}</span>
           </div>
         )}
       </div>
