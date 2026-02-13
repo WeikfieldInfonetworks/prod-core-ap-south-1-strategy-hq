@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSocket } from '../../../contexts/SocketContext';
 import { Settings, ChevronDown, ChevronUp, Save, RotateCcw } from 'lucide-react';
 
@@ -10,6 +10,22 @@ const ConfigurationBar = ({ strategy, onParameterUpdate }) => {
 
   const globalParams = strategy.globalDictParameters || {};
   const universalParams = strategy.universalDictParameters || {};
+
+  // When strategy updates from server, clear only boolean parameter overrides so booleans reflect server values
+  useEffect(() => {
+    const globalParamsMap = strategy?.globalDictParameters || {};
+    const universalParamsMap = strategy?.universalDictParameters || {};
+    setLocalValues(prev => {
+      const next = { ...prev };
+      Object.entries(globalParamsMap).forEach(([paramName, paramConfig]) => {
+        if (paramConfig?.type === 'boolean') delete next[`global.${paramName}`];
+      });
+      Object.entries(universalParamsMap).forEach(([paramName, paramConfig]) => {
+        if (paramConfig?.type === 'boolean') delete next[`universal.${paramName}`];
+      });
+      return next;
+    });
+  }, [strategy?.globalDict, strategy?.universalDict]);
 
   const handleParameterChange = (type, paramName, value, paramType) => {
     // Store the raw value during editing - don't convert until update
