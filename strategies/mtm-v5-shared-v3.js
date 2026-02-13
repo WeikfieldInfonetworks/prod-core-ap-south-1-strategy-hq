@@ -3564,11 +3564,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     emitCommonParameters(){
         try{
             if(!this.universalDict.buySame){
-                let params = {
-                    "enableTrading": this.universalDict.enableTrading,
-                    "enableTradingForNextCycle": this.universalDict.enableTradingForNextCycle,
-                    "enableManualEntry": this.universalDict.enableManualEntry,
-                    "enterNow": this.universalDict.enterNow
+                let common_params = this.getCommonParameters();
+                let params = {};
+                for(const param of common_params){
+                    params[param] = this.universalDict[param];
                 }
     
                 this.appendToSharedOutput(`${this.userId}|${JSON.stringify(params)}`);
@@ -3586,13 +3585,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 let corpus = fs.readFileSync("output/shared.txt", 'utf8');
                 let corpusArray = corpus.split('\n');
                 let id_to_check = this.getUserIdFromMap(this.userId)
-                let boolean_keys = ['enableTrading', 'enableTradingForNextCycle', 'enableManualEntry', 'enterNow'];
+                let common_params = this.getCommonParameters();
                 if(corpusArray.length > 0){
                     let latest_status = corpusArray.filter(line => line.split("|")[0] === id_to_check).at(-1);
                     if(latest_status){
                         let params = JSON.parse(latest_status.split("|")[1]);
                         for(const [k, v] of Object.entries(params)){
-                            if(boolean_keys.includes(k)){
+                            if(common_params.includes(k)){
                                 this.universalDict[k] = v;
                             }
                         }
@@ -3654,6 +3653,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             return {status: true};
         }
     }
+
+    getCommonParameters(){
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy"];
+        return params;
+    }
+
 }
 
 module.exports = MTMV5SharedStrategyV3;
