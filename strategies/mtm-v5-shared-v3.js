@@ -515,6 +515,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.globalDict.upperLimit = 0;
             this.universalDict.peakDefInCurrentCycle = this.universalDict.peakDefAfterFirstCycle;
             this.universalDict.enableTrading = this.universalDict.enableTradingForNextCycle;
+            this.emitCommonParameters();
         }
 
         // Data initialization removed - now using simplified event emission
@@ -886,7 +887,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (filter_x && !this.prebuyHit){
                 this.universalDict.enterNow = false;
                 this.universalDict.enableManualEntry = false;
-                this.emitCommonParameters();
+                // this.emitCommonParameters();
                 this.prebuyHit = true;
                 this.lockedQuantity = this.universalDict.quantity;
                 let closestCEto200 = null;
