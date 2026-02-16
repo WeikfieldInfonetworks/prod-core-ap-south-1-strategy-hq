@@ -1876,7 +1876,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let put = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put).token.toString()];
         let callDiff = call.last - call.buyPrice;
         let putDiff = put.last - put.buyPrice;
-        return (callDiff + putDiff) >= this.universalDict.target && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone;
+        return (callDiff + putDiff) >= this.universalDict.mtmTarget && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone;
     }
 
     shouldPlayScenarioSL(){
@@ -2429,6 +2429,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 type: 'number',
                 default: 65,
                 description: 'Quantity to trade'
+            },
+            mtmTarget: {
+                type: 'number',
+                default: 10,
+                description: 'Target profit in points for MTM'
             },
             target: {
                 type: 'number',
@@ -3659,7 +3664,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     getCommonParameters(){
-        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy"];
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget"];
         return params;
     }
 
