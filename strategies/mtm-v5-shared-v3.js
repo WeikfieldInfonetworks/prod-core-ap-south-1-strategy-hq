@@ -1091,6 +1091,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         this.updateCycleInstanceSet();
         this.checkPartnerInstanceSet();
+        this.checkScenario1ECompleted();
         if(this.scenario1Cdone && !this.checkedDiff){
             this.checkDiff();
         }
@@ -1656,8 +1657,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
         }
-
-        this.announceScenario1ECompleted();
+        let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
+        diff_val = diff_val.toFixed(2);
+        this.announceScenario1ECompleted(diff_val);
+        this.prebuyBuyPriceOnce = instrument_1.buyPrice;
 
         this.emitInstrumentDataUpdate();
     }
@@ -1673,7 +1676,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.lockedQuantity = this.lockedQuantity / 2;
         instrument_1.buyPrice = this.prebuyBuyPriceOnce;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceOnce;
-        let diff = 0;
         try {
             sellResult = await this.sellInstrument(instrument_1);
             if (sellResult && sellResult.success) {
@@ -1683,9 +1685,17 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
+
+        let diff = instrument_1.last - this.prebuyBuyPriceTwice;
+        diff = diff.toFixed(2);
+        this.universalDict.target = this.universalDict.target + parseFloat(diff);
+        this.universalDict.target = this.universalDict.target.toFixed(2);
+        if(!this.universalDict.buySame){
+            this.emitCommonParameters();
+        }
         
         this.resetFilters();
-        this.announceScenario1EACompleted();
+        this.announceScenario1EACompleted(this.universalDict.target);
 
         this.emitInstrumentDataUpdate();
     }
@@ -3488,12 +3498,30 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.mtmHit = true;
                     this.strategyUtils.logStrategyInfo('MTM hit announced');
                 }
-                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone){
+            }
+        });
+    }
+
+    checkScenario1ECompleted(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
+        corpusArray.forEach(line => {
+            let [cycle, userId, instanceId, state, data] = line.split(':');
+            if(userId == id_list[1]){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone){
                     // TODO: Implement scenario 1E announcement
+                    this.universalDict.target = this.universalDict.target + parseFloat(data);
+                    this.universalDict.target = this.universalDict.target.toFixed(2);
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.universalDict.target}`);
                     this.scenario1ea_hit = true;
                     this.strategyUtils.logStrategyInfo('1E buy announced');
                 }
                 else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
+                    this.universalDict.target = parseFloat(data).toFixed(2);
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
                     this.resetFilters();
                     this.clearGlobalOutput();
                     this.strategyUtils.logStrategyInfo('1EA sell announced');
@@ -3563,13 +3591,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${diff}|DIFF\n`);
     }
 
-    announceScenario1ECompleted(){
-        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:SCENARIO1E\n`);
+    announceScenario1ECompleted(diff){
+        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:SCENARIO1E:${diff}\n`);
     }
 
-    announceScenario1EACompleted(){
-        this.announcementDone = true;
-        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:SCENARIO1EA\n`);
+    announceScenario1EACompleted(target){
+        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:SCENARIO1EA:${target}\n`);
     }
 
     checkDiff(){
