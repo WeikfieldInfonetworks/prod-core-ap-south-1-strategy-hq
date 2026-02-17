@@ -1090,7 +1090,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
 
         this.updateCycleInstanceSet();
-        // this.checkPartnerInstanceSet();
+        this.checkPartnerInstanceSet();
         if(this.scenario1Cdone && !this.checkedDiff){
             this.checkDiff();
         }
@@ -1338,7 +1338,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
 
         this.updateCycleInstanceSet();
-        // this.checkPartnerInstanceSet();
+        this.checkPartnerInstanceSet();
 
         if(this.isInstancesComplete()){
         
@@ -2036,6 +2036,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.previousRebuyData = {};
         this.rebuyDataAnnounced = false;
         this.afterTarget = false;
+        this.announcementDone = false;
+        this.targetHit = false;
     }
 
     shouldTransitionToFinalRef() {
@@ -3458,7 +3460,18 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.exit_at_stoploss = true;
                     this.strategyUtils.logStrategyInfo('Exit at stoploss announced');
                 }
-                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'TARGET_HIT' && !this.targetHit){
+            }
+        });
+    }
+
+    checkPartnerInstanceSet(){
+        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
+        corpusArray.forEach(line => {
+            let [cycle, userId, instanceId, state] = line.split(':');
+            if(userId == id_list[1]){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'TARGET_HIT' && !this.targetHit){
                     this.targetHit = true;
                     this.boughtSold = true;
                     this.strategyUtils.logStrategyInfo('Target hit announced');
