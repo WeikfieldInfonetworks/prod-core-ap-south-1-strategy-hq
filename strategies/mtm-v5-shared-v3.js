@@ -1688,11 +1688,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         let diff = instrument_1.last - this.prebuyBuyPriceTwice;
         diff = diff.toFixed(2);
-        this.universalDict.target = this.universalDict.target + parseFloat(diff);
+        this.universalDict.target = this.universalDict.target - parseFloat(diff);
         this.universalDict.target = this.universalDict.target.toFixed(2);
-        if(!this.universalDict.buySame){
-            this.emitCommonParameters();
-        }
+        this.emitCommonParameters();
         
         this.resetFilters();
         this.announceScenario1EACompleted(this.universalDict.target);
@@ -2396,6 +2394,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if(this.mtmSoldAt10 && !this.mtm10firstHit){
             this.mtm10firstHit = true;
         }
+
+        this.emitCommonParameters();
     }
 
     // shouldBuyBack() {
@@ -3420,16 +3420,16 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     writeToGlobalOutput(data) {
         let formatted_data = `${data}`;
-        fs.writeFileSync("output/global.txt", formatted_data);
+        fs.writeFileSync(this.getCommFileName(), formatted_data);
     }
 
     appendToGlobalOutput(data) {
         let formatted_data = `${data}`;
-        fs.appendFileSync("output/global.txt", formatted_data);
+        fs.appendFileSync(this.getCommFileName(), formatted_data);
     }
 
     clearGlobalOutput(){
-        fs.writeFileSync("output/global.txt", '');
+        fs.writeFileSync(this.getCommFileName(), '');
     }
 
     clearSharedOutput(){
@@ -3452,7 +3452,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     updateCycleInstanceSet(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
@@ -3475,7 +3475,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     checkPartnerInstanceSet(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
@@ -3503,7 +3503,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     checkScenario1ECompleted(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
@@ -3513,15 +3513,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     // TODO: Implement scenario 1E announcement
                     this.universalDict.target = this.universalDict.target + parseFloat(data);
                     this.universalDict.target = this.universalDict.target.toFixed(2);
-                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.universalDict.target}`);
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}`);
                     this.scenario1ea_hit = true;
                     this.strategyUtils.logStrategyInfo('1E buy announced');
                 }
                 else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
                     this.universalDict.target = parseFloat(data).toFixed(2);
-                    if(!this.universalDict.buySame){
-                        this.emitCommonParameters();
-                    }
+                    this.emitCommonParameters();
                     this.resetFilters();
                     this.clearGlobalOutput();
                     this.strategyUtils.logStrategyInfo('1EA sell announced');
@@ -3600,7 +3598,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     checkDiff(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let diff_val = 0;
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
@@ -3614,14 +3612,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.residual = diff_val;
                     this.savedState['target'] = this.universalDict.target;
                     this.universalDict.target = this.universalDict.target - diff_val;
-                    this.strategyUtils.logStrategyInfo(`NEW TARGET: ${this.universalDict.target}`);
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER SL4: ${this.universalDict.target}`);
                 }
             }
         });
     }
 
     checkPrebuyTokens(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let prebuy_tokens = [];
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
@@ -3639,7 +3637,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     checkRebuyData(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
@@ -3654,7 +3652,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     checkPreviousCompletionMethod(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         corpusArray.forEach(line => {
@@ -3675,7 +3673,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     onlyCheckPrebuyTokens(){
-        let corpus = fs.readFileSync("output/global.txt", 'utf8');
+        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
         for (const line of corpusArray) {
@@ -3828,6 +3826,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     getCommonParameters(){
         let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget"];
         return params;
+    }
+
+    getCommFileName(){
+        let clientID = this.getPairID(this.userId);
+        return `output/global_${clientID}.txt`;
     }
 
 }
