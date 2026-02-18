@@ -2569,7 +2569,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             enableExitAfterRebuy: {
                 type: 'boolean',
                 default: true,
-                description: 'Enable/disable exit after rebuy'
+                description: 'Disable if only target needs to be hit.'
             },
             enableTrading: {
                 type: 'boolean',
