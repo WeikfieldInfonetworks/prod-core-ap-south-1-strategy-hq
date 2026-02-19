@@ -659,8 +659,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     token: token,
                     time: currentTime,
                     symbol: tick.symbol,
-                    firstPrice: parseFloat(tick.last_price),
-                    last: parseFloat(tick.last_price),
+                    firstPrice: Math.floor(parseFloat(tick.last_price)),
+                    last: Math.floor(parseFloat(tick.last_price)),
                     open: -1,
                     peak: -1,
                     prevPeak: -1,
@@ -683,7 +683,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
             const instrument = this.universalDict.instrumentMap[token];
             const oldPrice = instrument.last;
-            const newPrice = tick.last_price;
+            const newPrice = Math.floor(parseFloat(tick.last_price));
 
             // Update basic metrics
             instrument.time = currentTime;
@@ -711,7 +711,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 if(instrument.token == this.prebuyBoughtToken && instrument.last < this.prebuyLowTrackingPrice){
                     console.log(`📉 UPDATE Block - New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
                     this.strategyUtils.logStrategyInfo(`New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
-                    this.prebuyLowTrackingPrice = instrument.last;
+                    this.prebuyLowTrackingPrice = Math.floor(instrument.last);
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
                     // Track the low but don't emit real-time updates
                 }
