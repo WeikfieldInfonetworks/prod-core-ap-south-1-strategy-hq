@@ -1870,7 +1870,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
             }
 
-            let diff = sellResult.executedPrice - (instrument_1.buyPrice - this.universalDict.rebuyAt);
+            let diff = sellResult.executedPrice - instrument_1.buyPrice;
             diff = Math.floor(diff);
             this.announceDiff(diff);
 
@@ -2066,6 +2066,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.afterTarget = false;
         this.announcementDone = false;
         this.targetHit = false;
+        this.checkedDiff = false;
     }
 
     shouldTransitionToFinalRef() {
