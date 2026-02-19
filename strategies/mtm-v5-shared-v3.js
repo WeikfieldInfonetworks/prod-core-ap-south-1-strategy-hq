@@ -1378,6 +1378,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                diff = Math.floor(diff);
                 // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
         }
@@ -1443,6 +1444,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                diff = Math.floor(diff);
                 // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
         }
@@ -1499,8 +1501,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.prebuyBuyPriceTwice = instrument_1.last;
         // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
         let rebuy_val = this.sl5aHit ? (parseFloat(this.prebuyBuyPriceTwice) - parseFloat(this.prebuyBuyPriceOnce)) : this.universalDict.rebuyAt;
+        rebuy_val = Math.floor(rebuy_val);
         this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
         let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(rebuy_val)/2);
+        averagePrice = Math.floor(averagePrice);
         this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
         instrument_1.buyPrice = averagePrice;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
@@ -1524,6 +1528,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             // this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.lockedQuantity = this.lockedQuantity * 2;
             this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(rebuy_val);
+            this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
         }
@@ -1555,6 +1560,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (sellResult && sellResult.success) {
                 this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 diff = sellResult.executedPrice == 0 ? instrument_1.last - instrument_1.buyPrice : sellResult.executedPrice - instrument_1.buyPrice;
+                diff = Math.floor(diff);
                 // this.universalDict.target = this.universalDict.target + Math.abs(diff);
             }
             // this.universalDict.target = this.universalDict.target * 2;
@@ -1659,6 +1665,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
         diff_val = diff_val.toFixed(2);
+        diff_val = Math.floor(diff_val);
         this.announceScenario1ECompleted(diff_val);
         this.prebuyBuyPriceOnce = instrument_1.buyPrice;
 
@@ -1688,8 +1695,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         let diff = instrument_1.last - this.prebuyBuyPriceTwice;
         diff = diff.toFixed(2);
+        diff = Math.floor(diff);
         this.universalDict.target = this.universalDict.target - parseFloat(diff);
-        this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
+        this.universalDict.target = Math.floor(parseFloat(this.universalDict.target).toFixed(2));
         this.emitCommonParameters();
         
         this.resetFilters();
@@ -1855,6 +1863,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
 
             let diff = sellResult.executedPrice - (instrument_1.buyPrice - this.universalDict.rebuyAt);
+            diff = Math.floor(diff);
             this.announceDiff(diff);
 
             // this.globalDict.stoploss = this.savedState['stoploss'];
@@ -1956,6 +1965,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let put = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.expectedSymbols.put).token.toString()];
         let callDiff = call.last - call.buyPrice;
         let putDiff = put.last - put.buyPrice;
+        callDiff = Math.floor(callDiff);
+        putDiff = Math.floor(putDiff);
         return (callDiff + putDiff) >= this.universalDict.mtmTarget && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done;
     }
 
@@ -2002,10 +2013,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenarioSL5A(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        let diff = parseFloat(instrument_1.last)
+        let diff = parseFloat(instrument_1.last);
+        diff = Math.floor(diff);
         console.log(`Change after SL5: ${diff}`);
         if(this.scenario1Cdone){
-            return (diff <= (parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone && false;
+            return (diff <= Math.floor(parseFloat(this.prebuyBuyPriceOnce)+parseFloat(this.universalDict.rebuyAt)/2)) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone && false;
         }
         // else {
         //     return (diff <= (parseFloat(this.prebuyBuyPriceOnce))) && !this.boughtSold && !this.afterTarget && this.sl5aHit && !this.scenarioSL5ADone;
