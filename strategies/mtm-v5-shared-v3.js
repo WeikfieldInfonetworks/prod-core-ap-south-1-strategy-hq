@@ -710,6 +710,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if(this.prebuyBoughtToken){
                 if(instrument.token == this.prebuyBoughtToken && instrument.last < this.prebuyLowTrackingPrice){
                     console.log(`📉 UPDATE Block - New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
+                    this.strategyUtils.logStrategyInfo(`New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
                     this.prebuyLowTrackingPrice = instrument.last;
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
                     // Track the low but don't emit real-time updates
@@ -1109,11 +1110,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         // PREBUY LOW TRACKING LOGIC.
         if(this.universalDict.usePrebuy && this.prebuyBoughtToken && instrument_1.token == this.prebuyBoughtToken){
             console.log(`🔍 Checking low tracking - Current: ${instrument_1.last}, Tracking: ${this.prebuyLowTrackingPrice}`);
-            if(instrument_1.last < this.prebuyLowTrackingPrice){
-                console.log(`📉 New low detected! ${instrument_1.last} < ${this.prebuyLowTrackingPrice}`);
-                this.strategyUtils.logStrategyInfo(`New low detected! ${instrument_1.last} < ${this.prebuyLowTrackingPrice}`);
-                this.prebuyLowTrackingPrice = instrument_1.last;
-            }
         }
         
         // PREBUY HALF TARGET OBSERVER.
@@ -1502,10 +1498,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.actualRebuyDone = true;
         this.prebuyBuyPriceTwice = instrument_1.last;
         // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        let rebuy_val = this.sl5aHit ? (parseFloat(this.prebuyBuyPriceTwice) - parseFloat(this.prebuyBuyPriceOnce)) : this.universalDict.rebuyAt;
+        let rebuy_val = this.universalDict.rebuyAt;
         rebuy_val = Math.floor(rebuy_val);
         this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
-        let averagePrice = parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(rebuy_val)/2);
+        let averagePrice = (parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.prebuyLowTrackingPrice) + parseFloat(this.universalDict.rebuyAt)))/2;
         averagePrice = Math.floor(averagePrice);
         this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
         instrument_1.buyPrice = averagePrice;
@@ -1529,7 +1525,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             // this.universalDict.target = this.universalDict.target / 2;
             // this.globalDict.stoploss = this.globalDict.stoploss / 2;
             this.lockedQuantity = this.lockedQuantity * 2;
-            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyBuyPriceOnce) + parseFloat(rebuy_val);
+            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyLowTrackingPrice) + parseFloat(rebuy_val);
             this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
@@ -1674,6 +1670,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         diff_val = Math.floor(diff_val);
         this.announceScenario1ECompleted(diff_val);
         this.prebuyBuyPriceOnce = instrument_1.buyPrice;
+        this.prebuyLowTrackingPrice = instrument_1.buyPrice;
 
         this.emitInstrumentDataUpdate();
     }
@@ -1688,6 +1685,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let sellResult = null;
         this.lockedQuantity = this.lockedQuantity / 2;
         instrument_1.buyPrice = this.prebuyBuyPriceOnce;
+        this.prebuyLowTrackingPrice = instrument_1.buyPrice;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceOnce;
         try {
             sellResult = await this.sellInstrument(instrument_1);
@@ -1958,7 +1956,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return ((instrument_1.last - instrument_1.buyPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) || this.sl5aHit)&& !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold && !this.scenarioSL4Done;
+        return ((instrument_1.last - this.prebuyLowTrackingPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) || this.sl5aHit)&& !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold && !this.scenarioSL4Done;
     }
 
     shouldPlayScenario1CA(){
