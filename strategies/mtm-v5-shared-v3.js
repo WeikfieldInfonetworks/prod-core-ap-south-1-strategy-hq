@@ -3535,7 +3535,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         corpusArray.forEach(line => {
             let [cycle, userId, instanceId, state, data] = line.split(':');
             if(userId == id_list[1]){
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone && !this.scenario1ea_hit){
                     // TODO: Implement scenario 1E announcement
                     this.universalDict.target = this.universalDict.target + parseFloat(data);
                     this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
