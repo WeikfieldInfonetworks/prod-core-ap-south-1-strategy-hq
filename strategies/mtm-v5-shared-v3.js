@@ -1689,7 +1689,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let diff = instrument_1.last - this.prebuyBuyPriceTwice;
         diff = diff.toFixed(2);
         this.universalDict.target = this.universalDict.target - parseFloat(diff);
-        this.universalDict.target = this.universalDict.target.toFixed(2);
+        this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
         this.emitCommonParameters();
         
         this.resetFilters();
@@ -3512,7 +3512,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone){
                     // TODO: Implement scenario 1E announcement
                     this.universalDict.target = this.universalDict.target + parseFloat(data);
-                    this.universalDict.target = this.universalDict.target.toFixed(2);
+                    this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
                     this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}`);
                     this.scenario1ea_hit = true;
                     this.strategyUtils.logStrategyInfo('1E buy announced');
