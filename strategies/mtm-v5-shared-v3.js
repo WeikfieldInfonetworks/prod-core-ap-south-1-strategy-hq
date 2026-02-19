@@ -91,6 +91,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             observed: false,
             type: null
         };
+        this.deepSavedTarget = {used: false, target: 0};
         this.isExpiryDay = false;
         this.finalStoplossHit = false;
         this.prebuyHit = false;
@@ -256,6 +257,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.announcementDone = false;
         this.prebuyTokensFound = false;
         this.afterTarget = false;
+        this.deepSavedTarget = {used: false, target: 0};
         this.sl2a = false;
         this.targetHit = false;
         this.previousCompletionMethodAnnounced = false;
@@ -1663,6 +1665,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument: ${error.message}`);
         }
+        if(!this.deepSavedTarget.used){
+            this.deepSavedTarget.used = true;
+            this.deepSavedTarget.target = this.universalDict.target;
+        }
         let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
         diff_val = diff_val.toFixed(2);
         diff_val = Math.floor(diff_val);
@@ -1698,6 +1704,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         diff = Math.floor(diff);
         this.universalDict.target = this.universalDict.target - parseFloat(diff);
         this.universalDict.target = Math.floor(parseFloat(this.universalDict.target).toFixed(2));
+        if(!this.deepSavedTarget.used){
+            this.deepSavedTarget.used = true;
+            this.deepSavedTarget.target = this.savedState['target'];
+        }
         this.emitCommonParameters();
         
         this.resetFilters();
@@ -2240,6 +2250,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.universalDict.target = this.savedState['target'];
         }
 
+        if(this.deepSavedTarget.used){
+            this.universalDict.target = this.deepSavedTarget.target;
+        }
+
         if(this.tradingState.used){
             this.universalDict.enableTrading = this.tradingState.enabled;
         }
@@ -2295,6 +2309,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.prebuyBuyPriceOnce = 0;
         this.prebuyBuyPriceTwice = 0;
         this.prebuyLowTrackingPrice = 0;
+        this.deepSavedTarget = {used: false, target: 0};
         this.prebuyLowTrackingTime = null;
         this.rebuyDone = false;
         this.checkedDiff = false;
