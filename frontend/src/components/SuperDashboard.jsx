@@ -78,6 +78,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <NewXDashboard strategy={currentStrategy} />;
       case 'New X 2 Strategy':
         return <NewXDashboard strategy={currentStrategy} />;
+      case 'Strategy X':
+        return <NewXDashboard strategy={currentStrategy} />;
       default:
         return (
           <div className="flex-1 flex items-center justify-center">

@@ -147,10 +147,14 @@ const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold })
   const mainToken = strategy.mainToken;
   const oppToken = strategy.oppToken;
 
-  // Get instrument data from universalDict
+  // Prefer live instrumentData from strategy_update (Strategy X), fallback to config snapshot
   const instrumentMap = strategy.universalDict?.instrumentMap || {};
-  const mainInstrument = mainToken ? instrumentMap[mainToken] : null;
-  const oppInstrument = oppToken ? instrumentMap[oppToken] : null;
+  const mainInstrument = mainToken
+    ? (instrumentData[mainToken] || instrumentMap[mainToken])
+    : null;
+  const oppInstrument = oppToken
+    ? (instrumentData[oppToken] || instrumentMap[oppToken])
+    : null;
 
   // Determine which is CE and which is PE
   const ceInstrument = mainInstrument || halfdropInstrument;

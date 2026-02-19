@@ -66,6 +66,10 @@ class StrategyX extends BaseStrategy {
         this.universalDict.strikePriceMap = {};
         this.universalDict.observedTicks = [];
 
+        // Initialize dictionary parameters with default values
+        const globalParams = this.getGlobalDictParameters();
+        const universalParams = this.getUniversalDictParameters();
+
         // Set default values for globalDict parameters
         for (const [key, param] of Object.entries(globalParams)) {
             if (this.globalDict[key] === undefined) {
@@ -261,6 +265,7 @@ class StrategyX extends BaseStrategy {
         this.blockUpdate = true;
         
         console.log('Transitioning from INIT to UPDATE block');
+        this.emitStrategyUpdate();
     }
 
     processUpdateBlock(ticks) {
@@ -323,6 +328,7 @@ class StrategyX extends BaseStrategy {
             this.initialDIFF10entry = true;
             this.blockDiff10 = true;
             console.log('Transitioning from UPDATE to DIFF10 block');
+            this.emitStrategyUpdate();
         }
     }
 
@@ -351,6 +357,9 @@ class StrategyX extends BaseStrategy {
         if(!this.mainInstrument || !this.oppInstrument) {
             return;
         }
+
+        // Live instrument data for NewXDashboard tiles
+        this.emitStrategyUpdate();
 
         if(this.mainInstrument && this.oppInstrument && !this.boughtSold) {
             if(this.shouldPhase1Buy()){
@@ -382,6 +391,7 @@ class StrategyX extends BaseStrategy {
             this.blockDiff10 = false;
             this.blockNextCycle = true;
             this.strategyUtils.logStrategyInfo('Transitioning from DIFF10 to NEXT CYCLE block');
+            this.emitStrategyUpdate({ cycle_completion_data: true });
         }
     }
 
@@ -390,6 +400,7 @@ class StrategyX extends BaseStrategy {
         this.resetForNextCycle();
         this.cycleCount++;
         this.strategyUtils.logStrategyInfo('Transitioning from NEXT CYCLE to INIT block');
+        this.emitStrategyUpdate();
     }
 
     resetForNextCycle() {
@@ -780,6 +791,77 @@ class StrategyX extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Exception while buying instrument: ${error.message}`);
             return { success: false, executedPrice: null };
         }
+    }
+
+    /**
+     * Build a plain-object snapshot of instrument data for socket emission (no circular refs).
+     */
+    _serializeInstrument(instrument) {
+        if (!instrument || typeof instrument !== 'object') return null;
+        return {
+            token: instrument.token,
+            time: instrument.time,
+            symbol: instrument.symbol,
+            firstPrice: instrument.firstPrice,
+            last: instrument.last,
+            open: instrument.open,
+            peak: instrument.peak,
+            prevPeak: instrument.prevPeak,
+            lowAtRef: instrument.lowAtRef,
+            plus3: instrument.plus3,
+            change: instrument.change,
+            peakAtRef: instrument.peakAtRef,
+            peakTime: instrument.peakTime,
+            buyPrice: instrument.buyPrice,
+            changeFromBuy: instrument.changeFromBuy,
+            calcRef: instrument.calcRef,
+            prevCalcRef: instrument.prevCalcRef,
+            flagPlus3: instrument.flagPlus3,
+            flagPeakAndFall: instrument.flagPeakAndFall,
+            flagCalcRef: instrument.flagCalcRef,
+            flagInterim: instrument.flagInterim,
+            isSold: instrument.isSold,
+            isActive: instrument.isActive
+        };
+    }
+
+    /**
+     * Emit strategy_update for NewXDashboard: block state, current cycle instruments, and optional cycle completion.
+     * Ensures Strategy X communicates in real time with NewXDashboard and related components.
+     */
+    emitStrategyUpdate(options = {}) {
+        const payload = {};
+
+        // Block state for NewXBlockProgress (live INIT → UPDATE → TRADE → NEXT CYCLE)
+        payload.block_state = {
+            blockInit: this.blockInit,
+            blockUpdate: this.blockUpdate,
+            blockDiff10: this.blockDiff10,
+            blockNextCycle: this.blockNextCycle
+        };
+
+        // Optional: live universalDict.cycles for header
+        payload.cycles = this.universalDict.cycles != null ? this.universalDict.cycles : 0;
+
+        // Current cycle instrument data for NewXInstrumentTiles (main/opp)
+        if (this.mainToken && this.mainInstrument) {
+            if (!payload.current_cycle_data) payload.current_cycle_data = {};
+            payload.current_cycle_data[this.mainToken] = this._serializeInstrument(this.mainInstrument);
+        }
+        if (this.oppToken && this.oppInstrument) {
+            if (!payload.current_cycle_data) payload.current_cycle_data = {};
+            payload.current_cycle_data[this.oppToken] = this._serializeInstrument(this.oppInstrument);
+        }
+
+        // Alias for dashboard that checks instrument_data_update when no current_cycle_data
+        if (payload.current_cycle_data)
+            payload.instrument_data_update = payload.current_cycle_data;
+
+        if (options.cycle_completion_data && payload.current_cycle_data) {
+            payload.cycle_completion_data = { ...payload.current_cycle_data };
+        }
+
+        this.emitToUser('strategy_update', payload);
     }
 
     emitSimpleTradeEvent(action, symbol, price, quantity) {

@@ -12,6 +12,10 @@ const NewXDashboard = ({ strategy }) => {
   const [tradeEvents, setTradeEvents] = useState([]);
   const [socketEventQueue, setSocketEventQueue] = useState([]);
   const [currentDropThreshold, setCurrentDropThreshold] = useState(0.5);
+  /** Live block state from strategy_update (Strategy X); overrides strategy snapshot for block progress */
+  const [blockState, setBlockState] = useState(null);
+  /** Live cycles from strategy_update (Strategy X); overrides for header when present */
+  const [liveCycles, setLiveCycles] = useState(null);
 
   // Helper function to get drop threshold dynamically
   const getDropThreshold = useCallback(() => {
@@ -28,13 +32,27 @@ const NewXDashboard = ({ strategy }) => {
     }
   }, [strategy.globalDict?.dropThreshold]);
 
-  // Handle strategy status updates
+  // Reset live state when strategy (selection) changes
+  useEffect(() => {
+    setBlockState(null);
+    setLiveCycles(null);
+    setInstrumentData({});
+  }, [strategy?.name]);
+
+  // Handle strategy status updates (Strategy X emitStrategyUpdate + others)
   const handleStrategyStatusUpdate = useCallback((data) => {
     console.log('NewXDashboard: Strategy status update received', data);
+
+    // Live block state from Strategy X (INIT → UPDATE → TRADE → NEXT CYCLE)
+    if (data.block_state) {
+      setBlockState(data.block_state);
+    }
+    if (data.cycles !== undefined && data.cycles !== null) {
+      setLiveCycles(data.cycles);
+    }
     
     // Handle structured cycle data (prioritize this over instrument_data_update)
     if (data.current_cycle_data) {
-      console.log('NewXDashboard: Processing current cycle data', data.current_cycle_data);
       setInstrumentData(prev => ({
         ...prev,
         ...data.current_cycle_data
@@ -42,7 +60,6 @@ const NewXDashboard = ({ strategy }) => {
     }
     
     if (data.cycle_completion_data) {
-      console.log('NewXDashboard: Processing cycle completion data', data.cycle_completion_data);
       setInstrumentData(prev => ({
         ...prev,
         ...data.cycle_completion_data
@@ -51,7 +68,6 @@ const NewXDashboard = ({ strategy }) => {
 
     // Handle instrument data updates (only if no structured data)
     if (data.instrument_data_update && !data.current_cycle_data && !data.cycle_completion_data) {
-      console.log('NewXDashboard: Processing instrument data update', data.instrument_data_update);
       setInstrumentData(prev => ({
         ...prev,
         ...data.instrument_data_update
@@ -60,7 +76,6 @@ const NewXDashboard = ({ strategy }) => {
 
     // Handle trading actions
     if (data.trade_action) {
-      console.log('NewXDashboard: Processing trade action', data.trade_action);
       setTradingActions(prev => [...prev, {
         ...data.trade_action,
         timestamp: new Date().toISOString()
@@ -158,7 +173,7 @@ const NewXDashboard = ({ strategy }) => {
           <div className="text-right">
             <div className="text-sm text-gray-500">Current Cycle</div>
             <div className="text-2xl font-bold text-blue-600">
-              {(strategy.universalDict?.cycles || 0) + 1}
+              {(liveCycles != null ? liveCycles : strategy.universalDict?.cycles ?? 0) + 1}
             </div>
           </div>
         </div>
@@ -198,13 +213,13 @@ const NewXDashboard = ({ strategy }) => {
         onParameterUpdate={handleParameterUpdate}
       />
 
-      {/* Block Progress */}
+      {/* Block Progress: merge live block_state from Strategy X when present */}
       <NewXBlockProgress 
-        strategy={strategy}
+        strategy={{ ...strategy, ...blockState }}
         currentDropThreshold={currentDropThreshold}
       />
 
-      {/* Instrument Tiles */}
+      {/* Instrument Tiles: instrumentData from strategy_update overrides config snapshot */}
       <NewXInstrumentTiles 
         strategy={strategy}
         instrumentData={instrumentData}
