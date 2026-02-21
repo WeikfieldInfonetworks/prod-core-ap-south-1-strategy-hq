@@ -1663,15 +1663,22 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         if(!this.deepSavedTarget.used){
             this.deepSavedTarget.used = true;
-            this.deepSavedTarget.target = this.universalDict.target;
+            this.deepSavedTarget.target = this.savedState['target'];
+            this.strategyUtils.logStrategyInfo(`TARGET DEEP SAVED: ${this.deepSavedTarget.target}`);
+        }
+        else{
+            this.strategyUtils.logStrategyInfo(`TARGET ALREADY DEEP SAVED: ${this.deepSavedTarget.target}`);
         }
         let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
         diff_val = diff_val.toFixed(2);
         diff_val = Math.floor(diff_val);
-        this.announceScenario1ECompleted(diff_val);
+        this.universalDict.target = this.universalDict.target + parseFloat(diff_val);
+        this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
         this.prebuyBuyPriceOnce = instrument_1.buyPrice;
         this.prebuyLowTrackingPrice = instrument_1.buyPrice;
-
+        this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}, FIRST BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff_val}`);
+        this.resetFilters();
+        this.announceScenario1ECompleted(diff_val);
         this.emitInstrumentDataUpdate();
     }
 
@@ -1705,12 +1712,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if(!this.deepSavedTarget.used){
             this.deepSavedTarget.used = true;
             this.deepSavedTarget.target = this.savedState['target'];
+            this.strategyUtils.logStrategyInfo(`TARGET DEEP SAVED: ${this.deepSavedTarget.target}`);
         }
-        this.emitCommonParameters();
-        
+        else{
+            this.strategyUtils.logStrategyInfo(`TARGET ALREADY DEEP SAVED: ${this.deepSavedTarget.target}`);
+        }
+        this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1EA: ${this.universalDict.target}, BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff}`);
         this.resetFilters();
         this.announceScenario1EACompleted(this.universalDict.target);
-
         this.emitInstrumentDataUpdate();
     }
 
@@ -1872,6 +1881,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
             let diff = sellResult.executedPrice - instrument_1.buyPrice;
             diff = Math.floor(diff);
+            this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
+            this.residual = diff;
+            this.savedState['target'] = this.universalDict.target;
+            this.universalDict.target = this.universalDict.target - diff;
             this.announceDiff(diff);
 
             // this.globalDict.stoploss = this.savedState['stoploss'];
@@ -3539,16 +3552,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     // TODO: Implement scenario 1E announcement
                     this.universalDict.target = this.universalDict.target + parseFloat(data);
                     this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
-                    this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}`);
                     this.scenario1ea_hit = true;
                     this.strategyUtils.logStrategyInfo('1E buy announced');
-                }
-                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
-                    this.universalDict.target = parseFloat(data).toFixed(2);
-                    this.emitCommonParameters();
-                    this.resetFilters();
                     this.clearGlobalOutput();
-                    this.strategyUtils.logStrategyInfo('1EA sell announced');
+                }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA'){
+                    this.universalDict.target = parseFloat(data).toFixed(2);
+                    this.clearGlobalOutput();
+                    this.strategyUtils.logStrategyInfo('1EA sell globally announced');
                 }
             }
         });
