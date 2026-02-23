@@ -1678,6 +1678,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.prebuyLowTrackingPrice = instrument_1.buyPrice;
         this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}, FIRST BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff_val}`);
         this.resetFilters();
+        this.emitCommonParameters();
         this.announceScenario1ECompleted(diff_val);
         this.emitInstrumentDataUpdate();
     }
@@ -1719,6 +1720,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
         this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1EA: ${this.universalDict.target}, BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff}`);
         this.resetFilters();
+        this.emitCommonParameters();
         this.announceScenario1EACompleted(this.universalDict.target);
         this.emitInstrumentDataUpdate();
     }
@@ -3552,12 +3554,17 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     // TODO: Implement scenario 1E announcement
                     this.universalDict.target = this.universalDict.target + parseFloat(data);
                     this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
+                    this.strategyUtils.logStrategyInfo(`NEW TARGET BEFORE 1EA: ${this.universalDict.target}`);
+                    this.emitCommonParameters();
                     this.scenario1ea_hit = true;
                     this.strategyUtils.logStrategyInfo('1E buy announced');
                     this.clearGlobalOutput();
                 }
-                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA'){
+            }
+            else if(userId == id_list[0] || userId == id_list[1]){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA'){
                     this.universalDict.target = parseFloat(data).toFixed(2);
+                    this.emitCommonParameters();
                     this.clearGlobalOutput();
                     this.strategyUtils.logStrategyInfo('1EA sell globally announced');
                 }

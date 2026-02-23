@@ -843,6 +843,10 @@ class StrategyX extends BaseStrategy {
         // Optional: live universalDict.cycles for header
         payload.cycles = this.universalDict.cycles != null ? this.universalDict.cycles : 0;
 
+        // Chosen PE/CE tokens so frontend can show mainInstrument and oppInstrument (CE = main, PE = opp)
+        if (this.mainToken) payload.mainToken = this.mainToken;
+        if (this.oppToken) payload.oppToken = this.oppToken;
+
         // Current cycle instrument data for NewXInstrumentTiles (main/opp)
         if (this.mainToken && this.mainInstrument) {
             if (!payload.current_cycle_data) payload.current_cycle_data = {};
