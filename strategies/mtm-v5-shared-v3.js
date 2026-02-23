@@ -1887,6 +1887,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.residual = diff;
             this.savedState['target'] = this.universalDict.target;
             this.universalDict.target = this.universalDict.target - diff;
+            this.emitCommonParameters();
             this.announceDiff(diff);
 
             // this.globalDict.stoploss = this.savedState['stoploss'];
@@ -3562,11 +3563,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 }
             }
             else if(userId == id_list[0] || userId == id_list[1]){
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA'){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
                     this.universalDict.target = parseFloat(data).toFixed(2);
                     this.emitCommonParameters();
                     this.clearGlobalOutput();
-                    this.strategyUtils.logStrategyInfo('1EA sell globally announced');
+                    this.strategyUtils.logStrategyInfo('1EA sell announced');
                 }
             }
         });
@@ -3656,6 +3657,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.residual = diff_val;
                     this.savedState['target'] = this.universalDict.target;
                     this.universalDict.target = this.universalDict.target - diff_val;
+                    this.emitCommonParameters();
                     this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER SL4: ${this.universalDict.target}`);
                 }
             }
