@@ -16,6 +16,9 @@ const NewXDashboard = ({ strategy }) => {
   const [blockState, setBlockState] = useState(null);
   /** Live cycles from strategy_update (Strategy X); overrides for header when present */
   const [liveCycles, setLiveCycles] = useState(null);
+  /** Live main/opp tokens from strategy_update (Strategy X); used to show chosen CE/PE in tiles */
+  const [liveMainToken, setLiveMainToken] = useState(null);
+  const [liveOppToken, setLiveOppToken] = useState(null);
 
   // Helper function to get drop threshold dynamically
   const getDropThreshold = useCallback(() => {
@@ -36,6 +39,8 @@ const NewXDashboard = ({ strategy }) => {
   useEffect(() => {
     setBlockState(null);
     setLiveCycles(null);
+    setLiveMainToken(null);
+    setLiveOppToken(null);
     setInstrumentData({});
   }, [strategy?.name]);
 
@@ -50,6 +55,9 @@ const NewXDashboard = ({ strategy }) => {
     if (data.cycles !== undefined && data.cycles !== null) {
       setLiveCycles(data.cycles);
     }
+    // Chosen CE (main) and PE (opp) tokens for instrument tiles
+    if (data.mainToken != null) setLiveMainToken(data.mainToken);
+    if (data.oppToken != null) setLiveOppToken(data.oppToken);
     
     // Handle structured cycle data (prioritize this over instrument_data_update)
     if (data.current_cycle_data) {
@@ -219,11 +227,13 @@ const NewXDashboard = ({ strategy }) => {
         currentDropThreshold={currentDropThreshold}
       />
 
-      {/* Instrument Tiles: instrumentData from strategy_update overrides config snapshot */}
+      {/* Instrument Tiles: main/opp from strategy_update (Strategy X), live prices and sum; trade events in table below */}
       <NewXInstrumentTiles 
         strategy={strategy}
         instrumentData={instrumentData}
         currentDropThreshold={currentDropThreshold}
+        mainToken={liveMainToken ?? strategy.mainToken}
+        oppToken={liveOppToken ?? strategy.oppToken}
       />
 
       {/* Trading Table */}

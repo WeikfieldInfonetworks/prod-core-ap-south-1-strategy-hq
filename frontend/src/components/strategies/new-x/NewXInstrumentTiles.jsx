@@ -1,7 +1,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, Target, DollarSign } from 'lucide-react';
 
-const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold }) => {
+const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold, mainToken: mainTokenProp, oppToken: oppTokenProp }) => {
   const formatPrice = (price) => {
     if (typeof price === 'string') return parseFloat(price).toFixed(2);
     else if (typeof price !== 'number') return '-.--';
@@ -141,11 +141,9 @@ const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold })
     );
   };
 
-  // Extract instruments from strategy data
-  const halfdropInstrument = strategy.halfdrop_instrument;
-  const otherInstrument = strategy.other_instrument;
-  const mainToken = strategy.mainToken;
-  const oppToken = strategy.oppToken;
+  // Strategy X: mainInstrument = CE, oppInstrument = PE (from this.mainInstrument / this.oppInstrument via mainToken/oppToken + instrumentData)
+  const mainToken = mainTokenProp ?? strategy.mainToken;
+  const oppToken = oppTokenProp ?? strategy.oppToken;
 
   // Prefer live instrumentData from strategy_update (Strategy X), fallback to config snapshot
   const instrumentMap = strategy.universalDict?.instrumentMap || {};
@@ -156,9 +154,9 @@ const NewXInstrumentTiles = ({ strategy, instrumentData, currentDropThreshold })
     ? (instrumentData[oppToken] || instrumentMap[oppToken])
     : null;
 
-  // Determine which is CE and which is PE
-  const ceInstrument = mainInstrument || halfdropInstrument;
-  const peInstrument = oppInstrument || otherInstrument;
+  // Strategy X: CE = main, PE = opp. Fallback for other strategies using halfdrop/other.
+  const ceInstrument = mainInstrument ?? strategy.halfdrop_instrument;
+  const peInstrument = oppInstrument ?? strategy.other_instrument;
 
   return (
     <div className="space-y-6">
