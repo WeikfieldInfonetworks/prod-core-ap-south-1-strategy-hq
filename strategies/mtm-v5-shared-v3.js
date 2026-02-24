@@ -3350,6 +3350,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 entryPlusStage: false,
                 entry7Stage: this.entry_7
             },
+            // Prebuy low tracking for dashboard (symbol, low price, time of low)
+            prebuyLowTracking: {
+                symbol: realBoughtInstrument.symbol,
+                low: this.prebuyLowTrackingPrice,
+                time: this.prebuyLowTrackingTime
+            },
             timestamp: new Date().toISOString()
         };
 

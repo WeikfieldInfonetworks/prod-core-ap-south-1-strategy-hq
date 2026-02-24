@@ -1001,7 +1001,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                             <span className="text-green-600 mr-2">📊</span>
                             Trading Events
                           </h4>
-                          <div className={`space-y-3 ${cycleData.tradeEvents.length > 5 ? 'max-h-96 overflow-y-auto' : ''}`}>
+                          <div className="space-y-3">
             {cycleData.tradeEvents.map((event, index) => (
               <div 
                 key={index}

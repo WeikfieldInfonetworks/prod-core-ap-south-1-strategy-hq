@@ -4,6 +4,7 @@ import ConfigurationBar from './mtm-v2/ConfigurationBar';
 import BlockProgress from './mtm-v2/BlockProgress';
 import InstrumentTiles from './mtm-v2/InstrumentTiles';
 import SumTile from './mtm-v2/SumTile';
+import PrebuyLowTracking from './mtm-v2/PrebuyLowTracking';
 import TradingTable from './mtm-v2/TradingTable';
 import PrebuyHistoryTable from './mtm-v2/PrebuyHistoryTable';
 import { Activity, AlertCircle } from 'lucide-react';
@@ -300,6 +301,11 @@ const MTMv2Dashboard = ({ strategy }) => {
         <InstrumentTiles instrumentData={instrumentData} />
         <SumTile instrumentData={instrumentData} />
       </div>
+
+      {/* Prebuy low tracking (symbol, low, time) - only in prebuy mode */}
+      {strategy.universalDict?.usePrebuy && (
+        <PrebuyLowTracking instrumentData={instrumentData} />
+      )}
 
       {/* Trading Table or Prebuy History */}
       {(() => {
