@@ -18,6 +18,10 @@ class StrategyX extends BaseStrategy {
         this.mainInstrument = null;
         this.oppInstrument = null;
         this.lockedQuantity = 0;
+        this.higher_CE_token = null;
+        this.higher_CE_instrument = null;
+        this.higher_PE_token = null;
+        this.higher_PE_instrument = null;
 
         // Block states
         this.blockInit = true;
@@ -58,6 +62,10 @@ class StrategyX extends BaseStrategy {
         this.mainInstrument = null;
         this.oppInstrument = null;
         this.lockedQuantity = 0;
+        this.higher_CE_token = null;
+        this.higher_CE_instrument = null;
+        this.higher_PE_token = null;
+        this.higher_PE_instrument = null;
 
         // Initialize strategy-specific data structures
         this.universalDict.instrumentMap = {};
@@ -428,6 +436,10 @@ class StrategyX extends BaseStrategy {
         this.mainInstrument = null;
         this.oppInstrument = null;
         this.lockedQuantity = 0;
+        this.higher_CE_token = null;
+        this.higher_CE_instrument = null;
+        this.higher_PE_token = null;
+        this.higher_PE_instrument = null;
 
         // Reset block states
         this.blockInit = true;
@@ -445,12 +457,18 @@ class StrategyX extends BaseStrategy {
         this.strategyUtils.logStrategyInfo(`Cycle ${this.universalDict.cycles} started`);
     }
     shouldPhase1Buy() {
-        let higher_CE = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
-        let higher_PE = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
-        let ce_instrument = this.universalDict.instrumentMap[higher_CE];
-        let pe_instrument = this.universalDict.instrumentMap[higher_PE];
-        let main_filter = (((ce_instrument.last - ce_instrument.firstPrice) <= -5) && (pe_instrument.last < pe_instrument.firstPrice));
-        let opp_filter = (((pe_instrument.last - pe_instrument.firstPrice) <= -5) && (ce_instrument.last < ce_instrument.firstPrice));
+        if(!this.higher_CE_token) {
+            this.higher_CE_token = this.strategyUtils.findClosestCEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+            this.higher_CE_instrument = this.universalDict.instrumentMap[this.higher_CE_token];
+            this.strategyUtils.logStrategyInfo(`HIGHER CE TOKEN: ${this.higher_CE_token}, SYMBOL: ${this.higher_CE_instrument.symbol}`);    
+        }
+        if(!this.higher_PE_token) {
+            this.higher_PE_token = this.strategyUtils.findClosestPEBelowPrice(this.universalDict.instrumentMap, 200, 200).token.toString();
+            this.higher_PE_instrument = this.universalDict.instrumentMap[this.higher_PE_token];
+            this.strategyUtils.logStrategyInfo(`HIGHER PE TOKEN: ${this.higher_PE_token}, SYMBOL: ${this.higher_PE_instrument.symbol}`);
+        }
+        let main_filter = (((this.higher_CE_instrument.last - this.higher_CE_instrument.firstPrice) <= -5) && (this.higher_PE_instrument.last < this.higher_PE_instrument.firstPrice));
+        let opp_filter = (((this.higher_PE_instrument.last - this.higher_PE_instrument.firstPrice) <= -5) && (this.higher_CE_instrument.last < this.higher_CE_instrument.firstPrice));
         let filter = main_filter || opp_filter;
         return !this.phase1BuyDone && filter;
     }
@@ -502,10 +520,12 @@ class StrategyX extends BaseStrategy {
 
         if(!this.mainInstrument) {
             this.mainInstrument = this.universalDict.instrumentMap[this.mainToken];
+            this.strategyUtils.logStrategyInfo(`MAIN INSTRUMENT: ${this.mainInstrument.symbol}`);
         }
 
         if(!this.oppInstrument) {
             this.oppInstrument = this.universalDict.instrumentMap[this.oppToken];
+            this.strategyUtils.logStrategyInfo(`OPP INSTRUMENT: ${this.oppInstrument.symbol}`);
         }
 
         if(!this.mainInstrument || !this.oppInstrument) {
