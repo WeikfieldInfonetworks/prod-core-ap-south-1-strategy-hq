@@ -2571,6 +2571,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 2,
                 description: 'Expiry day (0=Sunday, 2=Tuesday)'
             },
+            residual: {
+                type: 'number',
+                default: 0,
+                description: 'Residual value'
+            },
             cycles: {
                 type: 'number',
                 default: 1,
@@ -3478,6 +3483,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         fs.writeFileSync(this.getCommFileName(), formatted_data);
     }
 
+    appendToResidualOutput(data){
+        let formatted_data = `${data}`;
+        fs.appendFileSync(this.getResidualFileName(), formatted_data);
+    }
+
     appendToGlobalOutput(data) {
         let formatted_data = `${data}`;
         fs.appendFileSync(this.getCommFileName(), formatted_data);
@@ -3833,22 +3843,21 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     emitResidual(){
-        this.appendToGlobalOutput(`${this.universalDict.cycles}|${this.userId}|${this.universalDict.residual}|RESIDUAL\n`);
+        this.appendToResidualOutput(`${this.universalDict.cycles}|${this.userId}|${this.universalDict.residual}|RESIDUAL\n`);
     }
 
     checkResidual(){
-        let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
-        let corpusArray = corpus.split('\n');
+        let corpus = fs.readFileSync(this.getResidualFileName(), 'utf8');
+        let residual_line = corpus.split('\n').at(-1);
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
-        corpusArray.forEach(line => {
-            if(line.includes('|')){
-                let [cycle, userId, residual, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'RESIDUAL' && !this.checkedResidual){
-                    this.universalDict.residual = parseFloat(residual);
-                    this.universalDict.residual = Math.floor(this.universalDict.residual);
-                }
+
+        if(residual_line){
+            let [cycle, userId, residual, state] = residual_line.split('|');
+            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'RESIDUAL' && !this.checkedResidual){
+                this.universalDict.residual = parseFloat(residual);
+                this.universalDict.residual = Math.floor(this.universalDict.residual);
             }
-        });
+        }
     }
 
     generateTag(user_id, cycle_id, symbol){
@@ -3909,6 +3918,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     getCommFileName(){
         let clientID = this.getPairID(this.userId);
         return `output/global_${clientID}.txt`;
+    }
+
+    getResidualFileName(){
+        let clientID = this.getPairID(this.userId);
+        return `output/residual_${clientID}.txt`;
     }
 
     announceTargetPeriodically(){
