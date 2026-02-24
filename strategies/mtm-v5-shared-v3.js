@@ -2778,6 +2778,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         const result = await tradingUtils.getOrderHistory(orderId.order_id);
                         this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
                         executedPrice = result.at(-1).average_price;
+                        executedPrice = Math.floor(executedPrice);
                         this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
@@ -2842,6 +2843,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         const result = await tradingUtils.getOrderHistory(orderId.order_id);
                         this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
                         executedPrice = result.at(-1).average_price;
+                        executedPrice = Math.floor(executedPrice);
                         this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
                         // Update buy price with executed price
                         instrument.buyPrice = executedPrice != 0 ? executedPrice : instrument.last;
