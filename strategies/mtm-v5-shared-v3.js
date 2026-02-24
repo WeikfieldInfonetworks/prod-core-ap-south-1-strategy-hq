@@ -953,6 +953,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                     this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? parseFloat(real_instrument.last) : parseFloat(buyResult.executedPrice);
                     this.prebuyLowTrackingPrice = this.prebuyBuyPriceOnce;
+                    this.prebuyLowTrackingTime = this.globalDict.timestamp;
                 }
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error buying real instrument: ${error.message}`);
@@ -1681,6 +1682,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         // this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
         this.prebuyBuyPriceOnce = instrument_1.buyPrice;
         this.prebuyLowTrackingPrice = instrument_1.buyPrice;
+        this.prebuyLowTrackingTime = this.globalDict.timestamp;
         // this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}, FIRST BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff_val}`);
         this.resetFilters();
         // this.emitCommonParameters();
@@ -1699,6 +1701,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.lockedQuantity = this.lockedQuantity / 2;
         instrument_1.buyPrice = this.prebuyBuyPriceOnce;
         this.prebuyLowTrackingPrice = instrument_1.buyPrice;
+        this.prebuyLowTrackingTime = this.globalDict.timestamp;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceOnce;
         try {
             sellResult = await this.sellInstrument(instrument_1);
