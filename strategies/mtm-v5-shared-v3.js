@@ -3848,12 +3848,15 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     checkResidual(){
         let corpus = fs.readFileSync(this.getResidualFileName(), 'utf8');
-        let residual_line = corpus.split('\n').at(-1);
+        console.log(`Corpus: ${corpus.split('\n')}`);
+        let residual_line = corpus.split('\n').at(-2);
+        console.log(`Residual line: ${residual_line}`);
         let id_list = [this.userId, this.getUserIdFromMap(this.userId)];
 
         if(residual_line){
             let [cycle, userId, residual, state] = residual_line.split('|');
-            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'RESIDUAL' && !this.checkedResidual){
+            if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'RESIDUAL'){
+                console.log(`Residual reached: ${residual}`);
                 this.universalDict.residual = parseFloat(residual);
                 this.universalDict.residual = Math.floor(this.universalDict.residual);
             }
