@@ -183,6 +183,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.userId = null;
         this.sl5aHit = false;
         this.lockedQuantity = 0;
+        this.tickA = 0;
+        this.tickB = 0;
     }
 
     setUserInfo(userName, userId) {
@@ -338,6 +340,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             observed: false,
             type: null
         };
+        this.tickA = 0;
+        this.tickB = 0;
         this.targetHitByTypeArray = [];
         this.isExpiryDay = false;
         this.finalStoplossHit = false;
@@ -1091,7 +1095,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
 
 
-
+        this.announceTargetPeriodically();
         this.updateCycleInstanceSet();
         this.checkPartnerInstanceSet();
         this.checkScenario1ECompleted();
@@ -1885,8 +1889,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             diff = Math.floor(diff);
             this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
             this.residual = diff;
+            this.checkedDiff = true;
             this.savedState['target'] = this.universalDict.target;
             this.universalDict.target = this.universalDict.target - diff;
+            this.clearGlobalOutput();
             this.emitCommonParameters();
             this.announceDiff(diff);
 
@@ -2390,6 +2396,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.rebuyDataAnnounced = false;
         this.previousCompletionMethodAnnounced = false;
         this.rebuyFound = false;
+        this.tickA = 0;
+        this.tickB = 0;
     
         // Reset entry stage variables
         this.entry_plus_24_first_stage = false;
@@ -3877,6 +3885,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     getCommFileName(){
         let clientID = this.getPairID(this.userId);
         return `output/global_${clientID}.txt`;
+    }
+
+    announceTargetPeriodically(){
+        if((this.tickA > 0 && (this.tickCount - this.tickA) >= 15) || (this.tickA == 0)){
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}`);
+            this.tickA = this.tickCount;
+        }
     }
 
 }
