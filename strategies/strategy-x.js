@@ -467,6 +467,21 @@ class StrategyX extends BaseStrategy {
             this.higher_PE_instrument = this.universalDict.instrumentMap[this.higher_PE_token];
             this.strategyUtils.logStrategyInfo(`HIGHER PE TOKEN: ${this.higher_PE_token}, SYMBOL: ${this.higher_PE_instrument.symbol}`);
         }
+
+        this.higher_CE_instrument = this.universalDict.instrumentMap[this.higher_CE_token];
+        this.higher_PE_instrument = this.universalDict.instrumentMap[this.higher_PE_token];
+
+        if(!this.higher_CE_instrument) {
+            this.higher_CE_instrument = this.universalDict.instrumentMap[this.higher_CE_token];
+        }
+        if(!this.higher_PE_instrument) {
+            this.higher_PE_instrument = this.universalDict.instrumentMap[this.higher_PE_token];
+        }
+
+        if(!this.higher_CE_instrument || !this.higher_PE_instrument) {
+            return false;
+        }
+
         let main_filter = (((this.higher_CE_instrument.last - this.higher_CE_instrument.firstPrice) <= -5) && (this.higher_PE_instrument.last < this.higher_PE_instrument.firstPrice));
         let opp_filter = (((this.higher_PE_instrument.last - this.higher_PE_instrument.firstPrice) <= -5) && (this.higher_CE_instrument.last < this.higher_CE_instrument.firstPrice));
         let filter = main_filter || opp_filter;
