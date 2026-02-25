@@ -1140,7 +1140,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         
         // TARGET OBSERVER.
         // ================================
-        const hit_7 = (this.actualRebuyDone && ((this.targetNet && mtm >= ((this.universalDict.target - this.universalDict.residual)/2)) || (this.targetNet && mtm <= ((this.universalDict.target - this.universalDict.residual)/2) - 0.0))) || this.mtmHit;
+        const hit_7 = (this.actualRebuyDone && this.checkedDiff && ((this.targetNet && mtm >= ((this.universalDict.target - this.universalDict.residual)/2)) || (this.targetNet && mtm <= ((this.universalDict.target - this.universalDict.residual)/2) - 0.0))) || this.mtmHit;
         const reached_stoploss = mtm <= this.globalDict.stoploss && false;
         if(!this.entry_7){
             this.entry_7 = (hit_7 || reached_stoploss) && !this.entry_24 && !this.entry_36 && !this.entry_plus_24;
