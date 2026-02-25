@@ -2661,6 +2661,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     async sellBothInstruments(instrument1, instrument2) {
         this.strategyUtils.logStrategyInfo('Selling both instruments at target/stoploss');
         
+        
         // Check if trading is enabled
         const tradingEnabled = this.universalDict.enableTrading;
         
