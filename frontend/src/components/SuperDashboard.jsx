@@ -62,6 +62,8 @@ const SuperDashboard = ({ connectionStatus }) => {
         return <MTMv2Dashboard strategy={currentStrategy} />;
       case 'MTM V5 Shared Strategy V3':
         return <MTMv2Dashboard strategy={currentStrategy} />;
+      case 'MTM V5 Shared Strategy V3 Anti':
+        return <MTMv2Dashboard strategy={currentStrategy} />;
       case 'Fifty Percent Full Spectrum':
         return <FiftyPercentFullSpectrumDashboard strategy={currentStrategy} />;
       case 'Fifty Percent Full Spectrum V2':

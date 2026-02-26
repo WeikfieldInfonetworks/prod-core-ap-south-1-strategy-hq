@@ -1102,7 +1102,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.updateCycleInstanceSet();
         this.checkPartnerInstanceSet();
         this.checkScenario1ECompleted();
-        if(this.scenario1Cdone && !this.checkedDiff){
+        if(!this.scenario1Cdone && !this.checkedDiff){
             this.checkDiff();
         }
 
@@ -1500,44 +1500,39 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.scenario1Cdone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
 
-        //REBUY
-        this.actualRebuyDone = true;
-        this.prebuyBuyPriceTwice = instrument_1.last;
-        // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
-        let rebuy_val = this.universalDict.rebuyAt;
-        rebuy_val = Math.floor(rebuy_val);
-        this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
-        let averagePrice = (parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.prebuyLowTrackingPrice) + parseFloat(this.universalDict.rebuyAt)))/2;
-        averagePrice = Math.floor(averagePrice);
-        this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
-        instrument_1.buyPrice = averagePrice;
-        this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
-        let buyResult = null;
+        //SELL
+        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
+        // this.realBuyStoplossHit = true;
+        let sellResult = null;
         try {
-            buyResult = await this.buyInstrument(instrument_1);
-            if (buyResult && buyResult.success) {
-                this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
+            sellResult = await this.sellInstrument(instrument_1);
+            if (sellResult && sellResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
             }
-            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
-            this.rebuyDone = true;
-            this.rebuyPrice = this.prebuyBuyPriceTwice;
-            this.rebuyAveragePrice = averagePrice;
 
-            // Update the real instrument's buy price to average of both buys
-            instrument_1.buyPrice = averagePrice;
-            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
-            this.strategyUtils.logStrategyInfo(`New Buy Price in map is ${this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice}.`)
-            this.strategyUtils.logStrategyInfo(`New Buy Price is ${instrument_1.buyPrice}.`)
-            // this.universalDict.target = this.universalDict.target / 2;
-            // this.globalDict.stoploss = this.globalDict.stoploss / 2;
-            this.lockedQuantity = this.lockedQuantity * 2;
-            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyLowTrackingPrice) + parseFloat(rebuy_val);
-            this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
-            this.previousRebuyData.token = this.prebuyBoughtToken;
-            this.announceRebuyData();
+            let diff = sellResult.executedPrice - instrument_1.buyPrice;
+            diff = Math.floor(diff);
+            this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
+            // this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
+            this.scenario1ehit = true;
+            this.residual = diff;
+            // this.checkedDiff = true;
+            // this.savedState['target'] = this.universalDict.target;
+            // this.universalDict.target = this.universalDict.target - diff;
+            this.universalDict.residual = this.universalDict.residual + diff;
+            this.prebuyLowTrackingPrice = instrument_1.last;
+            this.prebuyLowTrackingTime = this.globalDict.timestamp;
+            this.emitResidual();
+            this.clearGlobalOutput();
+            this.announceDiff(diff);
+
+            // this.globalDict.stoploss = this.savedState['stoploss'];
+            // this.lockedQuantity = this.savedState['quantity'];
+            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.lockedQuantity} RESET COMPLETED.`);
         }
+
         catch (error) {
-            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
+            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
         this.emitInstrumentDataUpdate();
@@ -1883,37 +1878,44 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.scenarioSL4Done = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL4 in action.`)
 
-        //SELL
-        // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
-        // this.realBuyStoplossHit = true;
-        let sellResult = null;
+        //REBUY
+        this.actualRebuyDone = true;
+        this.prebuyBuyPriceTwice = instrument_1.last;
+        // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
+        let rebuy_val = this.universalDict.rebuyAt;
+        rebuy_val = Math.floor(rebuy_val);
+        this.strategyUtils.logStrategyInfo(`Rebuy value: ${rebuy_val}`);
+        let averagePrice = (parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.prebuyBuyPriceTwice)))/2;
+        averagePrice = Math.floor(averagePrice);
+        this.strategyUtils.logStrategyInfo(`Average price: ${averagePrice}`);
+        instrument_1.buyPrice = averagePrice;
+        this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
+        let buyResult = null;
         try {
-            sellResult = await this.sellInstrument(instrument_1);
-            if (sellResult && sellResult.success) {
-                this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
+            buyResult = await this.buyInstrument(instrument_1);
+            if (buyResult && buyResult.success) {
+                this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
             }
+            this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+            this.rebuyDone = true;
+            this.rebuyPrice = this.prebuyBuyPriceTwice;
+            this.rebuyAveragePrice = averagePrice;
 
-            let diff = sellResult.executedPrice - instrument_1.buyPrice;
-            diff = Math.floor(diff);
-            this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
-            // this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
-            this.scenario1ehit = true;
-            this.residual = diff;
-            this.checkedDiff = true;
-            // this.savedState['target'] = this.universalDict.target;
-            // this.universalDict.target = this.universalDict.target - diff;
-            this.universalDict.residual = this.universalDict.residual + diff;
-            this.emitResidual();
-            this.clearGlobalOutput();
-            this.announceDiff(diff);
-
-            // this.globalDict.stoploss = this.savedState['stoploss'];
-            // this.lockedQuantity = this.savedState['quantity'];
-            this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.lockedQuantity} RESET COMPLETED.`);
+            // Update the real instrument's buy price to average of both buys
+            instrument_1.buyPrice = averagePrice;
+            this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
+            this.strategyUtils.logStrategyInfo(`New Buy Price in map is ${this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice}.`)
+            this.strategyUtils.logStrategyInfo(`New Buy Price is ${instrument_1.buyPrice}.`)
+            // this.universalDict.target = this.universalDict.target / 2;
+            // this.globalDict.stoploss = this.globalDict.stoploss / 2;
+            this.lockedQuantity = this.lockedQuantity * 2;
+            this.previousRebuyData.rebuy_price = parseFloat(this.prebuyLowTrackingPrice) + parseFloat(rebuy_val);
+            this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
+            this.previousRebuyData.token = this.prebuyBoughtToken;
+            // this.announceRebuyData();
         }
-
         catch (error) {
-            this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
+            this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
         }
 
         this.emitInstrumentDataUpdate();
@@ -2013,11 +2015,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
     shouldPlayScenario1E(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return ((instrument_1.last - this.prebuyLowTrackingPrice) >= this.universalDict.rebuyAt) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done && this.scenario1ehit;
+        return ((instrument_1.last - this.prebuyLowTrackingPrice) >= this.universalDict.rebuyAt) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && !this.scenarioSL4Done && this.scenario1ehit;
     }
 
     shouldPlayScenario1EA(){
-        return this.scenario1ea_hit && !this.scenario1Edone && !this.scenario1EAdone && !this.boughtSold && !this.targetHit && this.scenario1Cdone;
+        return this.scenario1ea_hit && !this.scenario1Edone && !this.scenario1EAdone && !this.boughtSold && !this.targetHit && !this.scenario1Cdone && this.scenarioSL4Done && this.checkedDiff;
     }
 
     shouldPlayScenarioSL(){
@@ -2044,7 +2046,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     shouldPlayScenarioSL4(){
-        return this.rebuyFound && !this.boughtSold && !this.afterTarget && !this.rebuyDataAnnounced && !this.scenarioSL4Done;
+        return !this.boughtSold && !this.afterTarget && !this.scenarioSL4Done && this.checkedDiff;
     }
 
     shouldPlayScenarioSL5(){
@@ -3691,7 +3693,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         corpusArray.forEach(line => {
             if(line.includes('|')){
                 let [cycle, userId, diff, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'DIFF' && !this.checkedDiff){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'DIFF' && !this.scenario1Cdone){
                     this.checkedDiff = true;
                     this.strategyUtils.logStrategyInfo('Diff found');
                     diff_val = parseFloat(diff);
