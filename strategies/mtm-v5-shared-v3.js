@@ -1896,7 +1896,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let diff = sellResult.executedPrice - instrument_1.buyPrice;
             diff = Math.floor(diff);
             this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
-            this.scenario1ehit = (diff < (-1*(this.universalDict.rebuyAt/2)));
+            this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
             this.residual = diff;
             this.checkedDiff = true;
             // this.savedState['target'] = this.universalDict.target;
