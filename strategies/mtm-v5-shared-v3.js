@@ -222,7 +222,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // Set default values for globalDict parameters
         for (const [key, param] of Object.entries(globalParams)) {
-            if (this.globalDict[key] === undefined) {
+            if (this.globalDict[key] === undefined || true) {
                 this.globalDict[key] = param.default;
                 this.strategyUtils.logStrategyInfo(`Set default ${key}: ${param.default}`);
             } else {
@@ -232,7 +232,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         // Set default values for universalDict parameters
         for (const [key, param] of Object.entries(universalParams)) {
-            if (this.universalDict[key] === undefined) {
+            if (this.universalDict[key] === undefined || true) {
                 this.universalDict[key] = param.default;
                 this.strategyUtils.logStrategyInfo(`Set default ${key}: ${param.default}`);
             } else {
