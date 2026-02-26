@@ -150,6 +150,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.mtmNextSellAfter10 = false;
         this.mtm10firstHit = false;
         this.prebuyLowTrackingPrice = 0;
+        this.scenario1ehit = false;
         this.prebuyLowTrackingTime = null;
         this.rebuyDone = false;
         this.rebuyPrice = 0;
@@ -266,6 +267,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.rebuyDataAnnounced = false;
         this.rebuyFound = false;
         this.checkedDiff = false;
+        this.scenario1ehit = false;
         this.expectedSymbols = { call: null, put: null };
         this.tickCountFlag = false;
         this.tickA = null;
@@ -1894,6 +1896,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let diff = sellResult.executedPrice - instrument_1.buyPrice;
             diff = Math.floor(diff);
             this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
+            this.scenario1ehit = (diff < (-1*(this.universalDict.rebuyAt/2)));
             this.residual = diff;
             this.checkedDiff = true;
             // this.savedState['target'] = this.universalDict.target;
@@ -2009,7 +2012,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1E(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return instrument_1.last >= instrument_1.buyPrice && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done;
+        return instrument_1.last >= instrument_1.buyPrice && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done && this.scenario1ehit;
     }
 
     shouldPlayScenario1EA(){
@@ -2089,6 +2092,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.sl5aHit = false;
         this.mtmHit = false;
         this.scenario1ea_hit = false;
+        this.scenario1ehit = false;
         this.rebuyDone = false;
         this.previousRebuyData = {};
         this.rebuyDataAnnounced = false;
@@ -2425,6 +2429,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.sl2a = false;
         this.sl5aHit = false;
         this.scenario1ea_hit = false;
+        this.scenario1ehit = false;
         // Reset tokens
         this.mainToken = null;
         this.oppToken = null;
