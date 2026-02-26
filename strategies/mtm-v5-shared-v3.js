@@ -1896,7 +1896,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             let diff = sellResult.executedPrice - instrument_1.buyPrice;
             diff = Math.floor(diff);
             this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
-            this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
+            // this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
+            this.scenario1ehit = true;
             this.residual = diff;
             this.checkedDiff = true;
             // this.savedState['target'] = this.universalDict.target;
@@ -2012,7 +2013,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
     shouldPlayScenario1E(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return instrument_1.last >= instrument_1.buyPrice && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done && this.scenario1ehit;
+        return ((instrument_1.last - this.prebuyLowTrackingPrice) >= this.universalDict.rebuyAt) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done && this.scenario1ehit;
     }
 
     shouldPlayScenario1EA(){

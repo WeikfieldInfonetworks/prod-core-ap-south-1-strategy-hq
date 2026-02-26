@@ -803,8 +803,7 @@ class StrategyX extends BaseStrategy {
                 const buyResult = tradingUtils.placeBuyOrder(
                     instrument.symbol,
                     instrument.last,
-                    this.lockedQuantity || 65,
-                    this.generateTag(this.userId, this.universalDict.cycles, instrument.symbol)
+                    this.lockedQuantity || 65
                 );
 
                 if (buyResult.success) {
