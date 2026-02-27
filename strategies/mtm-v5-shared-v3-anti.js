@@ -2599,7 +2599,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             },
             peakDefAfterFirstCycle: {
                 type: 'number',
-                default: 10,
+                default: 1,
                 description: 'Peak definition in points after first cycle'
             },
             quantity: {
@@ -2614,12 +2614,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             },
             target: {
                 type: 'number',
-                default: 40,
+                default: 20,
                 description: 'Target profit in points'
             },
             rebuyAt: {
                 type: 'number',
-                default: 10,
+                default: 13,
                 description: 'Rebuy Threshold.'
             },
             exitAtFirstBuy: {
