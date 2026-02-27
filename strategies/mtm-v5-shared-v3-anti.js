@@ -2040,7 +2040,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         let putDiff = put.last - put.buyPrice;
         callDiff = Math.floor(callDiff);
         putDiff = Math.floor(putDiff);
-        return (callDiff + putDiff) >= this.universalDict.mtmTarget && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done;
+        return (callDiff + putDiff) >= (this.universalDict.mtmTarget-this.universalDict.residual) && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done;
     }
 
     shouldPlayScenario1E(){
