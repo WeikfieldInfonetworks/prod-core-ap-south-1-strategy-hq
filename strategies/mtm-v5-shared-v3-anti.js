@@ -45,6 +45,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.mtmHit = false;
         this.residual = 0;
         this.newTarget = 0;
+        this.lockScenario = false;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -281,6 +282,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.mtmHit = false;
         this.residual = 0;
         this.newTarget = 0;
+        this.lockScenario = false;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -1249,7 +1251,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
         
         // PREBUY SELL LOGIC.
-        if(this.universalDict.usePrebuy && !this.entry_7){
+        if(this.universalDict.usePrebuy && !this.entry_7 && !this.lockScenario){
             console.log(`🔍 Checking real buy stoploss - Current: ${instrument_1_original_change}, Stoploss: ${this.globalDict.realBuyStoploss}, Real buy stoploss hit: ${this.realBuyStoplossHit}, Reached half target: ${this.reachedHalfTarget}`);
 
             if(this.shouldPlayScenarioSL1()){
@@ -1365,6 +1367,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     async scenario1A(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         // this.thirdBought = this.secondBought;
         this.boughtSold = true;
@@ -1426,10 +1429,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
         // Emit instrument data update after second buy
         this.emitInstrumentDataUpdate();
-
+        this.lockScenario = false;
     }
 
     async scenario1B(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.scenario1Bdone = true;
@@ -1491,11 +1495,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
         // Emit instrument data update after second buy
         this.emitInstrumentDataUpdate();
-
+        this.lockScenario = false;
 
     }
 
     async scenario1C(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenario1Cdone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
@@ -1536,10 +1541,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
-
+        this.lockScenario = false;
     }
 
     async scenario1CA(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.scenario1CAdone = true;
@@ -1607,10 +1613,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
         // Emit instrument data update after second buy
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
 
     }
 
     async scenario1D(){
+        this.lockScenario = true;
         // let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         // this.boughtSold = true;
         this.scenario1Ddone = true;
@@ -1639,9 +1647,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
         this.mtmHit = true;
         this.announceMTMHit();
+        this.lockScenario = false;
     }
 
     async scenario1E(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenario1Edone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1E in action.`)
@@ -1670,11 +1680,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         // else{
         //     this.strategyUtils.logStrategyInfo(`TARGET ALREADY DEEP SAVED: ${this.deepSavedTarget.target}`);
         // }
-        let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
-        diff_val = diff_val.toFixed(2);
-        diff_val = Math.floor(diff_val);
-        this.universalDict.residual = this.universalDict.residual - diff_val;
-        this.emitResidual();
+        // let diff_val =  instrument_1.buyPrice - this.prebuyBuyPriceOnce;
+        // diff_val = diff_val.toFixed(2);
+        // diff_val = Math.floor(diff_val);
+        // this.universalDict.residual = this.universalDict.residual - diff_val;
+        // this.emitResidual();
         // this.universalDict.target = this.universalDict.target + parseFloat(diff_val);
         // this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
         this.prebuyBuyPriceOnce = instrument_1.buyPrice;
@@ -1683,11 +1693,13 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         // this.strategyUtils.logStrategyInfo(`NEW TARGET AFTER 1E: ${this.universalDict.target}, FIRST BP: ${this.prebuyBuyPriceOnce}, DIFF: ${diff_val}`);
         this.resetFilters();
         // this.emitCommonParameters();
-        this.announceScenario1ECompleted(diff_val);
+        this.announceScenario1ECompleted(0);
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenario1EA(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenario1EAdone = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1EA in action.`)
@@ -1714,6 +1726,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         diff = diff.toFixed(2);
         diff = Math.floor(diff);
         this.universalDict.residual = this.universalDict.residual + diff;
+        this.strategyUtils.logStrategyInfo(`DIFF AFTER 1EA: ${diff}`);
         this.emitResidual();
         // this.universalDict.target = this.universalDict.target - parseFloat(diff);
         // this.universalDict.target = Math.floor(parseFloat(this.universalDict.target).toFixed(2));
@@ -1730,9 +1743,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         // this.emitCommonParameters();
         this.announceScenario1EACompleted(this.universalDict.target);
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL in action.`)
@@ -1757,9 +1772,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         catch (error) {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
+        this.lockScenario = false;
     }
 
     async scenarioSL1(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL1 in action.`)
@@ -1786,9 +1803,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL2(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL2 in action.`)
@@ -1815,9 +1834,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL2A(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL2A in action.`)
@@ -1844,9 +1865,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL3(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL3 in action.`)
@@ -1871,9 +1894,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL4(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.scenarioSL4Done = true;
         this.strategyUtils.logStrategyInfo(`Scenario SL4 in action.`)
@@ -1919,9 +1944,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     async scenarioSL5(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.scenarioSL5Done = true;
@@ -1948,10 +1975,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
 
     async scenarioSL5A(){
+        this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         this.boughtSold = true;
         this.scenarioSL5ADone = true;
@@ -1977,6 +2006,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
 
         this.emitInstrumentDataUpdate();
+        this.lockScenario = false;
     }
 
     shouldPlayScenario1A(){
