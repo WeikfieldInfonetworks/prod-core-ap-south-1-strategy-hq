@@ -1709,7 +1709,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         let sellResult = null;
         this.lockedQuantity = this.lockedQuantity / 2;
         instrument_1.buyPrice = this.prebuyBuyPriceOnce;
-        this.prebuyLowTrackingPrice = instrument_1.buyPrice;
+        this.prebuyLowTrackingPrice = instrument_1.last;
         this.prebuyLowTrackingTime = this.globalDict.timestamp;
         this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceOnce;
         try {
