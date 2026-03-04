@@ -3832,6 +3832,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             "474b7da4-b146-4b1e-aff2-9db2608f9090": "9bd9ab31-e3cb-4b3e-a7ae-1130f130b5d7",
             "b95df6b6-26de-4d54-9af1-a0a361d4b0cf": "f0cfd181-8642-451f-a04d-10c96b026b42",
             "f0cfd181-8642-451f-a04d-10c96b026b42": "b95df6b6-26de-4d54-9af1-a0a361d4b0cf",
+            "60e83aaf-4100-45fd-b936-d1f135e13ac4": "bcf4eb7b-adec-4dbf-8233-052579641042",
+            "bcf4eb7b-adec-4dbf-8233-052579641042": "60e83aaf-4100-45fd-b936-d1f135e13ac4"
         }
 
         return map[id];
@@ -3843,6 +3845,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             "474b7da4-b146-4b1e-aff2-9db2608f9090": "LKW326",
             "b95df6b6-26de-4d54-9af1-a0a361d4b0cf": "GW0633",
             "f0cfd181-8642-451f-a04d-10c96b026b42": "GW0633",
+            "60e83aaf-4100-45fd-b936-d1f135e13ac4": "GW0634",
+            "bcf4eb7b-adec-4dbf-8233-052579641042": "GW0634",
         }
 
         return map[id];
