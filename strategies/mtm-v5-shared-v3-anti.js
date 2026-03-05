@@ -1748,6 +1748,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.lockScenario = false;
     }
 
+    
     async scenarioSL(){
         this.lockScenario = true;
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
