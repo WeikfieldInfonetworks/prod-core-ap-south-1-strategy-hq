@@ -1539,6 +1539,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
             this.previousRebuyData.token = this.prebuyBoughtToken;
             this.announceRebuyData();
+            this.universalDict.residual = -100;
         }
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
