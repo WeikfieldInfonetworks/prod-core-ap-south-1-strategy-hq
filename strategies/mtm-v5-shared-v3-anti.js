@@ -473,35 +473,38 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             console.log(`Number of ticks received: ${ticks.length}`);
             console.log(`Current Cycle: ${this.universalDict.cycles}`);
             this.checkCommonParameters();
-            this.checkResidual();
-            // Process ticks based on current block state
-            // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
-            if (this.blockInit) {
-                await this.processInitBlock(ticks);
+
+            if(this.tickCount >= 6){
+                this.checkResidual();
+                // Process ticks based on current block state
+                // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
+                if (this.blockInit) {
+                    await this.processInitBlock(ticks);
+                }
+                
+                if (this.blockUpdate) {
+                    await this.processUpdateBlock(ticks);
+                }
+                
+                if (this.blockFinalRef) {
+                    await this.processFinalRefBlock(ticks);
+                }
+                
+                if (this.blockRef3) {
+                    await this.processRef3Block(ticks);
+                }
+                
+                if (this.blockDiff10) {
+                    await this.processDiff10Block(ticks);
+                }
+                
+                if (this.blockNextCycle) {
+                    await this.processNextCycleBlock(ticks);
+                }
+                
+                // Emit instrument data update for dashboard
+                this.emitInstrumentDataUpdate();
             }
-            
-            if (this.blockUpdate) {
-                await this.processUpdateBlock(ticks);
-            }
-            
-            if (this.blockFinalRef) {
-                await this.processFinalRefBlock(ticks);
-            }
-            
-            if (this.blockRef3) {
-                await this.processRef3Block(ticks);
-            }
-            
-            if (this.blockDiff10) {
-                await this.processDiff10Block(ticks);
-            }
-            
-            if (this.blockNextCycle) {
-                await this.processNextCycleBlock(ticks);
-            }
-            
-            // Emit instrument data update for dashboard
-            this.emitInstrumentDataUpdate();
             
             console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
         } catch (error) {
