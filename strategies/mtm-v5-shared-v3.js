@@ -1070,7 +1070,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.tradingState.used = true;
                     this.tradingState.enabled = this.universalDict.enableTrading;
                     this.universalDict.enableTrading = false;
-                    this.universalDict.enableTradingForNextCycle = false;
                     this.emitCommonParameters();
                 }
             }
@@ -3722,7 +3721,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         corpusArray.forEach(line => {
             if(line.includes('|')){
                 let [cycle, userId, diff, state] = line.split('|');
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && id_list.includes(userId) && state === 'DIFF' && !this.checkedDiff){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && (userId == id_list[1]) && state === 'DIFF' && !this.checkedDiff){
                     this.checkedDiff = true;
                     this.strategyUtils.logStrategyInfo('Diff found');
                     diff_val = parseFloat(diff);
