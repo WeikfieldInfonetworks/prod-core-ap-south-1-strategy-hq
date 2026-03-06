@@ -1755,7 +1755,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
         }
 
-        let diff = (instrument_1.last - this.prebuyBuyPriceTwice)*2;
+        let diff = (instrument_1.last - (this.prebuyBuyPriceTwice+this.prebuyBuyPriceOnce)/2)*2;
         diff = diff.toFixed(2);
         diff = Math.floor(diff);
         this.universalDict.residual = this.universalDict.residual + diff;
@@ -3680,15 +3680,15 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo('1E buy announced');
                     this.clearGlobalOutput();
                 }
-            }
-            else if(userId == id_list[0] || userId == id_list[1]){
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1EA' && !this.scenario1EAdone){
                     // this.universalDict.target = parseFloat(data).toFixed(2);
                     // this.emitCommonParameters();
                     this.clearGlobalOutput();
                     this.strategyUtils.logStrategyInfo('1EA sell announced');
                 }
             }
+            // else if(userId == id_list[0] || userId == id_list[1]){
+            // }
         });
     }
 
