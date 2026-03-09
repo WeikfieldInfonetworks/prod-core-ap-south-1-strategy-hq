@@ -2867,6 +2867,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`Order history: ${typeof result === 'object' ? JSON.stringify(result) : result}`);
                         executedPrice = result.at(-1).average_price;
                         executedPrice = Math.floor(executedPrice);
+                        executedPrice = executedPrice != 0 ? executedPrice : instrument.last;
                         this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
@@ -2935,6 +2936,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`Executed Price: ${executedPrice}`);
                         // Update buy price with executed price
                         instrument.buyPrice = executedPrice != 0 ? executedPrice : instrument.last;
+                        executedPrice = instrument.buyPrice;
                         this.strategyUtils.logStrategyInfo(`Buy Instrument Buy Price: ${instrument.buyPrice}`);
                     } catch (error) {
                         this.strategyUtils.logStrategyError(`Error getting order history: ${JSON.stringify(error)}`);
@@ -3670,7 +3672,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         corpusArray.forEach(line => {
             let [cycle, userId, instanceId, state, data] = line.split(':');
             if(userId == id_list[1]){
-                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1Edone && !this.scenario1ea_hit){
+                if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'SCENARIO1E' && !this.scenario1ea_hit){
                     // TODO: Implement scenario 1E announcement
                     // this.universalDict.target = this.universalDict.target + parseFloat(data);
                     // this.universalDict.target = parseFloat(this.universalDict.target).toFixed(2);
