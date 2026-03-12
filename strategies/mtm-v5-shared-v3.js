@@ -1835,7 +1835,6 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.lockedQuantity = this.lockedQuantity / this.totalBuys;
         let averagePrice = instrument_1.buyPrice*this.totalBuys
         this.totalBuys++;
-        this.lockedQuantity = this.lockedQuantity * this.totalBuys;
         this.strategyUtils.logStrategyInfo(`Locked quantity: ${this.lockedQuantity}`);
         let lastPrice = instrument_1.last;
         instrument_1.buyPrice = (averagePrice + lastPrice)/this.totalBuys;
@@ -1853,6 +1852,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         catch (error) {
             this.strategyUtils.logStrategyError(`Error buying instrument 1: ${error.message}`);
         }
+        this.lockedQuantity = this.lockedQuantity * this.totalBuys;
         this.strategyUtils.logStrategyInfo(`Average Buy price: ${instrument_1.buyPrice}`);
         this.strategyUtils.logStrategyInfo(`Total buys: ${this.totalBuys}`);
         this.emitInstrumentDataUpdate();
@@ -2168,7 +2168,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     shouldPlayScenario1FA(){
-        return this.scenario1fahit && !this.scenario1FAdone && this.totalBuys < 4 && !this.boughtSold && !this.targetHit && this.scenario1Cdone && this.scenarioSL4Done && this.checkedDiff;
+        return this.scenario1fahit && !this.scenario1FAdone && this.totalBuys < 4 && !this.boughtSold && !this.targetHit && this.scenario1Cdone && !this.scenarioSL4Done && this.checkedDiff;
     }
 
     shouldPlayScenarioSL(){
