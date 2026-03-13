@@ -492,6 +492,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
             if(this.tickCount >= 0){
                 this.checkResidual();
+                this.checkGalacticCompletionState();
                 // Process ticks based on current block state
                 // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
                 if (this.blockInit) {
@@ -551,7 +552,9 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             this.globalDict.peakAndFallDef = 0;
             this.globalDict.upperLimit = 0;
             this.universalDict.peakDefInCurrentCycle = this.universalDict.peakDefAfterFirstCycle;
-            this.universalDict.enableTrading = this.universalDict.enableTradingForNextCycle;
+            if(this.universalDict.cycles != 2){
+                this.universalDict.enableTrading = this.universalDict.enableTradingForNextCycle;
+            }
             this.emitCommonParameters();
         }
 
@@ -1215,6 +1218,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Target: ${this.universalDict.target}, Stoploss: ${this.globalDict.stoploss}, Quantity: ${this.lockedQuantity} RESET COMPLETED.`);
 
                 this.announceTargetHit();
+                this.announceNextGalacticParameters();
                 // this.previouslyTargetHit = true;
                 this.announcePreviousCompletionMethod('TARGET_HIT');
 
@@ -2178,7 +2182,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         let putDiff = put.last - put.buyPrice;
         callDiff = Math.floor(callDiff);
         putDiff = Math.floor(putDiff);
-        return (callDiff + putDiff) >= (this.universalDict.mtmTarget-this.universalDict.residual) && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done && this.universalDict.cycles >= 2;
+        return (callDiff + putDiff) >= (this.universalDict.mtmTarget-this.universalDict.residual) && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done && this.universalDict.cycles >= 2 && this.universalDict.enableMTM;
     }
 
     shouldPlayScenario1E(){
@@ -2826,6 +2830,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 type: 'boolean',
                 default: true,
                 description: 'Disable if only target needs to be hit.'
+            },
+            enableMTM: {
+                type: 'boolean',
+                default: false,
+                description: 'Disable if MTM not needed'
             },
             enableTrading: {
                 type: 'boolean',
@@ -3756,11 +3765,23 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     }
                 }
             }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE'){
+                if(this.getPairID(this.userId) === pairID){
+                    this.universalDict.enableTrading = this.universalDict.cycles < 3;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
         });
     }
 
     isGalacticSetInstanceComplete(){
         return this.galacticCycleInstanceSet.size >= 2;
+    }
+
+    announceNextGalacticParameters(){
+        this.appendToGalacticOutput(`${this.getPairID(this.userId)}:${this.universalDict.cycles+1}:LIVE\n`);
     }
 
     updateCycleInstanceSet(){
@@ -4187,7 +4208,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     getCommonParameters(){
-        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget"];
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM"];
         return params;
     }
 
