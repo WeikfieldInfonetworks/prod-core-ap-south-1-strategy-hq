@@ -2195,7 +2195,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     shouldPlayScenario1FA(){
-        return this.scenario1fahit && !this.scenario1FAdone && this.totalBuys < 4 && !this.boughtSold && !this.targetHit && this.scenario1Cdone && !this.scenarioSL4Done && this.checkedDiff;
+        return this.scenario1fahit && !this.scenario1FAdone && this.totalBuys < 2 && !this.boughtSold && !this.targetHit && this.scenario1Cdone && !this.scenarioSL4Done && this.checkedDiff;
     }
 
     shouldPlayScenarioSL(){
