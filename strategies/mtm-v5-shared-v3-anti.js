@@ -2836,6 +2836,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 default: false,
                 description: 'Disable if MTM not needed'
             },
+            goingLiveInFirstCycle: {
+                type: 'boolean',
+                default: false,
+                description: 'Going live in first cycle'
+            },
             enableTrading: {
                 type: 'boolean',
                 default: false,
@@ -3765,9 +3770,9 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE'){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle == 2){
                 if(this.getPairID(this.userId) === pairID){
-                    this.universalDict.enableTrading = this.universalDict.cycles < 3;
+                    this.universalDict.enableTrading = !this.universalDict.goingLiveInFirstCycle;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
@@ -4208,7 +4213,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     getCommonParameters(){
-        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM"];
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM", "goingLiveInFirstCycle"];
         return params;
     }
 
