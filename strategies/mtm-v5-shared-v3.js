@@ -3773,6 +3773,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         this.emitCommonParameters();
                     }
                 }
+                else {
+                    this.universalDict.enableTrading = false;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
             }
         });
     }

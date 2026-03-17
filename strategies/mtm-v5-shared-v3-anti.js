@@ -3777,6 +3777,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                         this.emitCommonParameters();
                     }
                 }
+                else {
+                    this.universalDict.enableTrading = false;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
             }
         });
     }
