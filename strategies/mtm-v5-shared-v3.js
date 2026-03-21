@@ -49,6 +49,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             rebuy_value: 0,
             target: 0
         }
+        this.defaultStrategy = "REGULAR";
         this.mtmHit = false;
         this.completeTransaction = false;
         this.residual = 0;
@@ -297,6 +298,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.defaultStrategy = "REGULAR";
         this.mtmHit = false;
         this.completeTransaction = false;
         this.residual = 0;
@@ -772,6 +774,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.peakPriceTime = this.globalDict.timestamp;
                     this.strategyUtils.logStrategyInfo(`PEAK: ${this.peakPrice} TIME: ${this.peakPriceTime}`);
                 }
+            }
+
+            if(this.universalDict.useOppositeStrategy){
+                this.defaultStrategy = "ANTI";
+            }
+            else{
+                this.defaultStrategy = "REGULAR";
             }
 
             // Update peak2 if applicable
@@ -2701,6 +2710,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.defaultStrategy = "REGULAR";
         this.rebuyPrice = 0;
         this.rebuyAveragePrice = 0;
         this.flagSet = {
@@ -3465,6 +3475,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 entryPlusStage: this.entry_plus_24_first_stage || this.entry_plus_24_second_stage,
                 entry7Stage: this.entry_7
             },
+            defaultStrategy: this.defaultStrategy,
             timestamp: new Date().toISOString()
         };
 
@@ -3521,6 +3532,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         entryPlusStage: false,
                         entry7Stage: false
                     },
+                    defaultStrategy: this.defaultStrategy,
                     timestamp: new Date().toISOString()
                 };
                 this.emitStatusUpdate('instrument_data_update', instrumentData);
@@ -3625,6 +3637,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     entryPlusStage: false,
                     entry7Stage: false
                 },
+                defaultStrategy: this.defaultStrategy,
                 timestamp: new Date().toISOString()
             };
 
@@ -3748,6 +3761,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 peakPrice: this.peakPrice,
                 peakPriceTime: this.peakPriceTime
             },
+            defaultStrategy: this.defaultStrategy,
             timestamp: new Date().toISOString()
         };
 

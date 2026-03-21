@@ -6,6 +6,7 @@ import InstrumentTiles from './mtm-v2/InstrumentTiles';
 import SumTile from './mtm-v2/SumTile';
 import PrebuyLowTracking from './mtm-v2/PrebuyLowTracking';
 import PrebuyPeakTracking from './mtm-v2/PrebuyPeakTracking';
+import DefaultStrategyTracking from './mtm-v2/DefaultStrategyTracking';
 import TradingTable from './mtm-v2/TradingTable';
 import PrebuyHistoryTable from './mtm-v2/PrebuyHistoryTable';
 import { Activity, AlertCircle } from 'lucide-react';
@@ -314,6 +315,8 @@ const MTMv2Dashboard = ({ strategy }) => {
         <InstrumentTiles instrumentData={instrumentData} />
         <SumTile instrumentData={instrumentData} />
       </div>
+
+      <DefaultStrategyTracking instrumentData={instrumentData} />
 
       {/* Prebuy low / peak tracking — only after real buy in prebuy mode */}
       {strategy.universalDict?.usePrebuy && (
