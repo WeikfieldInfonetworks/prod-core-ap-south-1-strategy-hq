@@ -3,21 +3,23 @@ import { TrendingDown, Clock } from 'lucide-react';
 
 /**
  * Displays prebuy low tracking: SYMBOL, LOW (price), TIME (when low was recorded).
- * Shown only when instrumentData contains prebuyLowTracking (after real buy in prebuy mode).
+ * Always visible in prebuy dashboard; uses NA / 0 / NA when payload not yet present.
  */
 const PrebuyLowTracking = ({ instrumentData }) => {
   const tracking = instrumentData?.prebuyLowTracking;
-  if (!tracking) return null;
 
   const formatPrice = (price) => {
-    if (price == null || price === '') return '—';
-    if (typeof price === 'string') return parseFloat(price).toFixed(2);
-    if (typeof price !== 'number') return '—';
+    if (price == null || price === '') return '0.00';
+    if (typeof price === 'string') {
+      const n = parseFloat(price);
+      return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+    }
+    if (typeof price !== 'number') return '0.00';
     return parseFloat(price).toFixed(2);
   };
 
   const formatTime = (timestamp) => {
-    if (!timestamp) return '—';
+    if (!timestamp) return 'NA';
     if (typeof timestamp === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(timestamp)) {
       return timestamp;
     }
@@ -34,12 +36,14 @@ const PrebuyLowTracking = ({ instrumentData }) => {
     } catch {
       // fall through
     }
-    return String(timestamp);
+    return 'NA';
   };
 
-  const symbol = tracking.symbol ?? '—';
-  const low = formatPrice(tracking.low);
-  const time = formatTime(tracking.time);
+  const sym = tracking?.symbol;
+  const symbol =
+    sym != null && String(sym).trim() !== '' ? String(sym).trim() : 'NA';
+  const low = formatPrice(tracking?.low);
+  const time = formatTime(tracking?.time);
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-4">
