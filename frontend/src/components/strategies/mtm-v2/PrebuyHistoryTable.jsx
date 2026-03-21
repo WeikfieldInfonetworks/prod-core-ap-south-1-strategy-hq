@@ -118,6 +118,13 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                 lastUpdated: new Date().toISOString()
               };
             }
+          } else if (eventData.type === 'cycle_info' && eventData.cycleInfo) {
+            newHistoryData[existingIndex] = {
+              ...existingCycle,
+              cycleInfo: eventData.cycleInfo,
+              cycleInfoRecordedAt: eventData.timestamp || new Date().toISOString(),
+              lastUpdated: new Date().toISOString()
+            };
           }
         } else {
           // Add new cycle
@@ -125,6 +132,11 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
             cycle: cycleNumber,
             preboughtInstruments: eventData.type === 'prebought_instruments' ? eventData.preboughtInstruments : null,
             tradeEvents: eventData.type === 'trade_event' && eventData.tradeEvent ? [eventData.tradeEvent] : [],
+            cycleInfo: eventData.type === 'cycle_info' && eventData.cycleInfo ? eventData.cycleInfo : undefined,
+            cycleInfoRecordedAt:
+              eventData.type === 'cycle_info'
+                ? eventData.timestamp || new Date().toISOString()
+                : undefined,
             timestamp: eventData.timestamp || new Date().toISOString(),
             lastUpdated: new Date().toISOString(),
             completed: false
@@ -558,6 +570,19 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
     return timestamp;
   };
 
+  /** Normalized labels for strategy cycleInfo snapshot (NEXT_CYCLE boundary). */
+  const describeCycleInfo = (info) => {
+    if (!info) return null;
+    const strategyLabel =
+      info.strategy != null && info.strategy !== '' ? String(info.strategy) : '—';
+    return {
+      strategy: strategyLabel,
+      target: formatPrice(info.target),
+      rebuy: formatPrice(info.rebuy_value),
+      lowBeforeRebuy: formatPrice(info.lowBeforeRebuy)
+    };
+  };
+
   const toggleCycleExpansion = (cycle) => {
     const newExpanded = new Set(expandedCycles);
     if (newExpanded.has(cycle)) {
@@ -779,7 +804,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
         box("Trade Events", () => {
           if (!cycle.tradeEvents || !cycle.tradeEvents.length)
             return text("No trades recorded", 10, false, COLORS.faint);
-  
+
           cycle.tradeEvents
             .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
             .forEach((t) => {
@@ -794,7 +819,26 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
               );
             });
         });
-  
+
+        box("Cycle info (end of cycle)", () => {
+          const d = describeCycleInfo(cycle.cycleInfo);
+          if (!d) {
+            text("No cycle snapshot recorded", 10, false, COLORS.faint);
+            return;
+          }
+          text(`Strategy: ${d.strategy}`, 10, false, COLORS.text);
+          text(`Target: ${d.target}  |  Rebuy: ${d.rebuy}`, 10, false, COLORS.text);
+          text(`Low before rebuy: ${d.lowBeforeRebuy}`, 10, false, COLORS.text);
+          if (cycle.cycleInfoRecordedAt) {
+            text(
+              `Recorded: ${format.time(cycle.cycleInfoRecordedAt)}`,
+              9,
+              false,
+              COLORS.faint
+            );
+          }
+        });
+
         line();
       });
   
@@ -1050,6 +1094,38 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                     </div>
                   </div>
                 )}
+
+                {cycleData.cycleInfo && (() => {
+                  const d = describeCycleInfo(cycleData.cycleInfo);
+                  if (!d) return null;
+                  return (
+                    <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-800">
+                      <div className="font-semibold text-slate-600 uppercase tracking-wide mb-1.5">
+                        Cycle info (at cycle end)
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono">
+                        <span>
+                          <span className="text-slate-500">Strategy</span>{' '}
+                          <span className="font-semibold">{d.strategy}</span>
+                        </span>
+                        <span>
+                          <span className="text-slate-500">Target</span> ₹{d.target}
+                        </span>
+                        <span>
+                          <span className="text-slate-500">Rebuy</span> ₹{d.rebuy}
+                        </span>
+                        <span>
+                          <span className="text-slate-500">Low before rebuy</span> ₹{d.lowBeforeRebuy}
+                        </span>
+                        {cycleData.cycleInfoRecordedAt && (
+                          <span className="text-slate-500 w-full sm:w-auto">
+                            Recorded {formatTime(cycleData.cycleInfoRecordedAt)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               );
             })}

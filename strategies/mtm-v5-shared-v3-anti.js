@@ -50,6 +50,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.lockScenario = false;
         this.reservedQuantity = 0;
         this.doNotEnter1COrSL4 = false;
+        this.cycleInfo = {
+            lowBeforeRebuy: 0,
+            strategy: null,
+            rebuy_value: 0,
+            target: 0
+        }
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -96,6 +102,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             observed: false,
             type: null
         };
+        this.peakPrice = 0;
+        this.peakPriceTime = null;
         this.deepSavedTarget = {used: false, target: 0};
         this.isExpiryDay = false;
         this.finalStoplossHit = false;
@@ -288,6 +296,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.cycleInfo = {
+            lowBeforeRebuy: 0,
+            strategy: null,
+            rebuy_value: 0,
+            target: 0
+        }
         this.mtmHit = false;
         this.completeTransaction = false;
         this.residual = 0;
@@ -295,6 +309,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.lockScenario = false;
         this.reservedQuantity = 0;
         this.doNotEnter1COrSL4 = false;
+        this.peakPrice = 0;
+        this.peakPriceTime = null;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -461,6 +477,10 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     updateUniversalDictParameter(parameter, value) {
+        if(parameter === 'useOppositeStrategy' && this.actualRebuyDone){
+            return true; //Silent update to bypass actual update of useOppositeStrategy
+        }
+        
         const success = super.updateUniversalDictParameter(parameter, value);
         
         if (success) {
@@ -749,6 +769,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     this.prebuyLowTrackingPrice = Math.floor(instrument.last);
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
                     // Track the low but don't emit real-time updates
+                }
+                if(instrument.token == this.prebuyBoughtToken && instrument.last > this.peakPrice){
+                    this.peakPrice = instrument.last;
+                    this.peakPriceTime = this.globalDict.timestamp;
+                    this.strategyUtils.logStrategyInfo(`PEAK: ${this.peakPrice} TIME: ${this.peakPriceTime}`);
                 }
             }
 
@@ -1404,6 +1429,9 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
     processNextCycleBlock(ticks) {
         // this.strategyUtils.logStrategyInfo('Processing NEXT CYCLE block');
+        this.cycleInfo.strategy = this.universalDict.useOppositeStrategy ? "R" : "A";
+        this.cycleInfo.rebuy_value = this.universalDict.rebuyAt;
+        this.cycleInfo.target = this.universalDict.target;
         this.checkGalacticCompletionState();
 
         if(!this.setInstanceComplete){
@@ -1416,6 +1444,33 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
         if(this.isInstancesComplete() && this.isGalacticSetInstanceComplete()){
         
+            const completedCycle = this.universalDict.cycles || 1;
+            if (this.universalDict.usePrebuy) {
+                // lowBeforeRebuy is assigned in scenario1C from prebuyLowTrackingPrice at rebuy time.
+                // After 1C (especially opposite-strategy branch), prebuyLowTrackingPrice may change — emit must keep the 1C snapshot.
+                let lowBeforeRebuy;
+                if (this.scenario1Cdone) {
+                    const v = this.cycleInfo.lowBeforeRebuy;
+                    lowBeforeRebuy =
+                        v !== undefined && v !== null && v !== ''
+                            ? Number(v)
+                            : Number(this.prebuyLowTrackingPrice);
+                } else {
+                    lowBeforeRebuy = Number(this.prebuyLowTrackingPrice) || 0;
+                }
+                if (!Number.isFinite(lowBeforeRebuy)) lowBeforeRebuy = 0;
+
+                this.emitToUser('strategy_cycle_info', {
+                    cycle: completedCycle,
+                    cycleInfo: {
+                        lowBeforeRebuy,
+                        strategy: this.cycleInfo.strategy,
+                        rebuy_value: this.cycleInfo.rebuy_value,
+                        target: this.cycleInfo.target
+                    }
+                });
+            }
+
             // Reset for next cycle
             this.resetForNextCycle();
             
@@ -1571,7 +1626,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
             this.scenario1Cdone = true;
             this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
-    
+            this.cycleInfo.lowBeforeRebuy = this.prebuyLowTrackingPrice;
             //SELL
             // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
             // this.realBuyStoplossHit = true;
@@ -1617,6 +1672,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             //REBUY
             this.actualRebuyDone = true;
             this.prebuyBuyPriceTwice = instrument_1.last;
+            this.cycleInfo.lowBeforeRebuy = this.prebuyLowTrackingPrice;
             // let averagePrice = (this.prebuyBuyPriceOnce + this.prebuyBuyPriceTwice) / 2;
             let rebuy_val = this.universalDict.rebuyAt;
             rebuy_val = Math.floor(rebuy_val);
@@ -2651,6 +2707,14 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             used: false,
             enabled: false
         }
+        this.cycleInfo = {
+            lowBeforeRebuy: 0,
+            strategy: null,
+            rebuy_value: 0,
+            target: 0
+        }
+        this.peakPrice = 0;
+        this.peakPriceTime = null;
         this.rebuyPrice = 0;
         this.rebuyAveragePrice = 0;
         this.flagSet = {
@@ -3682,6 +3746,11 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 symbol: realBoughtInstrument.symbol,
                 low: this.prebuyLowTrackingPrice,
                 time: this.prebuyLowTrackingTime
+            },
+            prebuyPeakTracking: {
+                symbol: realBoughtInstrument.symbol,
+                peakPrice: this.peakPrice,
+                peakPriceTime: this.peakPriceTime
             },
             timestamp: new Date().toISOString()
         };

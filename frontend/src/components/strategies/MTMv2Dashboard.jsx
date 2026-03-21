@@ -5,6 +5,7 @@ import BlockProgress from './mtm-v2/BlockProgress';
 import InstrumentTiles from './mtm-v2/InstrumentTiles';
 import SumTile from './mtm-v2/SumTile';
 import PrebuyLowTracking from './mtm-v2/PrebuyLowTracking';
+import PrebuyPeakTracking from './mtm-v2/PrebuyPeakTracking';
 import TradingTable from './mtm-v2/TradingTable';
 import PrebuyHistoryTable from './mtm-v2/PrebuyHistoryTable';
 import { Activity, AlertCircle } from 'lucide-react';
@@ -131,6 +132,17 @@ const MTMv2Dashboard = ({ strategy }) => {
       }, ...prev]);
     });
 
+    // End-of-cycle reporting snapshot (prebuy): cycleInfo at NEXT_CYCLE → INIT boundary
+    socket.on('strategy_cycle_info', (data) => {
+      const cycle = data.cycle ?? 1;
+      setPrebuyEvents(prev => [{
+        type: 'cycle_info',
+        cycle,
+        cycleInfo: data.cycleInfo,
+        timestamp: data.timestamp || new Date().toISOString()
+      }, ...prev]);
+    });
+
     // Listen for trade events
     socket.on('strategy_trade_event', (data) => {
       console.log('🔍 Received trade event:', data);
@@ -181,6 +193,7 @@ const MTMv2Dashboard = ({ strategy }) => {
       socket.off('strategy_parameter_error');
       socket.off('strategy_prebuy_data');
       socket.off('strategy_prebought_instruments');
+      socket.off('strategy_cycle_info');
       socket.off('strategy_trade_event');
     };
   }, [socket]);
@@ -302,9 +315,12 @@ const MTMv2Dashboard = ({ strategy }) => {
         <SumTile instrumentData={instrumentData} />
       </div>
 
-      {/* Prebuy low tracking (symbol, low, time) - only in prebuy mode */}
+      {/* Prebuy low / peak tracking — only after real buy in prebuy mode */}
       {strategy.universalDict?.usePrebuy && (
-        <PrebuyLowTracking instrumentData={instrumentData} />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <PrebuyLowTracking instrumentData={instrumentData} />
+          <PrebuyPeakTracking instrumentData={instrumentData} />
+        </div>
       )}
 
       {/* Trading Table or Prebuy History */}
