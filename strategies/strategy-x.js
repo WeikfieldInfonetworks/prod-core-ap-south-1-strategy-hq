@@ -147,7 +147,7 @@ class StrategyX extends BaseStrategy {
             
             // Process ticks based on current block state
             // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
-            if(this.tickCount >= 10){
+            if(this.tickCount >= 15){
                 if (this.blockInit) {
                     this.processInitBlock(ticks);
                 }
@@ -485,7 +485,7 @@ class StrategyX extends BaseStrategy {
         let main_filter = (((this.higher_CE_instrument.last - this.higher_CE_instrument.firstPrice) <= -5) && (this.higher_PE_instrument.last < this.higher_PE_instrument.firstPrice));
         let opp_filter = (((this.higher_PE_instrument.last - this.higher_PE_instrument.firstPrice) <= -5) && (this.higher_CE_instrument.last < this.higher_CE_instrument.firstPrice));
         let filter = main_filter || opp_filter;
-        return !this.phase1BuyDone && filter;
+        return !this.phase1BuyDone && (filter || true);
     }
 
     shouldPhase1Sell() {
