@@ -1635,7 +1635,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
             this.scenario1Cdone = true;
             this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
-            this.cycleInfo.lowBeforeRebuy = this.prebuyLowTrackingPrice;
+            
             //SELL
             // this.strategyUtils.logStrategyInfo('Selling existing instrument and buying opposite.');
             // this.realBuyStoplossHit = true;
@@ -1677,7 +1677,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
             this.scenario1Cdone = true;
             this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
-    
+            this.cycleInfo.lowBeforeRebuy = this.prebuyLowTrackingPrice;
             //REBUY
             this.actualRebuyDone = true;
             this.prebuyBuyPriceTwice = instrument_1.last;
@@ -2167,7 +2167,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
             this.scenarioSL4Done = true;
             this.strategyUtils.logStrategyInfo(`Scenario SL4 in action.`)
-    
+            this.cycleInfo.lowBeforeRebuy = this.prebuyLowTrackingPrice;
             //REBUY
             this.actualRebuyDone = true;
             this.prebuyBuyPriceTwice = instrument_1.last;
