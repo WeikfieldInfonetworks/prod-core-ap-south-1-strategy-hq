@@ -52,6 +52,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.doNotEnter1COrSL4 = false;
         this.cycleInfo = {
             lowBeforeRebuy: 0,
+            oppositeSymbol: null,
+            oppositePriceAtLBR: 0,
             strategy: null,
             rebuy_value: 0,
             target: 0
@@ -299,6 +301,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
         this.cycleInfo = {
             lowBeforeRebuy: 0,
+            oppositeSymbol: null,
+            oppositePriceAtLBR: 0,
             strategy: null,
             rebuy_value: 0,
             target: 0
@@ -765,11 +769,19 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             }
 
             if(this.prebuyBoughtToken){
+                if(!this.cycleInfo.oppositeSymbol){
+                    this.cycleInfo.oppositeSymbol = instrument.symbol.includes('CE') ? this.expectedSymbols.put : this.expectedSymbols.call;
+                }
+
                 if(instrument.token == this.prebuyBoughtToken && instrument.last < this.prebuyLowTrackingPrice){
                     console.log(`📉 UPDATE Block - New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
                     this.strategyUtils.logStrategyInfo(`New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
                     this.prebuyLowTrackingPrice = Math.floor(instrument.last);
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
+                    if(this.actualRebuyDone && this.cycleInfo.oppositePriceAtLBR == 0){
+                        this.cycleInfo.oppositePriceAtLBR = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.cycleInfo.oppositeSymbol).token.toString()].last;
+                        this.strategyUtils.logStrategyInfo(`Opposite price at LBR: ${this.cycleInfo.oppositePriceAtLBR} SYMBOL: ${this.cycleInfo.oppositeSymbol}`);
+                    }
                     // Track the low but don't emit real-time updates
                 }
                 if(instrument.token == this.prebuyBoughtToken && instrument.last > this.peakPrice){
@@ -2718,6 +2730,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
         this.cycleInfo = {
             lowBeforeRebuy: 0,
+            oppositeSymbol: null,
+            oppositePriceAtLBR: 0,
             strategy: null,
             rebuy_value: 0,
             target: 0
