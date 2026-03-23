@@ -571,16 +571,56 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
   };
 
   /** Normalized labels for strategy cycleInfo snapshot (NEXT_CYCLE boundary). */
-  const describeCycleInfo = (info) => {
+  const describeCycleInfo = (info, titles) => {
     if (!info) return null;
-    const strategyLabel =
-      info.strategy != null && info.strategy !== '' ? String(info.strategy) : '—';
-    return {
-      strategy: strategyLabel,
-      target: formatPrice(info.target),
-      rebuy: formatPrice(info.rebuy_value),
-      lowBeforeRebuy: formatPrice(info.lowBeforeRebuy)
+
+    const defaultTitles = {
+      lowBeforeRebuy: 'Low before rebuy',
+      oppositeSymbol: 'Opposite Symbol',
+      oppositePriceAtLBR: 'Opposite Price before Rebuy',
+      lowBeforeTarget: 'Low before target',
+      lowBeforeTargetTime: 'Low before target time',
+      oppositePriceAtLBT: 'Opposite Price At Target',
+      strategy: 'Strategy',
+      rebuy_value: 'Rebuy',
+      target: 'Target'
     };
+
+    const mergedTitles = { ...defaultTitles, ...(titles || {}) };
+    const hiddenKeys = new Set(['sendKeys', 'setLowBeforeTarget']);
+    const configuredKeys = Array.isArray(info.sendKeys) && info.sendKeys.length
+      ? info.sendKeys
+      : Object.keys(info).filter((k) => !hiddenKeys.has(k));
+
+    const rows = configuredKeys
+      .filter((key) => !hiddenKeys.has(key))
+      .map((key) => {
+        const rawValue = info[key];
+        let value = '—';
+
+        if (rawValue !== undefined && rawValue !== null && rawValue !== '') {
+          if (key.toLowerCase().includes('time')) {
+            value = formatTime(rawValue);
+          } else if (key === 'strategy' || key.toLowerCase().includes('symbol')) {
+            value = String(rawValue);
+          } else if (
+            typeof rawValue === 'number' ||
+            (typeof rawValue === 'string' && rawValue.trim() !== '' && !Number.isNaN(Number(rawValue)))
+          ) {
+            value = `₹${formatPrice(rawValue)}`;
+          } else {
+            value = String(rawValue);
+          }
+        }
+
+        return {
+          key,
+          label: mergedTitles[key] || key,
+          value
+        };
+      });
+
+    return { rows };
   };
 
   const toggleCycleExpansion = (cycle) => {
@@ -821,14 +861,14 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
         });
 
         box("Cycle info (end of cycle)", () => {
-          const d = describeCycleInfo(cycle.cycleInfo);
+          const d = describeCycleInfo(cycle.cycleInfo, cycle.cycleInfoTitles);
           if (!d) {
             text("No cycle snapshot recorded", 10, false, COLORS.faint);
             return;
           }
-          text(`Strategy: ${d.strategy}`, 10, false, COLORS.text);
-          text(`Target: ${d.target}  |  Rebuy: ${d.rebuy}`, 10, false, COLORS.text);
-          text(`Low before rebuy: ${d.lowBeforeRebuy}`, 10, false, COLORS.text);
+          d.rows.forEach((row) => {
+            text(`${row.label}: ${row.value}`, 10, false, COLORS.text);
+          });
           if (cycle.cycleInfoRecordedAt) {
             text(
               `Recorded: ${format.time(cycle.cycleInfoRecordedAt)}`,
@@ -1096,7 +1136,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                 )}
 
                 {cycleData.cycleInfo && (() => {
-                  const d = describeCycleInfo(cycleData.cycleInfo);
+                  const d = describeCycleInfo(cycleData.cycleInfo, cycleData.cycleInfoTitles);
                   if (!d) return null;
                   return (
                     <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-800">
@@ -1104,19 +1144,16 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                         Cycle info (at cycle end)
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono">
-                        <span>
-                          <span className="text-slate-500">Strategy</span>{' '}
-                          <span className="font-semibold">{d.strategy}</span>
-                        </span>
-                        <span>
-                          <span className="text-slate-500">Target</span> ₹{d.target}
-                        </span>
-                        <span>
-                          <span className="text-slate-500">Rebuy</span> ₹{d.rebuy}
-                        </span>
-                        <span>
-                          <span className="text-slate-500">Low before rebuy</span> ₹{d.lowBeforeRebuy}
-                        </span>
+                        {d.rows.map((row) => (
+                          <span key={row.key}>
+                            <span className="text-slate-500">{row.label}</span>{' '}
+                            {row.key === 'strategy' ? (
+                              <span className="font-semibold">{row.value}</span>
+                            ) : (
+                              row.value
+                            )}
+                          </span>
+                        ))}
                         {cycleData.cycleInfoRecordedAt && (
                           <span className="text-slate-500 w-full sm:w-auto">
                             Recorded {formatTime(cycleData.cycleInfoRecordedAt)}

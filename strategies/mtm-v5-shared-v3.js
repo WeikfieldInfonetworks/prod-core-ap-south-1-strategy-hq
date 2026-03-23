@@ -47,9 +47,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             lowBeforeRebuy: 0,
             oppositeSymbol: null,
             oppositePriceAtLBR: 0,
+            setLowBeforeTarget: false,
+            lowBeforeTarget: 0,
+            lowBeforeTargetTime: null,
+            oppositePriceAtLBT: 0,
             strategy: null,
             rebuy_value: 0,
-            target: 0
+            target: 0,
+            sendKeys: ["lowBeforeRebuy", "oppositeSymbol", "oppositePriceAtLBR", "lowBeforeTarget", "lowBeforeTargetTime", "oppositePriceAtLBT", "strategy", "rebuy_value", "target"]
         }
         this.defaultStrategy = "REGULAR";
         this.mtmHit = false;
@@ -314,9 +319,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             lowBeforeRebuy: 0,
             oppositeSymbol: null,
             oppositePriceAtLBR: 0,
+            setLowBeforeTarget: false,
+            lowBeforeTarget: 0,
+            lowBeforeTargetTime: null,
+            oppositePriceAtLBT: 0,
             strategy: null,
             rebuy_value: 0,
-            target: 0
+            target: 0,
+            sendKeys: ["lowBeforeRebuy", "oppositeSymbol", "oppositePriceAtLBR", "lowBeforeTarget", "lowBeforeTargetTime", "oppositePriceAtLBT", "strategy", "rebuy_value", "target"]
         }
         // Reset MTM specific variables
         this.mainToken = null;
@@ -775,12 +785,23 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.strategyUtils.logStrategyInfo(`New low detected! ${instrument.last} < ${this.prebuyLowTrackingPrice}`);
                     this.prebuyLowTrackingPrice = Math.floor(instrument.last);
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
-                    if(this.actualRebuyDone && this.cycleInfo.oppositePriceAtLBR == 0){
+                    if(!(this.scenario1Cdone || this.scenarioSL4Done)){
                         this.cycleInfo.oppositePriceAtLBR = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.cycleInfo.oppositeSymbol).token.toString()].last;
-                        this.strategyUtils.logStrategyInfo(`Opposite price at LBR: ${this.cycleInfo.oppositePriceAtLBR} SYMBOL: ${this.cycleInfo.oppositeSymbol}`);
                     }
-                    // Track the low but don't emit real-time updates
+
+                    if(this.cycleInfo.setLowBeforeTarget){
+                        this.cycleInfo.lowBeforeTarget = this.prebuyLowTrackingPrice;
+                        this.cycleInfo.lowBeforeTargetTime = this.globalDict.timestamp;
+                        this.cycleInfo.oppositePriceAtLBT = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.cycleInfo.oppositeSymbol).token.toString()].last;
+                    }
                 }
+
+                if(instrument.token == this.prebuyBoughtToken && (this.scenario1Cdone || this.scenarioSL4Done) && !this.boughtSold && !this.cycleInfo.setLowBeforeTarget){
+                    this.cycleInfo.setLowBeforeTarget = true;
+                    this.prebuyLowTrackingPrice = instrument.last;
+                    this.prebuyLowTrackingTime = this.globalDict.timestamp;
+                }
+
                 if(instrument.token == this.prebuyBoughtToken && instrument.last > this.peakPrice){
                     this.peakPrice = instrument.last;
                     this.peakPriceTime = this.globalDict.timestamp;
@@ -1477,14 +1498,33 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 }
                 if (!Number.isFinite(lowBeforeRebuy)) lowBeforeRebuy = 0;
 
+                const cycleInfoKeyTitles = {
+                    lowBeforeRebuy: 'Low before rebuy',
+                    oppositeSymbol: 'Opposite Symbol',
+                    oppositePriceAtLBR: 'Opposite Price before Rebuy',
+                    lowBeforeTarget: 'Low before target',
+                    lowBeforeTargetTime: 'Low before target time',
+                    oppositePriceAtLBT: 'Opposite Price At Target',
+                    strategy: 'Strategy',
+                    rebuy_value: 'Rebuy',
+                    target: 'Target'
+                };
+                const sendKeys = Array.isArray(this.cycleInfo.sendKeys) && this.cycleInfo.sendKeys.length
+                    ? this.cycleInfo.sendKeys
+                    : [];
+                const emittedCycleInfo = {};
+                for (const key of sendKeys) {
+                    if (key === 'lowBeforeRebuy') {
+                        emittedCycleInfo.lowBeforeRebuy = lowBeforeRebuy;
+                    } else {
+                        emittedCycleInfo[key] = this.cycleInfo[key];
+                    }
+                }
+
                 this.emitToUser('strategy_cycle_info', {
                     cycle: completedCycle,
-                    cycleInfo: {
-                        lowBeforeRebuy,
-                        strategy: this.cycleInfo.strategy,
-                        rebuy_value: this.cycleInfo.rebuy_value,
-                        target: this.cycleInfo.target
-                    }
+                    cycleInfo: emittedCycleInfo,
+                    cycleInfoTitles: cycleInfoKeyTitles
                 });
             }
 
@@ -2732,9 +2772,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             lowBeforeRebuy: 0,
             oppositeSymbol: null,
             oppositePriceAtLBR: 0,
+            setLowBeforeTarget: false,
+            lowBeforeTarget: 0,
+            lowBeforeTargetTime: null,
+            oppositePriceAtLBT: 0,
             strategy: null,
             rebuy_value: 0,
-            target: 0
+            target: 0,
+            sendKeys: ["lowBeforeRebuy", "oppositeSymbol", "oppositePriceAtLBR", "lowBeforeTarget", "lowBeforeTargetTime", "oppositePriceAtLBT", "strategy", "rebuy_value", "target"]
         }
         this.peakPrice = 0;
         this.peakPriceTime = null;
