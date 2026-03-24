@@ -779,7 +779,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             }
 
             if(this.prebuyBoughtToken){
-                if(!this.cycleInfo.oppositeSymbol){
+                if(!this.cycleInfo.oppositeSymbol && instrument.token == this.prebuyBoughtToken){
                     this.cycleInfo.oppositeSymbol = instrument.symbol.includes('CE') ? this.expectedSymbols.put : this.expectedSymbols.call;
                 }
 
@@ -803,6 +803,9 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     this.cycleInfo.setLowBeforeTarget = true;
                     this.prebuyLowTrackingPrice = instrument.last;
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
+                    this.cycleInfo.lowBeforeTarget = instrument.last;
+                    this.cycleInfo.lowBeforeTargetTime = this.globalDict.timestamp;
+                    this.cycleInfo.oppositePriceAtLBT = this.universalDict.instrumentMap[this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, this.cycleInfo.oppositeSymbol).token.toString()].last;
                 }
 
                 if(instrument.token == this.prebuyBoughtToken && instrument.last > this.peakPrice){
