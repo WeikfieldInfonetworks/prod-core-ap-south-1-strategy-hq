@@ -607,7 +607,7 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
             typeof rawValue === 'number' ||
             (typeof rawValue === 'string' && rawValue.trim() !== '' && !Number.isNaN(Number(rawValue)))
           ) {
-            value = `₹${formatPrice(rawValue)}`;
+            value = formatPrice(rawValue);
           } else {
             value = String(rawValue);
           }
@@ -869,14 +869,6 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
           d.rows.forEach((row) => {
             text(`${row.label}: ${row.value}`, 10, false, COLORS.text);
           });
-          if (cycle.cycleInfoRecordedAt) {
-            text(
-              `Recorded: ${format.time(cycle.cycleInfoRecordedAt)}`,
-              9,
-              false,
-              COLORS.faint
-            );
-          }
         });
 
         line();
@@ -1154,11 +1146,6 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                             )}
                           </span>
                         ))}
-                        {cycleData.cycleInfoRecordedAt && (
-                          <span className="text-slate-500 w-full sm:w-auto">
-                            Recorded {formatTime(cycleData.cycleInfoRecordedAt)}
-                          </span>
-                        )}
                       </div>
                     </div>
                   );
