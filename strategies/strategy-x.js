@@ -174,7 +174,7 @@ class StrategyX extends BaseStrategy {
 
     processInitBlock(ticks) {
         if (this.universalDict.cycles >= 2) {
-            this.globalDict.enableTrading = false;
+            this.universalDict.enableTrading = false;
         }
 
         // Set strike base and diff based on weekday
@@ -600,6 +600,8 @@ class StrategyX extends BaseStrategy {
         } catch (error) {
             this.strategyUtils.logStrategyError(`Error selling second instrument: ${error.message}`);
         }
+
+        this.universalDict.enableTrading = false;
     }
 
     async phase2Buy() {
@@ -1002,11 +1004,6 @@ class StrategyX extends BaseStrategy {
                 default: -100,
                 description: 'Stop loss in points'
             },
-            enableTrading: {
-                type: 'boolean',
-                default: false,
-                description: 'Enable/disable actual trading'
-            },
             dropThreshold: {
                 type: 'number',
                 default: 0,
@@ -1046,7 +1043,12 @@ class StrategyX extends BaseStrategy {
                 type: 'number',
                 default: 2,
                 description: 'Expiry day (0=Monday, 3=Thursday)'
-            }
+            },
+            enableTrading: {
+                type: 'boolean',
+                default: false,
+                description: 'Enable/disable actual trading'
+            },
         };
     }
 }

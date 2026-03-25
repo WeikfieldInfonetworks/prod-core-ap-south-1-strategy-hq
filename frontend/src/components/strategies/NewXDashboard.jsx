@@ -209,7 +209,7 @@ const NewXDashboard = ({ strategy }) => {
           <div className="bg-purple-50 rounded-lg p-3">
             <div className="text-sm text-purple-600 font-medium">Trading Status</div>
             <div className="text-lg font-bold text-purple-800">
-              {strategy.globalDict?.enableTrading ? 'LIVE' : 'PAPER'}
+              {strategy.universalDict?.enableTrading ? 'LIVE' : 'PAPER'}
             </div>
           </div>
         </div>
