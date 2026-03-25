@@ -553,7 +553,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`First instrument bought - Executed price: ${first_instrument_result.executedPrice}`);
             }
             this.mainInstrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.mainInstrument.last : first_instrument_result.executedPrice;
+            this.mainInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice = this.mainInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.mainInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Main Instrument Buy Price: ${this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice}`);
             // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
 
@@ -567,7 +569,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Second instrument bought - Executed price: ${second_instrument_result.executedPrice}`);
             }
             this.oppInstrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.oppInstrument.last : second_instrument_result.executedPrice;
+            this.oppInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice = this.oppInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.oppInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Other Instrument Buy Price: ${this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice}`);
             // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
         } catch (error) {
@@ -613,7 +617,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`First instrument bought - Executed price: ${first_instrument_result.executedPrice}`);
             }
             this.mainInstrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.mainInstrument.last : first_instrument_result.executedPrice;
+            this.mainInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice = this.mainInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.mainInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Main Instrument Buy Price: ${this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice}`);
             // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
 
@@ -627,7 +633,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Second instrument bought - Executed price: ${second_instrument_result.executedPrice}`);
             }
             this.oppInstrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.oppInstrument.last : second_instrument_result.executedPrice;
+            this.oppInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice = this.oppInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.oppInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Other Instrument Buy Price: ${this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice}`);
             // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
         } catch (error) {
@@ -670,7 +678,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`First instrument bought - Executed price: ${first_instrument_result.executedPrice}`);
             }
             this.mainInstrument.buyPrice = first_instrument_result.executedPrice == 0 ? this.mainInstrument.last : first_instrument_result.executedPrice;
+            this.mainInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice = this.mainInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.mainInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Main Instrument Buy Price: ${this.universalDict.instrumentMap[this.mainInstrument.token].buyPrice}`);
             // this.buyComplete = first_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
 
@@ -684,7 +694,9 @@ class StrategyX extends BaseStrategy {
                 this.strategyUtils.logStrategyInfo(`Second instrument bought - Executed price: ${second_instrument_result.executedPrice}`);
             }
             this.oppInstrument.buyPrice = second_instrument_result.executedPrice == 0 ? this.oppInstrument.last : second_instrument_result.executedPrice;
+            this.oppInstrument.changeFromBuy = 0;
             this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice = this.oppInstrument.buyPrice;
+            this.universalDict.instrumentMap[this.oppInstrument.token].changeFromBuy = 0;
             this.strategyUtils.logStrategyInfo(`Other Instrument Buy Price: ${this.universalDict.instrumentMap[this.oppInstrument.token].buyPrice}`);
             // this.buyComplete = second_instrument_result.executedPrice == 0 && this.globalDict.enableTrading ? false : true;
         } catch (error) {
