@@ -1093,6 +1093,70 @@ class StrategyUtils {
         }
         return null;
     }
+
+    getNearbyInstruments(instrumentMap, symbol, size, direction){
+        let strikePrice = parseInt(symbol.slice(-7, -2));
+        let symbols = [];
+        try{
+            if(direction === 'down'){
+                if(symbol.includes('PE')){
+                    for(let i = 1; i <= size; i++){
+                        let newStrikePrice = strikePrice - i*50;
+                        let newSymbol = `${symbol.slice(0, -7)}${newStrikePrice.toString()}PE`;
+                        symbols.push(newSymbol);
+                    }
+                }
+                else{
+                    for(let i = 1; i <= size; i++){
+                        let newStrikePrice = strikePrice + i*50;
+                        let newSymbol = `${symbol.slice(0, -7)}${newStrikePrice.toString()}CE`;
+                        symbols.push(newSymbol);
+                    }
+                }
+            }
+            else if(direction === 'up'){
+                if(symbol.includes('PE')){
+                    for(let i = 1; i <= size; i++){
+                        let newStrikePrice = strikePrice + i*50;
+                        let newSymbol = `${symbol.slice(0, -7)}${newStrikePrice.toString()}PE`;
+                        symbols.push(newSymbol);
+                    }
+                }
+                else{
+                    for(let i = 1; i <= size; i++){
+                        let newStrikePrice = strikePrice - i*50;
+                        let newSymbol = `${symbol.slice(0, -7)}${newStrikePrice.toString()}CE`;
+                        symbols.push(newSymbol);
+                    }
+                }
+            }
+        }
+        catch(error){
+            console.error(`Error getting nearby instruments: ${error}`);
+            return null;
+        }
+
+        if(symbols.length > 0){
+            let instruments = [];
+            for(let symbol of symbols){
+                let instrument = null;
+                try{
+                    instrument = this.getInstrumentBySymbol(instrumentMap, symbol);
+                }
+                catch(error){
+                    console.error(`Error getting instrument by symbol: ${error}`);
+                    instrument = null;
+                }
+                if(instrument){
+                    instruments.push(instrument);
+                }
+            }
+            return instruments;
+        }
+        else{
+            return null;
+        }
+    }
 }
 
 module.exports = StrategyUtils; 
