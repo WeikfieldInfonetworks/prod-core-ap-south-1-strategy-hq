@@ -1045,8 +1045,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 this.prebuyBoughtToken = real_instrument.token;
                 this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = parseFloat(real_instrument.last)
 
+                if(this.universalDict.extraPairs > 4){
+                 this.universalDict.extraPairs = 4;
+                }
+
                 try {
-                    this.instrumentSet = this.strategyUtils.getNearbyInstruments(this.universalDict.instrumentMap, real_instrument.symbol, 4, 'down');
+                    this.instrumentSet = this.strategyUtils.getNearbyInstruments(this.universalDict.instrumentMap, real_instrument.symbol, this.universalDict.extraPairs, 'down');
                 }
                 catch(error){
                     this.strategyUtils.logStrategyError(`Error getting nearby instruments: ${error.message}`);
@@ -3107,6 +3111,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 default: 65,
                 description: 'Quantity to trade'
             },
+            extraPairs: {
+                type: 'number',
+                default: 4,
+                description: 'Extra pairs to trade'
+            },
             mtmTarget: {
                 type: 'number',
                 default: 20,
@@ -4565,7 +4574,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     getCommonParameters(){
-        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM", "goingLiveInFirstCycle", "useOppositeStrategy"];
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM", "goingLiveInFirstCycle", "useOppositeStrategy", "extraPairs"];
         return params;
     }
 

@@ -1133,6 +1133,7 @@ class StrategyUtils {
         }
         catch(error){
             console.error(`Error getting nearby instruments: ${error}`);
+            this.logStrategyError(`Error getting nearby instruments: ${error}`);
             return null;
         }
 
@@ -1145,6 +1146,7 @@ class StrategyUtils {
                 }
                 catch(error){
                     console.error(`Error getting instrument by symbol: ${error}`);
+                    this.logStrategyError(`Error getting instrument by symbol: ${error}`);
                     instrument = null;
                 }
                 if(instrument){
