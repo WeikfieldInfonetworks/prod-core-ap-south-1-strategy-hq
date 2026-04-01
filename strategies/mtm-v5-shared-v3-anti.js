@@ -1049,7 +1049,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = parseFloat(real_instrument.last)
 
                 try {
-                    this.instrumentSet = this.strategyUtils.getNearbyInstruments(this.universalDict.instrumentMap, real_instrument.symbol, 1, 'down');
+                    this.instrumentSet = this.strategyUtils.getNearbyInstruments(this.universalDict.instrumentMap, real_instrument.symbol, 4, 'down');
                 }
                 catch(error){
                     this.strategyUtils.logStrategyError(`Error getting nearby instruments: ${error.message}`);
@@ -1477,6 +1477,15 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 catch (error) {
                     this.strategyUtils.logStrategyError(`Error selling instrument 1: ${error.message}`);
                 }   
+
+                if(this.instrumentSet.length > 0){
+                    try {
+                        await this.executeInstrumentSet('sell');
+                    }
+                    catch(error){
+                        this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
+                    }
+                }
                 this.completeTransaction = true;
             }
 
