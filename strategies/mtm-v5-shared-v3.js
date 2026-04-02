@@ -1059,7 +1059,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
                 // BUY LOGIC - Buy the real instrument
                 try {
-                    const buyResult = await this.buyInstrument(real_instrument);
+                    const buyResult = await this.buyInstrument(real_instrument, "FIRST_BUY");
                     if (buyResult && buyResult.success) {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
                     }
@@ -1074,7 +1074,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('buy');
+                        await this.executeInstrumentSet('buy', "FIRST_BUY");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -1299,7 +1299,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             else {
                 // this.targetHitByTypeArray.push(instrument_1.symbol.includes('CE') ? 'CE' : 'PE');
                 try {
-                    sellResult = await this.sellInstrument(instrument_1);
+                    sellResult = await this.sellInstrument(instrument_1, "TARGET_SELL");
                     if (sellResult && sellResult.success) {
                         this.strategyUtils.logStrategyInfo(`First instrument sold at target/stoploss - Executed price: ${sellResult.executedPrice}`);
                     } else {
@@ -1322,7 +1322,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('sell');
+                        await this.executeInstrumentSet('sell', "TARGET_SELL");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -1465,7 +1465,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         if (this.boughtSold) {
 
             if(!this.completeTransaction){
-                await this.sellInstrument(instrument_1);
+                await this.sellInstrument(instrument_1, "INCOMPLETE_TRX_SELL");
                 let sellResult = null;
                 let diff = 0;
                 try {
@@ -1481,7 +1481,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 }   
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('sell');
+                        await this.executeInstrumentSet('sell', "INCOMPLETE_TRX_SELL");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -1741,14 +1741,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
             let buyResult = null;
             try {
-                buyResult = await this.buyInstrument(instrument_1);
+                buyResult = await this.buyInstrument(instrument_1, "REBUY");
                 if (buyResult && buyResult.success) {
                     this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
                 }
 
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('buy');
+                        await this.executeInstrumentSet('buy', "REBUY");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -1791,13 +1791,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             // this.realBuyStoplossHit = true;
             let sellResult = null;
             try {
-                sellResult = await this.sellInstrument(instrument_1);
+                sellResult = await this.sellInstrument(instrument_1, "SELL_WHEN_REBUY");
                 if (sellResult && sellResult.success) {
                     this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 }
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('sell');
+                        await this.executeInstrumentSet('sell', "SELL_WHEN_REBUY");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -2279,13 +2279,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             // this.realBuyStoplossHit = true;
             let sellResult = null;
             try {
-                sellResult = await this.sellInstrument(instrument_1);
+                sellResult = await this.sellInstrument(instrument_1, "SELL_WHEN_REBUY");
                 if (sellResult && sellResult.success) {
                     this.strategyUtils.logStrategyInfo(`Real instrument sold - Executed price: ${sellResult.executedPrice}`);
                 }
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('sell');
+                        await this.executeInstrumentSet('sell', "SELL_WHEN_REBUY");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -2339,14 +2339,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = averagePrice;
             let buyResult = null;
             try {
-                buyResult = await this.buyInstrument(instrument_1);
+                buyResult = await this.buyInstrument(instrument_1, "REBUY");
                 if (buyResult && buyResult.success) {
                     this.strategyUtils.logStrategyInfo(`Real instrument bought again - Executed price: ${buyResult.executedPrice}`);
                 }
 
                 if(this.instrumentSet.length > 0){
                     try {
-                        await this.executeInstrumentSet('buy');
+                        await this.executeInstrumentSet('buy', "REBUY");
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
@@ -3279,7 +3279,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     // Helper method to sell a single instrument
-    async sellInstrument(instrument) {
+    async sellInstrument(instrument, tag) {
         this.strategyUtils.logStrategyInfo(`Selling instrument: ${instrument.symbol}`);
         
         // Check if trading is enabled
@@ -3334,7 +3334,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
             
             // Emit simplified trade event after determining executed price
-            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.lockedQuantity || 65);
+            this.emitSimpleTradeEvent('sell', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.lockedQuantity || 65, tag);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -3344,7 +3344,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     // Helper method to buy a single instrument
-    async buyInstrument(instrument) {
+    async buyInstrument(instrument, tag) {
         this.strategyUtils.logStrategyInfo(`Buying instrument: ${instrument.symbol}`);
         
         // Check if trading is enabled
@@ -3407,7 +3407,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
             
             // Emit simplified trade event after determining executed price
-            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.lockedQuantity || 65);
+            this.emitSimpleTradeEvent('buy', instrument.symbol, executedPrice != 0 ? executedPrice : instrument.last, this.lockedQuantity || 65, tag);
             
             return { success: true, executedPrice };
         } catch (error) {
@@ -4007,9 +4007,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     // Simplified trade event emission
-    emitSimpleTradeEvent(action, symbol, price, quantity) {
+    emitSimpleTradeEvent(action, symbol, price, quantity, tag) {
         const tradeEvent = {
             action, // 'buy' or 'sell'
+            tag,
             symbol,
             price,
             quantity,
@@ -4595,16 +4596,16 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         }
     }
 
-    async executeInstrumentSet(order_type){
+    async executeInstrumentSet(order_type, tag){
         try{
             if(order_type === 'buy'){
                 for(let instrument of this.instrumentSet){
-                    await this.buyInstrument(instrument);
+                    await this.buyInstrument(instrument, tag);
                 }
             }
             else if(order_type === 'sell'){
                 for(let instrument of this.instrumentSet){
-                    await this.sellInstrument(instrument);
+                    await this.sellInstrument(instrument, tag);
                 }
             }
         }
