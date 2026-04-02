@@ -4614,7 +4614,6 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         }
         catch(error){
             this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
-            return false;
         }
     }
 

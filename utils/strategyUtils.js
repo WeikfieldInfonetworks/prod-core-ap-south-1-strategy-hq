@@ -1095,6 +1095,7 @@ class StrategyUtils {
     }
 
     getNearbyInstruments(instrumentMap, symbol, size, direction){
+        if(size <= 0) return [];
         let strikePrice = parseInt(symbol.slice(-7, -2));
         let symbols = [];
         try{
@@ -1134,7 +1135,7 @@ class StrategyUtils {
         catch(error){
             console.error(`Error getting nearby instruments: ${error}`);
             this.logStrategyError(`Error getting nearby instruments: ${error}`);
-            return null;
+            return [];
         }
 
         if(symbols.length > 0){
@@ -1156,7 +1157,7 @@ class StrategyUtils {
             return instruments;
         }
         else{
-            return null;
+            return [];
         }
     }
 }
