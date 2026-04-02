@@ -3120,7 +3120,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             extraPairs: {
                 type: 'number',
                 default: 4,
-                description: 'Extra pairs to trade'
+                description: 'Extra pairs to trade. (0 for 1 pair only, 1 for 2.)'
             },
             mtmTarget: {
                 type: 'number',
