@@ -570,6 +570,55 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
     return timestamp;
   };
 
+  // Map trade event tags -> tile color styling.
+  // Note: except `REBUY`, we intentionally reuse the existing BUY (green) and SELL (red) styles.
+  const TAG_TO_TONE = {
+    FIRST_BUY: {
+      isBuy: true,
+      container: 'bg-green-50 border-green-200',
+      iconColor: 'text-green-600',
+      labelColor: 'text-green-800',
+      labelText: 'BUY',
+    },
+    TARGET_SELL: {
+      isBuy: false,
+      container: 'bg-red-50 border-red-200',
+      iconColor: 'text-red-600',
+      labelColor: 'text-red-800',
+      labelText: 'SELL',
+    },
+    INCOMPLETE_TRX_SELL: {
+      isBuy: false,
+      container: 'bg-red-50 border-red-200',
+      iconColor: 'text-red-600',
+      labelColor: 'text-red-800',
+      labelText: 'SELL',
+    },
+    REBUY: {
+      // Dedicated tone for rebuy so the tag is visually distinct from BUY/SELL.
+      isBuy: true,
+      container: 'bg-orange-50 border-orange-200',
+      iconColor: 'text-orange-600',
+      labelColor: 'text-orange-800',
+      labelText: 'REBUY',
+    },
+    SELL_WHEN_REBUY: {
+      isBuy: false,
+      container: 'bg-red-50 border-red-200',
+      iconColor: 'text-red-600',
+      labelColor: 'text-red-800',
+      labelText: 'SELL',
+    },
+  };
+
+  const getTradeTileTone = (tag, action) => {
+    const tone = TAG_TO_TONE[tag];
+    if (tone) return tone;
+
+    // Fallback for unexpected/legacy payloads: keep previous behavior.
+    return action === 'buy' ? TAG_TO_TONE.FIRST_BUY : TAG_TO_TONE.TARGET_SELL;
+  };
+
   /** Normalized labels for strategy cycleInfo snapshot (NEXT_CYCLE boundary). */
   const describeCycleInfo = (info, titles) => {
     if (!info) return null;
@@ -1078,35 +1127,30 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                             Trading Events
                           </h4>
                           <div className="space-y-3">
-            {cycleData.tradeEvents.map((event, index) => (
-              <div 
+            {cycleData.tradeEvents.map((event, index) => {
+              const tone = getTradeTileTone(event.tag, event.action);
+
+              return (
+              <div
                 key={index}
-                className={`p-3 rounded-lg border transition-all duration-300 ${
-                  event.action === 'buy' 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-red-50 border-red-200'
-                }`}
+                className={`p-3 rounded-lg border transition-all duration-300 ${tone.container}`}
               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center space-x-3">
-                                    {event.action === 'buy' ? (
-                                      <ArrowUpCircle className="w-5 h-5 text-green-600" />
+                                    {tone.isBuy ? (
+                                      <ArrowUpCircle className={`w-5 h-5 ${tone.iconColor}`} />
                                     ) : (
-                                      <ArrowDownCircle className="w-5 h-5 text-red-600" />
+                                      <ArrowDownCircle className={`w-5 h-5 ${tone.iconColor}`} />
                                     )}
                                     <div>
-                                      <div className={`text-sm font-semibold ${
-                                        event.action === 'buy' ? 'text-green-800' : 'text-red-800'
-                                      }`}>
-                                        {event.action === 'buy' ? 'BUY' : 'SELL'}
+                                      <div className={`text-sm font-semibold ${tone.labelColor}`}>
+                                        {tone.labelText}
                                       </div>
                                       <div className="text-xs text-gray-600 font-mono">{event.symbol}</div>
                                     </div>
                                   </div>
                                   <div className="text-right">
-                                    <div className={`text-sm font-semibold ${
-                                      event.action === 'buy' ? 'text-green-800' : 'text-red-800'
-                                    }`}>
+                                    <div className={`text-sm font-semibold ${tone.labelColor}`}>
                                       ₹{formatPrice(event.price)}
                                     </div>
                                     <div className="text-xs text-gray-500">
@@ -1119,7 +1163,8 @@ const PrebuyHistoryTable = ({ strategy, tradeEvents = [], preboughtInstruments =
                                   </div>
                                 </div>
                               </div>
-                            ))}
+                            );
+            })}
                           </div>
                         </div>
                       )}
