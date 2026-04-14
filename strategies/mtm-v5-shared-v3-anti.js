@@ -1916,6 +1916,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         // let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         // this.boughtSold = true;
         this.scenario1Ddone = true;
+        this.doNotEnter1COrSL4 = true;
         this.strategyUtils.logStrategyInfo(`Scenario 1D in action.`)
 
         // //SELL
