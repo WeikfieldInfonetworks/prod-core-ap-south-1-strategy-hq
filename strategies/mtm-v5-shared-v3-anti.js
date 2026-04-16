@@ -31,6 +31,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.announcementDone = false;
         this.previousCompletionMethodAnnounced = false;
         this.rebuyDataAnnounced = false;
+        this.rebuyAnnouncementYielded = false;
         this.rebuyFound = false;
         this.checkedDiff = false;
         this.expectedSymbols = { call: null, put: null };
@@ -133,6 +134,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.scenarioSL4Done = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
+        this.scenario1Cinprogress = false;
         this.thirdBought = false;
         this.actualRebuyDone = false;
         this.exit_at_cost = false;
@@ -292,6 +294,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.targetHit = false;
         this.previousCompletionMethodAnnounced = false;
         this.rebuyDataAnnounced = false;
+        this.rebuyAnnouncementYielded = false;
         this.rebuyFound = false;
         this.checkedDiff = false;
         this.scenario1ehit = false;
@@ -412,6 +415,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.scenarioSL4Done = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
+        this.scenario1Cinprogress = false;
         this.thirdBought = false;
         // Reset entry stage variables
         this.entry_24_first_stage = false;
@@ -1777,6 +1781,20 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             this.emitInstrumentDataUpdate();
         }
         else {
+            if (!this.rebuyDataAnnounced) {
+                this.announceRebuyData();
+            }
+
+            // First pass: announce and yield so paired strategy can observe REBUY_DATA.
+            // Second pass: continue with actual rebuy execution.
+            if (!this.rebuyAnnouncementYielded) {
+                this.rebuyAnnouncementYielded = true;
+                this.scenario1Cinprogress = true;
+                await this.delay(500);
+                this.lockScenario = false;
+                return;
+            }
+
             let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
             this.scenario1Cdone = true;
             this.strategyUtils.logStrategyInfo(`Scenario 1C in action.`)
@@ -1825,7 +1843,6 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                 this.previousRebuyData.rebuy_price = parseFloat(this.prebuyLowTrackingPrice) + parseFloat(rebuy_val);
                 this.previousRebuyData.rebuy_price = Math.floor(this.previousRebuyData.rebuy_price);
                 this.previousRebuyData.token = this.prebuyBoughtToken;
-                this.announceRebuyData();
                 this.universalDict.residual = -100;
                 this.totalBuys = 2;
             }
@@ -1834,6 +1851,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             }
     
             this.emitInstrumentDataUpdate();
+            this.scenario1Cinprogress = false;
         }
         this.lockScenario = false;
     }
@@ -2463,7 +2481,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
 
     shouldPlayScenario1C(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
-        return ((instrument_1.last - this.prebuyLowTrackingPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) || this.sl5aHit)&& !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold && !this.scenarioSL4Done && !this.doNotEnter1COrSL4;
+        return ((instrument_1.last - this.prebuyLowTrackingPrice >= (this.universalDict.rebuyAt+this.globalDict.microRebuyControl)) || this.sl5aHit || this.scenario1Cinprogress)&& !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.boughtSold && !this.scenarioSL4Done && !this.doNotEnter1COrSL4;
     }
 
     shouldPlayScenario1CA(){
@@ -2585,6 +2603,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.rebuyDone = false;
         this.previousRebuyData = {};
         this.rebuyDataAnnounced = false;
+        this.rebuyAnnouncementYielded = false;
         this.afterTarget = false;
         this.announcementDone = false;
         this.targetHit = false;
@@ -2907,6 +2926,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.scenarioSL4Done = false;
         this.scenarioSL5Done = false;
         this.scenarioSL5ADone = false;
+        this.scenario1Cinprogress = false;
         this.thirdBought = false;
         this.exit_at_cost = false;
         this.exit_at_stoploss = false;
@@ -2918,6 +2938,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.previouslyExitAtCost = false;
         this.previousRebuyData = {};
         this.rebuyDataAnnounced = false;
+        this.rebuyAnnouncementYielded = false;
         this.previousCompletionMethodAnnounced = false;
         this.rebuyFound = false;
         this.tickA = 0;
@@ -4617,6 +4638,10 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         catch(error){
             this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
         }
+    }
+
+    delay(ms){
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 
 }

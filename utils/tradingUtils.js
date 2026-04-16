@@ -172,7 +172,7 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                market_protection: 10,
+                market_protection: 9,
                 autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false,
                 tag: tag
             };
@@ -227,7 +227,7 @@ class TradingUtils {
                 product: "MIS",
                 order_type: "MARKET",
                 price: parseFloat(price),
-                market_protection: 10,
+                market_protection: 9,
                 autoslice: parseInt(quantity) >= this.FREEZE_LIMIT ? true : false,
                 tag: tag
             };
