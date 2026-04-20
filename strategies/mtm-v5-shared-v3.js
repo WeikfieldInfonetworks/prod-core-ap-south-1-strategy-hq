@@ -4130,13 +4130,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             }
             else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle == 2){
                 if(this.getPairID(this.userId) === pairID){
-                    this.universalDict.enableTrading = !this.universalDict.goingLiveInFirstCycle;
+                    this.universalDict.enableTrading = false;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
                 }
                 else {
-                    this.universalDict.enableTrading = false;
+                    this.universalDict.enableTrading = true;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
