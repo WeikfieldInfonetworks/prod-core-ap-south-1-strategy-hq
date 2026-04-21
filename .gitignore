@@ -140,3 +140,6 @@ vite.config.ts.timestamp-*
 
 # Output files
 output/global.txt
+
+.cursor/*
+graphify-out/*
