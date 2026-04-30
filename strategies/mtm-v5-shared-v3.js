@@ -66,6 +66,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.reservedQuantity = 0;
         this.peakPrice = 0;
         this.peakPriceTime = null;
+        this.bookmark = 0;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -333,6 +334,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             target: 0,
             sendKeys: ["lowBeforeRebuy", "oppositeSymbol", "oppositePriceAtLBR", "lowBeforeTarget", "lowBeforeTargetTime", "oppositePriceAtLBT", "strategy", "rebuy_value", "target"]
         }
+        this.bookmark = 0;
         // Reset MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -538,6 +540,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.checkResidual();
             this.checkGalacticCompletionState();
             this.checkGalacticOppositeStrategy();
+            this.checkBookMark();
+            // this.checkGalacticRealPrice();
             // Process ticks based on current block state
             // Use separate if statements to allow multiple blocks to be processed in the same tick cycle
             if (this.blockInit) {
@@ -1068,6 +1072,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         this.strategyUtils.logStrategyInfo(`Real instrument bought - Executed price: ${buyResult.executedPrice}`);
                     }
                     this.prebuyBuyPriceOnce = buyResult.executedPrice == 0 ? parseFloat(real_instrument.last) : parseFloat(buyResult.executedPrice);
+                    this.universalDict.instrumentMap[this.prebuyBoughtToken].last = this.prebuyBuyPriceOnce;
+                    this.universalDict.instrumentMap[this.prebuyBoughtToken].buyPrice = this.prebuyBuyPriceOnce;
+
                     this.prebuyLowTrackingPrice = this.prebuyBuyPriceOnce;
                     this.prebuyLowTrackingTime = this.globalDict.timestamp;
                     this.totalBuys = 1;
@@ -1084,6 +1091,8 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
                     }
                 }
+
+                this.announceRealPrice(this.universalDict.instrumentMap[this.prebuyBoughtToken]);
 
                 // Emit instrument data update to show the real bought instrument
                 this.emitInstrumentDataUpdate();
@@ -1330,6 +1339,14 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                     catch(error){
                         this.strategyUtils.logStrategyError(`Error executing instrument set: ${error.message}`);
+                    }
+                }
+
+                if(this.mtmHit){
+                    this.universalDict.enableTrading = false;
+                    this.universalDict.enableTradingForNextCycle = false;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
                     }
                 }
 
@@ -1774,9 +1791,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 }
 
                 this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                this.universalDict.instrumentMap[this.prebuyBoughtToken].last = this.prebuyBuyPriceTwice;
+                averagePrice = (parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.prebuyBuyPriceTwice)))/2;
                 this.rebuyDone = true;
                 this.rebuyPrice = this.prebuyBuyPriceTwice;
                 this.rebuyAveragePrice = averagePrice;
+                this.announceRealPrice(this.universalDict.instrumentMap[this.prebuyBoughtToken]);
     
                 // Update the real instrument's buy price to average of both buys
                 instrument_1.buyPrice = averagePrice;
@@ -1824,7 +1844,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
     
-                let diff = sellResult.executedPrice - instrument_1.buyPrice;
+                const executedSellPrice = (sellResult && sellResult.executedPrice && sellResult.executedPrice != 0)
+                    ? sellResult.executedPrice
+                    : instrument_1.last;
+                this.universalDict.instrumentMap[this.prebuyBoughtToken].last = executedSellPrice;
+                this.announceRealPrice(this.universalDict.instrumentMap[this.prebuyBoughtToken]);
+
+                let diff = executedSellPrice - instrument_1.buyPrice;
                 diff = Math.floor(diff);
                 this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
                 // this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
@@ -2317,7 +2343,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
     
-                let diff = sellResult.executedPrice - instrument_1.buyPrice;
+                const executedSellPrice = (sellResult && sellResult.executedPrice && sellResult.executedPrice != 0)
+                    ? sellResult.executedPrice
+                    : instrument_1.last;
+                this.universalDict.instrumentMap[this.prebuyBoughtToken].last = executedSellPrice;
+                this.announceRealPrice(this.universalDict.instrumentMap[this.prebuyBoughtToken]);
+
+                let diff = executedSellPrice - instrument_1.buyPrice;
                 diff = Math.floor(diff);
                 this.strategyUtils.logStrategyInfo(`DIFF AFTER SL4: ${diff}`);
                 // this.scenario1ehit = (diff <= (-1*(this.universalDict.rebuyAt/2)));
@@ -2380,9 +2412,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
                 this.prebuyBuyPriceTwice = buyResult.executedPrice == 0 ? instrument_1.last : buyResult.executedPrice;
+                this.universalDict.instrumentMap[this.prebuyBoughtToken].last = this.prebuyBuyPriceTwice;
+                averagePrice = (parseFloat(this.prebuyBuyPriceOnce) + (parseFloat(this.prebuyBuyPriceTwice)))/2;
                 this.rebuyDone = true;
                 this.rebuyPrice = this.prebuyBuyPriceTwice;
                 this.rebuyAveragePrice = averagePrice;
+                this.announceRealPrice(this.universalDict.instrumentMap[this.prebuyBoughtToken]);
     
                 // Update the real instrument's buy price to average of both buys
                 instrument_1.buyPrice = averagePrice;
@@ -2888,6 +2923,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             target: 0,
             sendKeys: ["lowBeforeRebuy", "oppositeSymbol", "oppositePriceAtLBR", "lowBeforeTarget", "lowBeforeTargetTime", "oppositePriceAtLBT", "strategy", "rebuy_value", "target"]
         }
+        this.bookmark = 0;
         this.peakPrice = 0;
         this.peakPriceTime = null;
         this.droppedBelowSignificantThreshold = false;
@@ -4185,6 +4221,83 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.appendToGalacticOutput(`${this.getPairID(this.userId)}:${this.universalDict.cycles}:OPPOSITE_STRATEGY:${this.universalDict.useOppositeStrategy}\n`);
     }
 
+    announceRealPrice(instrument_1, instrument_2 = null){
+        this.bookmark++;
+        if(instrument_2){
+            this.appendToGalacticOutput(`${this.getPairID(this.userId)}|${this.universalDict.cycles}|REAL_PRICES|${this.bookmark}|${JSON.stringify({[instrument_1.symbol] : instrument_1.last, [instrument_2.symbol]: instrument_2.last})}\n`);
+        }
+        else{
+            this.appendToGalacticOutput(`${this.getPairID(this.userId)}|${this.universalDict.cycles}|REAL_PRICES|${this.bookmark}|${JSON.stringify({[instrument_1.symbol] : instrument_1.last})}\n`);
+        }
+    }
+
+    checkGalacticRealPrice(){
+        let corpus = fs.readFileSync("output/galactic.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let updates = [];
+
+        corpusArray.forEach(line => {
+            if(!line || !line.includes("REAL_PRICES")){
+                return;
+            }
+            let [pairID, cycle, state, incomingBookmark, data] = line.split('|');
+            let parsedCycle = parseInt(cycle);
+            let parsedBookmark = parseInt(incomingBookmark);
+            if(
+                pairID !== this.getPairID(this.userId) &&
+                parsedCycle === parseInt(this.universalDict.cycles) &&
+                state === 'REAL_PRICES' &&
+                !Number.isNaN(parsedBookmark) &&
+                parsedBookmark > this.bookmark
+            ){
+                updates.push({ parsedBookmark, data });
+            }
+        });
+
+        updates.sort((a, b) => a.parsedBookmark - b.parsedBookmark);
+
+        updates.forEach(update => {
+            try{
+                let parsedData = JSON.parse(update.data);
+                Object.entries(parsedData).forEach(([symbol, price]) => {
+                    let instrument = this.strategyUtils.getInstrumentBySymbol(this.universalDict.instrumentMap, symbol);
+                    if(instrument){
+                        this.universalDict.instrumentMap[instrument.token.toString()].last = parseFloat(price);
+                    }
+                });
+                this.bookmark = update.parsedBookmark;
+            }
+            catch(error){
+                this.strategyUtils.logStrategyInfo(`Error while processing REAL_PRICES update: ${error}`);
+            }
+        });
+    }
+
+    checkBookMark(){
+        let corpus = fs.readFileSync("output/galactic.txt", 'utf8');
+        let corpusArray = corpus.split('\n');
+        let latestBookmark = this.bookmark;
+
+        corpusArray.forEach(line => {
+            if(!line || !line.includes("REAL_PRICES")){
+                return;
+            }
+            let [pairID, cycle, state, incomingBookmark, data] = line.split('|');
+            if(
+                parseInt(cycle) === parseInt(this.universalDict.cycles) &&
+                state === 'REAL_PRICES' &&
+                pairID === this.getPairID(this.userId)
+            ){
+                let parsedBookmark = parseInt(incomingBookmark);
+                if(!Number.isNaN(parsedBookmark) && parsedBookmark > latestBookmark){
+                    latestBookmark = parsedBookmark;
+                }
+            }
+        });
+
+        this.bookmark = latestBookmark;
+    }
+
     updateCycleInstanceSet(){
         let corpus = fs.readFileSync(this.getCommFileName(), 'utf8');
         let corpusArray = corpus.split('\n');
@@ -4610,7 +4723,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     getCommonParameters(){
-        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM", "goingLiveInFirstCycle", "useOppositeStrategy", "extraPairs"];
+        let params = ["enableTrading", "enableTradingForNextCycle", "enableManualEntry", "enterNow", "peakDefInCurrentCycle", "peakDefAfterFirstCycle", "quantity", "target", "rebuyAt", "exitAtFirstBuy", "exitAtNegativeRebuy", "enableExitAfterRebuy", "mtmTarget", "enableMTM", "goingLiveInFirstCycle", "useOppositeStrategy", "extraPairs", "disableSecondTrade"];
         return params;
     }
 
