@@ -5,6 +5,7 @@ import BlockProgress from './mtm-v2/BlockProgress';
 import InstrumentTiles from './mtm-v2/InstrumentTiles';
 import SumTile from './mtm-v2/SumTile';
 import PrebuyLowTracking from './mtm-v2/PrebuyLowTracking';
+import AdjustedTargetBanner from './mtm-v2/AdjustedTargetBanner';
 import PrebuyPeakTracking from './mtm-v2/PrebuyPeakTracking';
 import DefaultStrategyTracking from './mtm-v2/DefaultStrategyTracking';
 import TradingTable from './mtm-v2/TradingTable';
@@ -317,6 +318,9 @@ const MTMv2Dashboard = ({ strategy }) => {
       </div>
 
       <DefaultStrategyTracking instrumentData={instrumentData} />
+
+      {/* Adjusted target — visible only after Scenario 1C or SL4 */}
+      <AdjustedTargetBanner instrumentData={instrumentData} />
 
       {/* Prebuy low / peak tracking — only after real buy in prebuy mode */}
       {strategy.universalDict?.usePrebuy && (

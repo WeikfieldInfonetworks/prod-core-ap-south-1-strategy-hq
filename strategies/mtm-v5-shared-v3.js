@@ -1751,7 +1751,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if (!this.rebuyAnnouncementYielded) {
                 this.rebuyAnnouncementYielded = true;
                 this.scenario1Cinprogress = true;
-                await this.delay(500);
+                await this.delay(750);
                 this.lockScenario = false;
                 return;
             }
@@ -3689,6 +3689,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 entry7Stage: this.entry_7
             },
             defaultStrategy: this.defaultStrategy,
+            adjustedTarget: (this.scenario1Cdone || this.scenarioSL4Done)
+                ? (this.universalDict.target + this.universalDict.residual) / 2
+                : null,
             timestamp: new Date().toISOString()
         };
 
@@ -3746,6 +3749,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                         entry7Stage: false
                     },
                     defaultStrategy: this.defaultStrategy,
+                    adjustedTarget: (this.scenario1Cdone || this.scenarioSL4Done)
+                        ? (this.universalDict.target + this.universalDict.residual) / 2
+                        : null,
                     timestamp: new Date().toISOString()
                 };
                 this.emitStatusUpdate('instrument_data_update', instrumentData);
@@ -3851,6 +3857,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     entry7Stage: false
                 },
                 defaultStrategy: this.defaultStrategy,
+                adjustedTarget: (this.scenario1Cdone || this.scenarioSL4Done)
+                    ? (this.universalDict.target + this.universalDict.residual) / 2
+                    : null,
                 timestamp: new Date().toISOString()
             };
 
@@ -3975,6 +3984,9 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 peakPriceTime: this.peakPriceTime
             },
             defaultStrategy: this.defaultStrategy,
+            adjustedTarget: (this.scenario1Cdone || this.scenarioSL4Done)
+                ? (this.universalDict.target + this.universalDict.residual) / 2
+                : null,
             timestamp: new Date().toISOString()
         };
 
