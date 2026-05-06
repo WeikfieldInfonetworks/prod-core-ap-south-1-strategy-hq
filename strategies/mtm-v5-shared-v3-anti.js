@@ -1804,7 +1804,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             if (!this.rebuyAnnouncementYielded) {
                 this.rebuyAnnouncementYielded = true;
                 this.scenario1Cinprogress = true;
-                await this.delay(750);
+                await this.delay(1000);
                 this.lockScenario = false;
                 return;
             }
