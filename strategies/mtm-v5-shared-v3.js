@@ -606,6 +606,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.emitCommonParameters();
         }
 
+        if(this.universalDict.cycles == 3){
+            this.universalDict.rebuyAt = 13;
+            if(!this.universalDict.buySame){
+                this.emitCommonParameters();
+            }
+        }
+
         // Data initialization removed - now using simplified event emission
 
         // Set strike base and diff based on weekday
@@ -3189,7 +3196,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             },
             target: {
                 type: 'number',
-                default: 20,
+                default: 50,
                 description: 'Target profit in points'
             },
             rebuyAt: {
@@ -4198,6 +4205,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 }
                 else {
                     this.universalDict.enableTrading = !this.universalDict.disableSecondTrade;
+                    this.universalDict.rebuyAt = 25;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
