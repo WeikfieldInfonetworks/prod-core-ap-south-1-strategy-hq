@@ -11,7 +11,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.name = 'MTM V5 Shared Strategy V3';
         this.description = 'Mark to Market strategy with interim low detection and prebuy logic V5 - V3';
         this.strategyUtils = new StrategyUtils();
-        
+        this.lockProcedure = false;
         // Strategy state variables
         this.hasActivePosition = false;
         this.buyPrice = null;
@@ -67,6 +67,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.peakPrice = 0;
         this.peakPriceTime = null;
         this.bookmark = 0;
+        this.isCompletionStateChecked = false;
         // MTM specific variables
         this.mainToken = null;
         this.oppToken = null;
@@ -126,6 +127,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.scenario1Ddone = false;
+        this.scenario1DAdone = false;
         this.scenario1Edone = false;
         this.scenario1EAdone = false;
         this.scenario1Fdone = false;
@@ -212,6 +214,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.who_hit_36 = null;
         this.userId = null;
         this.sl5aHit = false;
+        this._1DAHit = false;
         this.lockedQuantity = 0;
         this.tickA = 0;
         this.tickB = 0;
@@ -282,6 +285,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.lastSellTime = null;
         this.buyCompleted = false;
         this.sellCompleted = false;
+        this.lockProcedure = false;
         this.debugMode = false;
         this.cycleInstanceSet = new Set();
         this.galacticCycleInstanceSet = new Set();
@@ -387,6 +391,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             reached_average_price: false
         }
         this.droppedBelowSignificantThreshold = false;
+        this.isCompletionStateChecked = false;
         this.reachedHalfTarget = false;
         this.savedState = {};
         this.realBuyStoplossHit = false;
@@ -411,6 +416,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.scenario1Ddone = false;
+        this.scenario1DAdone = false;
         this.scenario1Edone = false;
         this.scenario1EAdone = false;
         this.scenario1Fdone = false;
@@ -460,6 +466,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.buyingCompleted = false;
         this.finalRefCompleted = false;
         this.sl5aHit = false;
+        this._1DAHit = false;
         this.lockedQuantity = 0;
         this.scenario1ea_hit = false;
 
@@ -531,7 +538,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
     }
 
     async processTicks(ticks) {
+        if(this.lockProcedure){
+            return;
+        }
+
         try {
+            this.lockProcedure = true;
             this.tickCount++;
             console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
             console.log(`Number of ticks received: ${ticks.length}`);
@@ -572,6 +584,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.emitInstrumentDataUpdate();
             
             console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
+            this.lockProcedure = false;
         } catch (error) {
             console.error(`Error in processTicks for tick batch #${this.tickCount}:`, error);
             throw error; // Re-throw to be handled by the caller
@@ -1450,6 +1463,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             if(this.shouldPlayScenario1D()){
                 await this.scenario1D();
             }
+
+            if(this.shouldPlayScenario1DA()){
+                await this.scenario1DA();
+            }
             if(this.shouldPlayScenario1E()){
                 await this.scenario1E();
             }
@@ -1992,6 +2009,17 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
 
         this.mtmHit = true;
         this.announceMTMHit();
+        this.lockScenario = false;
+    }
+
+    async scenario1DA(){
+        this.lockScenario = true;
+        this._1DAHit = true;
+        this.scenario1DAdone = true;
+        this.doNotEnter1COrSL4 = true;
+        this.strategyUtils.logStrategyInfo(`Scenario 1DA in action.`)
+        this.announce1DAHit();
+        this.boughtSold = true;
         this.lockScenario = false;
     }
 
@@ -2546,6 +2574,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         return (callDiff + putDiff) >= (this.universalDict.mtmTarget-this.universalDict.residual) && !this.boughtSold && !this.universalDict.buySame && !this.scenario1Cdone && !this.scenarioSL5Done && !this.mtmHit && !this.scenario1Ddone && !this.scenarioSL4Done && this.universalDict.enableMTM;
     }
 
+    shouldPlayScenario1DA(){
+        let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
+        let today = parseInt(new Date().getDay());
+        let flag = (today == 2 && (instrument_1.last - this.prebuyBuyPriceOnce) <= -5 ) || (this.universalDict.rebuyAt >= 6 && (instrument_1.last - this.prebuyBuyPriceOnce) <= -5);
+        return flag && !this.boughtSold && this.actualRebuyDone && !this.scenario1DAdone && !this._1DAHit;
+    }
+
     shouldPlayScenario1E(){
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         return ((instrument_1.last - this.prebuyLowTrackingPrice) >= this.universalDict.rebuyAt) && !this.boughtSold && !this.scenario1Adone && !this.scenario1Bdone && !this.scenario1Cdone && !this.scenario1CAdone && !this.scenario1Edone && this.scenarioSL4Done && this.scenario1ehit && false;
@@ -2899,6 +2934,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.checkedDiff = false;
         this.expectedSymbols = { call: null, put: null };
         this.tickCountFlag = false;
+        this.isCompletionStateChecked = false;
         this.tickA = null;
         this.tickB = null;
         this.lockedQuantity = 0;
@@ -2964,6 +3000,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.scenario1Cdone = false;
         this.scenario1CAdone = false;
         this.scenario1Ddone = false;
+        this.scenario1DAdone = false;
         this.scenario1Edone = false;
         this.scenario1EAdone = false;
         this.scenario1Fdone = false;
@@ -3007,6 +3044,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.who_hit_36 = null;
         this.sl2a = false;
         this.sl5aHit = false;
+        this._1DAHit = false;
         this.scenario1ea_hit = false;
         this.scenario1ehit = false;
         this.scenario1fahit = false;
@@ -4187,6 +4225,10 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let pairIDlist = ["GW0633", "GW0634"];
         corpusArray.forEach(line => {
             let [pairID, cycle, state] = line.split(':');
+            if(parseInt(cycle) !== parseInt(this.universalDict.cycles)){
+                return;
+            }
+            
             if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'COMPLETE'){
                 if(pairIDlist.includes(pairID)){
                     this.galacticCycleInstanceSet.add(pairID);
@@ -4196,9 +4238,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle == 2){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle == 2 && !this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
                 if(this.getPairID(this.userId) === pairID){
                     this.universalDict.enableTrading = false;
+                    this.universalDict.rebuyAt = 13;
+                    this.universalDict.target = 50;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
@@ -4206,6 +4251,45 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                 else {
                     this.universalDict.enableTrading = !this.universalDict.disableSecondTrade;
                     this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle >= 3 && !this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
+                if(this.getPairID(this.userId) === pairID){
+                    this.universalDict.rebuyAt = 13;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+                else {
+                    this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle == 2 && this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
+                if(this.getPairID(this.userId) === pairID){
+                    this.universalDict.enableTrading = !this.universalDict.disableSecondTrade;
+                    this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle >= 3 && this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
+                if(this.getPairID(this.userId) === pairID){
+                    this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
@@ -4366,6 +4450,11 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     this.mtmHit = true;
                     this.strategyUtils.logStrategyInfo('MTM hit announced');
                 }
+                else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && !this._1DAHit && !this.announcementDone){
+                    this._1DAHit = true;
+                    this.boughtSold = true;
+                    this.strategyUtils.logStrategyInfo('1DA hit announced');
+                }
             }
         });
     }
@@ -4439,6 +4528,13 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:SL5_EXIT\n`);
         // this.sl5aHit = true;
         this.announcementDone = true;
+    }
+
+    announce1DAHit(){
+        this.appendToGlobalOutput(`${this.universalDict.cycles}:${this.userId}:${this.cycleInstanceId}:1DA_HIT\n`);
+        this.announcementDone = true;
+
+        this.appendToGalacticOutput(`${this.getPairID(this.userId)}:${this.universalDict.cycles+1}:1DA_HIT\n`);
     }
 
     announcePrebuy(prebuyInstruments){

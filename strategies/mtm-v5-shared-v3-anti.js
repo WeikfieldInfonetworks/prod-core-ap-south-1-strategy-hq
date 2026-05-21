@@ -11,6 +11,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.name = 'MTM V5 Shared Strategy V3 Anti';
         this.description = 'Mark to Market strategy with interim low detection and prebuy logic V5 - V3 Anti';
         this.strategyUtils = new StrategyUtils();
+        this.lockProcedure = false;
         
         // Strategy state variables
         this.hasActivePosition = false;
@@ -148,6 +149,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.sl2a = false;
         this.totalBuys = 0;
         this.previouslyTargetHit = false;
+        this.isCompletionStateChecked = false;
         this.previouslyExitAtCost = false;
         this.previousRebuyData = {};
         // Block states
@@ -305,6 +307,8 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.tickB = null;
         this.buyVerified = false;
         this.verificationError = false;
+        this.lockProcedure = false;
+        this.isCompletionStateChecked = false;
         this.instrumentSet = [];
         this.tradingState = {
             used: false,
@@ -531,7 +535,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
     }
 
     async processTicks(ticks) {
+        if(this.lockProcedure){
+            return;
+        }
+
         try {
+            this.lockProcedure = true;
             this.tickCount++;
             console.log(`=== Processing Tick Batch #${this.tickCount} ===`);
             console.log(`Number of ticks received: ${ticks.length}`);
@@ -574,6 +583,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             }
             
             console.log(`=== Tick Batch #${this.tickCount} Complete ===`);
+            this.lockProcedure = false;
         } catch (error) {
             console.error(`Error in processTicks for tick batch #${this.tickCount}:`, error);
             throw error; // Re-throw to be handled by the caller
@@ -2975,6 +2985,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         this.rebuyDataAnnounced = false;
         this.rebuyAnnouncementYielded = false;
         this.previousCompletionMethodAnnounced = false;
+        this.isCompletionStateChecked = false;
         this.rebuyFound = false;
         this.tickA = 0;
         this.tickB = 0;
@@ -4171,6 +4182,9 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
         let pairIDlist = ["GW0633", "GW0634"];
         corpusArray.forEach(line => {
             let [pairID, cycle, state] = line.split(':');
+            if(parseInt(cycle) !== parseInt(this.universalDict.cycles)){
+                return;
+            }
             if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'COMPLETE'){
                 if(pairIDlist.includes(pairID)){
                     this.galacticCycleInstanceSet.add(pairID);
@@ -4180,16 +4194,47 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && cycle == 2){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && parseInt(cycle) == 2 && !this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
                 if(this.getPairID(this.userId) === pairID){
                     this.universalDict.enableTrading = false;
                     this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
                 }
                 else {
                     this.universalDict.enableTrading = false;
+                    this.universalDict.rebuyAt = 13;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === 'LIVE' && parseInt(cycle) >= 3 && !this.isCompletionStateChecked){
+                this.isCompletionStateChecked = true;
+                if(this.getPairID(this.userId) === pairID){
+                    this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+                else {
+                    this.universalDict.rebuyAt = 13;
+                    this.universalDict.target = 50;
+                    if(!this.universalDict.buySame){
+                        this.emitCommonParameters();
+                    }
+                }
+            }
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && parseInt(cycle) >= 2 && this.isCompletionStateChecked){
+                if(this.getPairID(this.userId) !== pairID){
+                    this.isCompletionStateChecked = true;
+                    this.universalDict.rebuyAt = 25;
+                    this.universalDict.target = 50;
                     if(!this.universalDict.buySame){
                         this.emitCommonParameters();
                     }
