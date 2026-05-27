@@ -619,12 +619,12 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
             this.emitCommonParameters();
         }
 
-        if(this.universalDict.cycles == 3){
-            this.universalDict.rebuyAt = 13;
-            if(!this.universalDict.buySame){
-                this.emitCommonParameters();
-            }
-        }
+        // if(this.universalDict.cycles == 3){
+        //     this.universalDict.rebuyAt = 13;
+        //     if(!this.universalDict.buySame){
+        //         this.emitCommonParameters();
+        //     }
+        // }
 
         // Data initialization removed - now using simplified event emission
 
@@ -4274,7 +4274,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle == 2 && this.isCompletionStateChecked){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle == 2 && !this.isCompletionStateChecked){
                 this.isCompletionStateChecked = true;
                 if(this.getPairID(this.userId) === pairID){
                     this.universalDict.enableTrading = !this.universalDict.disableSecondTrade;
@@ -4285,7 +4285,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle >= 3 && this.isCompletionStateChecked){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && cycle >= 3 && !this.isCompletionStateChecked){
                 this.isCompletionStateChecked = true;
                 if(this.getPairID(this.userId) === pairID){
                     this.universalDict.rebuyAt = 25;

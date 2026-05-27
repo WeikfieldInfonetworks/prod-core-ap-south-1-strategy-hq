@@ -618,12 +618,12 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
             this.emitCommonParameters();
         }
 
-        if(this.universalDict.cycles == 3){
-            this.universalDict.rebuyAt = 13;
-            if(!this.universalDict.buySame){
-                this.emitCommonParameters();
-            }
-        }
+        // if(this.universalDict.cycles == 3){
+        //     this.universalDict.rebuyAt = 13;
+        //     if(!this.universalDict.buySame){
+        //         this.emitCommonParameters();
+        //     }
+        // }
 
         // Data initialization removed - now using simplified event emission
 
@@ -4230,7 +4230,7 @@ class MTMV5SharedStrategyV3Anti extends BaseStrategy {
                     }
                 }
             }
-            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && parseInt(cycle) >= 2 && this.isCompletionStateChecked){
+            else if(parseInt(cycle) === parseInt(this.universalDict.cycles) && state === '1DA_HIT' && parseInt(cycle) >= 2 && !this.isCompletionStateChecked){
                 if(this.getPairID(this.userId) !== pairID){
                     this.isCompletionStateChecked = true;
                     this.universalDict.rebuyAt = 25;
