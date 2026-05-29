@@ -2578,7 +2578,7 @@ class MTMV5SharedStrategyV3 extends BaseStrategy {
         let instrument_1 = this.universalDict.instrumentMap[this.prebuyBoughtToken];
         let today = parseInt(new Date().getDay());
         let flag = (today == 2 && (instrument_1.last - this.prebuyBuyPriceOnce) <= -5 ) || (this.universalDict.rebuyAt >= 6 && (instrument_1.last - this.prebuyBuyPriceOnce) <= -5);
-        return flag && !this.boughtSold && this.actualRebuyDone && !this.scenario1DAdone && !this._1DAHit;
+        return flag && !this.boughtSold && this.actualRebuyDone && !this.scenario1DAdone && !this._1DAHit && this.universalDict.cycles == 1;
     }
 
     shouldPlayScenario1E(){
